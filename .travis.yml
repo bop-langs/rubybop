@@ -2,6 +2,9 @@ language: c
 sudo: required
 compiler:
   - gcc
+os:
+  - linux
+  - osx
 #dependencies for the ruby language
 before_install:
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq update; fi"
