@@ -15,6 +15,3 @@ before_install:
 
 script:
 	rake
-	
-notifications:
-	email: never
