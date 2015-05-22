@@ -1,4 +1,4 @@
 [submodule "ruby"]
 	path = ruby
-	url = git@github.com:ruby/ruby.git
+	url = git://github.com/someuser/somelibrary.git
 	branch = ruby_2_2
