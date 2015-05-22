@@ -17,6 +17,7 @@ install: "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq build-dep ru
 
 before_script: #before tests run
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then rm -f ~/Library/Logs/DiagnosticReports/ruby_*.crash; fi"
+  - cd ruby
   - "uname -a"
   - "uname -r"
   - "rm -fr .ext autom4te.cache"
