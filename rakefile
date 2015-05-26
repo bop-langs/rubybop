@@ -9,3 +9,17 @@ task :ruby_setup do
 	sh 'make'
   end
 end
+
+task :ruby_tests => :ruby_setup do
+  cd "ruby" do
+	sh 'make test' do |ok, res|
+		if res.exitstatus != 0
+			fail 'tests failed'
+  end
+end
+
+task :clean
+  cd "ruby" do
+    sh 'make clean'
+	end
+end
