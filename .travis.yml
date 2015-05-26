@@ -13,11 +13,14 @@ before_install:
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then brew install autoconf openssl; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' && $CC = 'gcc' ]]; then CC='gcc-4.9'; fi"
-install: "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq build-dep ruby1.9.1 2>/dev/null; fi"
+
+install: 
+  - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq build-dep ruby1.9.1 2>/dev/null; fi"
+  - rake #actuall build
 
 before_script: #before tests run
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then rm -f ~/Library/Logs/DiagnosticReports/ruby_*.crash; fi"
-  - cd ruby
+  - cd ruby #ruby before_script tasks
   - "uname -a"
   - "uname -r"
   - "rm -fr .ext autom4te.cache"
@@ -32,5 +35,7 @@ before_script: #before tests run
   - "make -s $JOBS encs"
   - "make -s $JOBS exts"
   - "make update-rubyspec"
-  
-script: rake
+#test script
+script:
+  - cd ruby/
+  - make test
