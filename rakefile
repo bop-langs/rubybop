@@ -6,14 +6,14 @@ task :ruby_setup do
       sh 'autoconf'
       sh './configure'
     end
-		sh 'make'
+  sh 'make'
   end
 end
 
 task :test => :ruby_setup do
   cd "ruby" do
 		sh 'make test' do |ok, res|
-			if ! ok
+			if ! ok then
 				fail "tests failed (status = #{res.exitstatus}"
 			end
 		end
