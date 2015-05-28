@@ -59,7 +59,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define NUM_CLASSES 8
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
 #define base_size ALIGNMENT //the smallest usable payload, anthing smaller than ALIGNMENT gets rounded up
-#define SIZE_C(k) (((k)*ALIGN((((base_size) + HSIZE))))) //allows for successive spliting
+#define SIZE_C(k) (1 << (k + )) //allows for successive spliting
 
 typedef struct{
     header * start[NUM_CLASSES];
@@ -103,7 +103,7 @@ void carve(int tasks){
         current_headers[index] = (header *) headers[index];
     //actually split the lists
     for(index = 0; index < NUM_CLASSES; index++){
-        count = sizes[index] / tasks;
+        count = counts[index] / tasks;
         for(r = 0; r < tasks; r++){
             regions[r].start[index] = current_headers[index];
             for(j = 0; j < count && temp; j++){
@@ -203,7 +203,7 @@ void * dm_realloc(void * ptr, size_t new_size){
     size_t old_size = old_head->allocated.blocksize;
 
     memcpy(payload, ptr, old_size);
-    free(ptr);
+    dm_free(ptr);
     return payload;
 }
 
@@ -213,7 +213,7 @@ void dm_free(void* ptr){
     header * append_list;
     if(0 /*TODO BOP_Running*/){
         //just add to the free list   
-        append_list = freelist;     
+        append_list = freelist;
     }else{
         if(size > MAX_SIZE){
             free(free_header); //system free

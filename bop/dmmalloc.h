@@ -21,5 +21,5 @@ typedef union{
 } header;
 
 //data accessors for merge time
-void get_lists(header ** freed, header** allocated); //give data
+void get_lists(header* freed, header* allocated); //give data
 void update_internal_lists(header * freed, header * allocated); //update my data
