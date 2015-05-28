@@ -9,7 +9,7 @@ If a PPR task runs out of memory, it must abort speculation. Calls to the underl
 The under study maintains access to the entire free list. Since either the understudy or the PPR tasks will survive past the commit stage, this is still safe.
 At commit time, the free lists of PPR tasks are merged along with the standard BOP changes. This allows memory not used by PPR tasks to be reclaimed and used later.
 Freeing
-when a PPR task frees something from the global heap (something it did not allocate, eg it was either allocated by a prior PPR task or before and PPRs were started) it marks as freed and moves to a new list. This list is parsed at commit time and is always (???) accepted. We cannot immediately move it into the free list since when allocating a new object of that size. If multiple PPR tasks do this (which is correct in sequential execution) and both allocate the new object, the merge will fail.
+when a PPR task frees something from the global heap (something it did not allocate, eg it was either allocated by a prior PPR task or before and PPRs were started) it marks as freed and moves to a new list. This list is parsed at commit time and is always (???) accepted. We cannot immediately move it into the free list since when allocating a new object of that size. If multiple PPR tasks do this (which is correct in sequential execution) and both allocate the new object, the merge will fail. 	
 
 Large objects:
 Size classes need to be finite, so there will be some sizes not handled by this method, the work around is:
@@ -79,6 +79,18 @@ int counts[NUM_CLASSES];
 
 header* allocatedList = NULL;
 header* freelist = NULL;
+
+int get_index(int size)
+{
+    int index = 0;
+    //Space is too big. Return maximum possible index.                          
+    if (size >= (1<<(NUM_CLASSES-1)))
+        return NUM_CLASSES-1;
+    //Divide by alignment until we have zero to get index.                            
+    while ((size/ALIGNMENT(base_size + HSIZE)>0)
+        index++;
+    return index;
+}
 
 /** Divide up the currently allocated groups into regions*/
 void carve(int tasks){
