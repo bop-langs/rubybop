@@ -87,7 +87,7 @@ int get_index(int size)
     if (size >= (1<<(NUM_CLASSES-1)))
         return NUM_CLASSES-1;
     //Divide by alignment until we have zero to get index.                            
-    while ((size/ALIGN(base_size + HSIZE)>0)
+    while (size/ALIGN(base_size + HSIZE)>0)
         index++;
     return index;
 }
