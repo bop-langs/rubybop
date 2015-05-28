@@ -25,6 +25,13 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 #include "dmmalloc.h"
 
+//Variable bit identifier code.
+//#define BIT_IDENTIFIER k uses the kth lowest bit
+#define BIT_IDENTIFIER 3
+#define HEADER_IDENTIFIER_MASK (1<<(BIT_IDENTIFIER-1))
+
+#define IS_ALLOCED_BY_DM(HEADER_P) (HEADER_P & HEADER_IDENTIFIER_MASK)
+
 //bit masks for marking large objects when allocated. We have 2 bits to play with
 #ifndef MASK
 #if __WORDSIZE == 64
@@ -72,7 +79,6 @@ int counts[NUM_CLASSES];
 
 header* allocatedList = NULL;
 header* freelist = NULL;
-
 
 /** Divide up the currently allocated groups into regions*/
 void carve(int tasks){
