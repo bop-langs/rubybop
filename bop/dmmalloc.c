@@ -48,7 +48,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 
 //alignment macros
-#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
 
 //header macros
