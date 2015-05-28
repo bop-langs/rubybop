@@ -1,6 +1,7 @@
-task :default => :ruby_setup
+task :default => :build
 
-task :ruby_setup do
+task :build => :bop do
+  #build ruby
   cd "ruby" do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
@@ -10,7 +11,14 @@ task :ruby_setup do
   end
 end
 
-task :test => :ruby_setup do
+task :bop do
+  #build bop
+  cd "bop" do
+    sh 'gcc -I. -Wall -O3 *.c -c'
+  end
+end
+
+task :test => :build do
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
@@ -26,4 +34,7 @@ task :clean do
 			sh 'make clean'
 		end
 	end
+  cd "bop" do
+    sh 'rm -f *.o'
+  end
 end
