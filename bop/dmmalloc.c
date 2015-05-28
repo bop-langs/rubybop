@@ -142,7 +142,6 @@ static inline header * get_header(size_t size, int * which){
     		*which = get_index(size);
             found = headers[*which];
          }
-    }
     //clean up
     if(found == NULL || (/*TODO IN_PPR_TASK && */ CASTH(found) == ends[*which]->free.next))
         return NULL;
