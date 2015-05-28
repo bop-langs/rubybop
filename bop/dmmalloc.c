@@ -138,14 +138,10 @@ static inline header * get_header(size_t size, int * which){
     if(size > MAX_SIZE){
         *which = -1;
         return NULL;
-    }else{    
-        for(ind = 0; ind < NUM_CLASSES; ind++){
-            if(sizes[ind] >= size){
-                *which = ind;
-                found = headers[ind];
-                break;
-            }
-        }
+    }else{
+    		*which = get_index(size);
+            found = headers[*which];
+         }
     }
     //clean up
     if(found == NULL || (/*TODO IN_PPR_TASK && */ CASTH(found) == ends[*which]->free.next))
