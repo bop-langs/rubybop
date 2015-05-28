@@ -41,7 +41,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define mask 0xfffffffc
 #define ALIGNMENT 4
 #else
-#define MASK 0
+#error "need 32 or 64 bit function"
 #endif
 #endif
 
@@ -59,7 +59,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define NUM_CLASSES 8
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
 #define base_size ALIGNMENT //the smallest usable payload, anthing smaller than ALIGNMENT gets rounded up
-#define SIZE_C(k) (1 << (k + )) //allows for successive spliting
+#define SIZE_C(k) (1 << (k + 5)) //allows for successive spliting
 
 typedef struct{
     header * start[NUM_CLASSES];
