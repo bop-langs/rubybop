@@ -29,7 +29,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define BIT_IDENTIFIER 3
 #define HEADER_IDENTIFIER_MASK (1<<(BIT_IDENTIFIER-1))
 
-#define IS_ALLOCED_BY_DM(HEADER_P) (HEADER_P & HEADER_IDENTIFIER_MASK)
+#define IS_ALLOCED_BY_DM(HEADER_P) ((HEADER_P) & HEADER_IDENTIFIER_MASK)
 
 //bit masks for marking large objects when allocated. We have 2 bits to play with
 #ifndef MASK
@@ -64,24 +64,23 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 				(BLKS_7 * SIZE_C(7)) + (BLKS_8 * SIZE_C(8)))
 
 //header macros
-#define HEADER(vp) ((header *) ((char *) (vp)) - HSIZE)
+#define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
 #define CASTH(h) ((struct header *) (h))
 
 //class size macros
 #define NUM_CLASSES 8
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define base_size ALIGNMENT //the smallest usable payload, anything smaller than ALIGNMENT gets rounded up
-#define SIZE_C(k) (1 << (k + 4)) //allows for successive spliting
+#define SIZE_C(k) ALIGN((1 << (k + 4))) //allows for successive spliting
 
 //BOP macros
-#define SERIAL 1 //just for testing, will be replaced with actual macro
+#define SEQUENTIAL 1 //just for testing, will be replaced with actual macro
 
 typedef struct {
     header * start[NUM_CLASSES];
     header * end[NUM_CLASSES];
 } ppr_list;
 
-ppr_list* regions;
+ppr_list* regions = NULL;
 
 
 //header info
@@ -97,17 +96,18 @@ header* allocatedList = NULL;
 header* freelist = NULL;
 
 int get_index(int size) {
+    assert(size == ALIGN(size));
     //Space is too big.
     if(size > sizes[NUM_CLASSES - 1])
         return -1; //too big
     //bit-twidling for computing the size class
    int targetlevel = -4; //offset of -4 from the SIZE_C macro
-    while (size >>= 1) 
-        ++targetlevel;
+   while (size >>= 1) 
+      ++targetlevel;
     assert(targetlevel > 0);
     return targetlevel;
 }
-
+/**Get more space from the system*/
 static void grow(){
 	char * space_head = malloc(GROW_S); //system malloc, use byte-sized type
     int num_blocks[] = {BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6, BLKS_7, BLKS_8};
@@ -115,34 +115,39 @@ static void grow(){
     header* head;
     for(class_index = 0; class_index < NUM_CLASSES; class_index++){
         size = sizes[class_index];
+        counts[class_index] += num_blocks[class_index];
         if(headers[class_index] == NULL){
             //list was empty
             headers[class_index] = (header *) space_head;
-            space_head += sizes[class_index];
+            space_head += size;
             num_blocks[class_index]--;
         }
         head = headers[class_index];
         for(blocks_left = num_blocks[class_index]; blocks_left; blocks_left--){
-            head->free.next = CASTH(space_head);
-            ((header *) space_head)->free.prev = CASTH(head);
+            ((header *) space_head)->free.next = CASTH(head);
+            head->free.prev = CASTH(space_head);
+            head = (header *) space_head;
             space_head+=size;
+            
         }
     }
 }
 /** Divide up the currently allocated groups into regions*/
 void carve(int tasks) {
-	if(SERIAL)
+	if(SEQUENTIAL)
 		return;
     assert(tasks >= 2);
+    if(regions != NULL)
+        dm_free(regions); //don't need old bounds anymore
     regions = dm_malloc(tasks * sizeof(ppr_list));
-    int index, count, j, r = 0;
+    int index, count, j, r;
     header * current_headers[NUM_CLASSES];
     header * temp = NULL;
     for(index = 0; index < NUM_CLASSES; index++)
         current_headers[index] = (header *) headers[index];
     //actually split the lists
     for(index = 0; index < NUM_CLASSES; index++) {
-        count = counts[index] / tasks;
+        count = counts[index] = counts[index] / tasks;
         for(r = 0; r < tasks; r++) {
             regions[r].start[index] = current_headers[index];
             for(j = 0; j < count && temp; j++) {
@@ -181,7 +186,7 @@ static inline header * get_header(size_t size, int * which) {
         found = headers[*which];
     }
     //clean up
-    if(found == NULL || (!SERIAL && CASTH(found) == ends[*which]->free.next))
+    if(found == NULL || (!SEQUENTIAL && CASTH(found) == ends[*which]->free.next))
         return NULL;
     return found;
 }
@@ -193,10 +198,11 @@ void * dm_malloc(size_t size) {
     size_t alloc_size = ALIGN(size + HSIZE);
     int which = -2;
     header * block = get_header(alloc_size, &which);
+    assert(which != -2);
     if(block == NULL) {
         //no item in list. Either correct list is empty OR huge block
-		if(SERIAL){
-        	if(which == -1){
+		if(SEQUENTIAL){
+        	if(size > MAX_SIZE){
                 //huge block always use system malloc
                 block = malloc(alloc_size);
                 //don't need to add to free list, just set information
@@ -216,8 +222,8 @@ void * dm_malloc(size_t size) {
                     block = headers[which];
                 }
             }
-        } else if (!SERIAL){
-            //TODO BOP_ABORT() if in PPR (!SERIAL)
+        } else if (!SEQUENTIAL){
+            //TODO BOP_ABORT() if in PPR (!SEQUENTIAL)
         }
         return block;
     }
@@ -258,7 +264,7 @@ void dm_free(void* ptr) {
     header * free_header = HEADER(ptr);
     int which = -1, size = free_header->allocated.blocksize;
     header * append_list;
-    if(!SERIAL) {
+    if(!SEQUENTIAL) {
         //just add to the free list
         append_list = freelist;
     } else {
