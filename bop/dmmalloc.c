@@ -64,19 +64,17 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 				(BLKS_7 * SIZE_C(7)) + (BLKS_8 * SIZE_C(8)))
 
 //header macros
-#define HEADER(vp) ((vp) - (sizeof(header)))
+#define HEADER(vp) ((header *) ((char *) (vp)) - HSIZE)
 #define CASTH(h) ((struct header *) (h))
 
 //class size macros
 #define NUM_CLASSES 8
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define base_size ALIGNMENT //the smallest usable payload, anthing smaller than ALIGNMENT gets rounded up
+#define base_size ALIGNMENT //the smallest usable payload, anything smaller than ALIGNMENT gets rounded up
 #define SIZE_C(k) (1 << (k + 4)) //allows for successive spliting
 
 //BOP macros
 #define SERIAL 1 //just for testing, will be replaced with actual macro
-
-
 
 typedef struct {
     header * start[NUM_CLASSES];
@@ -99,18 +97,19 @@ header* allocatedList = NULL;
 header* freelist = NULL;
 
 int get_index(int size) {
-    int index = 0;
-    //Space is too big. Return maximum possible index.
-    if (size >= (1<<(NUM_CLASSES-1)))
-        return NUM_CLASSES-1;
-    //Divide by alignment until we have zero to get index.
-    while (size/ALIGN(base_size + HSIZE)>0)
-        index++;
-    return index;
+    //Space is too big.
+    if(size > sizes[NUM_CLASSES - 1])
+        return -1; //too big
+    //bit-twidling for computing the size class
+   int targetlevel = -4; //offset of -4 from the SIZE_C macro
+    while (size >>= 1) 
+        ++targetlevel;
+    assert(targetlevel > 0);
+    return targetlevel;
 }
 
-void grow(){
-	void * space_head = malloc(GROW_S); //system malloc
+static void grow(){
+	char * space_head = malloc(GROW_S); //system malloc, use byte-sized type
     int num_blocks[] = {BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6, BLKS_7, BLKS_8};
     int class_index, blocks_left, size;
     header* head;
@@ -118,7 +117,7 @@ void grow(){
         size = sizes[class_index];
         if(headers[class_index] == NULL){
             //list was empty
-            headers[class_index] = space_head;
+            headers[class_index] = (header *) space_head;
             space_head += sizes[class_index];
             num_blocks[class_index]--;
         }
@@ -202,11 +201,11 @@ void * dm_malloc(size_t size) {
                 block = malloc(alloc_size);
                 //don't need to add to free list, just set information
                 block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
-			}else{
+			}else if(which < NUM_CLASSES){ //not valid operation for the largest size class
                 //carve up from larger group
                 block = headers[which + 1]; //block to carve up
                 if(block != NULL){
-                    header* split = block + (sizes[which] >> 1);
+                    header* split = block + (sizes[which] >> 1); //cut in half
                     //add the split block to right free list, which is empty
                     split->free.next = NULL;
                     split->free.prev = NULL;
@@ -274,8 +273,8 @@ void dm_free(void* ptr) {
     }
     //append to the relevant list
     if(append_list == NULL) {
-        *append_list = *free_header;
         free_header->free.next = free_header->free.prev = NULL; //one item in the list
+        append_list = free_header;
     } else {
         append_list->free.prev = CASTH(free_header);
         free_header->free.next = CASTH(append_list);

@@ -7,7 +7,7 @@ task :build => :bop do
       sh 'autoconf'
       sh './configure'
     end
-  sh 'make'
+    sh 'make'
   end
 end
 
