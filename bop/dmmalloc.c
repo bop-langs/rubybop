@@ -3,7 +3,7 @@
 A dual-stage malloc implementation to support safe PPR forks
 Each stage (sequential/no PPR tasks running) and a PPR tasks’ design is the same, a basic size-class allocator. The complications come when PPR_begin is called:
 Allocating
-A PPR task is given part of the parent’s free lists to use for its memory. This ensures that there will be no ‘extra’ conflicts at commit time.Td
+A PPR task is given part of the parent’s free lists to use for its memory. This ensures that there will be no ‘extra’ conflicts at commit time.
 If there is not enough memory, the parent gets new memory from the system and then gives it to the PPR task (GROUP_INIT)
 If a PPR task runs out of memory, it must abort speculation. Calls to the underlying malloc are not guaranteed to not conflict with other.
 The under study maintains access to the entire free list. Since either the understudy or the PPR tasks will survive past the commit stage, this is still safe.
@@ -22,7 +22,6 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #include <stdlib.h>
 #include <string.h> /* for memcpy */
 #include <assert.h>
-
 #include "dmmalloc.h"
 
 //Variable bit identifier code.
@@ -41,15 +40,28 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define mask 0xfffffffc
 #define ALIGNMENT 4
 #else
-#error "need 32 or 64 bit function"
+#error "need 32 or 64 bit word size"
 #endif
 #endif
-
 
 
 //alignment macros
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
+
+//grow macros
+#define BLKS_1 50
+#define BLKS_2 50
+#define BLKS_3 40
+#define BLKS_4 30
+#define BLKS_5 20
+#define BLKS_6 10
+#define BLKS_7 10
+#define BLKS_8 5
+#define GROW_S ((BLKS_1 * SIZE_C(1)) + (BLKS_2 * SIZE_C(2)) + \
+				(BLKS_3 * SIZE_C(3)) + (BLKS_4 * SIZE_C(4)) + \
+				(BLKS_5 * SIZE_C(5)) + (BLKS_6 * SIZE_C(6)) + \
+				(BLKS_7 * SIZE_C(7)) + (BLKS_8 * SIZE_C(8)))
 
 //header macros
 #define HEADER(vp) ((vp) - (sizeof(header)))
@@ -59,7 +71,12 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define NUM_CLASSES 8
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
 #define base_size ALIGNMENT //the smallest usable payload, anthing smaller than ALIGNMENT gets rounded up
-#define SIZE_C(k) (1 << (k + 5)) //allows for successive spliting
+#define SIZE_C(k) (1 << (k + 4)) //allows for successive spliting
+
+//BOP macros
+#define SERIAL 1 //just for testing, will be replaced with actual macro
+
+
 
 typedef struct {
     header * start[NUM_CLASSES];
@@ -70,19 +87,18 @@ ppr_list* regions;
 
 
 //header info
-header* headers[NUM_CLASSES];
+header* headers[NUM_CLASSES]; //TODO items default to NULL?? //current heads of free lists
 header* ends[NUM_CLASSES]; //end of lists in PPR region
 
-int  sizes[NUM_CLASSES] = {SIZE_C(1), SIZE_C(2), SIZE_C(3), SIZE_C(4),
-                           SIZE_C(5), SIZE_C(6), SIZE_C(7), SIZE_C(8)
-                          };
+int sizes[NUM_CLASSES] = {SIZE_C(1), SIZE_C(2), SIZE_C(3), SIZE_C(4),
+                          SIZE_C(5), SIZE_C(6), SIZE_C(7), SIZE_C(8)
+                         };
 int counts[NUM_CLASSES];
 
 header* allocatedList = NULL;
 header* freelist = NULL;
 
-int get_index(int size)
-{
+int get_index(int size) {
     int index = 0;
     //Space is too big. Return maximum possible index.
     if (size >= (1<<(NUM_CLASSES-1)))
@@ -93,12 +109,35 @@ int get_index(int size)
     return index;
 }
 
+void grow(){
+	void * space_head = malloc(GROW_S); //system malloc
+    int num_blocks[] = {BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6, BLKS_7, BLKS_8};
+    int class_index, blocks_left, size;
+    header* head;
+    for(class_index = 0; class_index < NUM_CLASSES; class_index++){
+        size = sizes[class_index];
+        if(headers[class_index] == NULL){
+            //list was empty
+            headers[class_index] = space_head;
+            space_head += sizes[class_index];
+            num_blocks[class_index]--;
+        }
+        head = headers[class_index];
+        for(blocks_left = num_blocks[class_index]; blocks_left; blocks_left--){
+            head->free.next = CASTH(space_head);
+            ((header *) space_head)->free.prev = CASTH(head);
+            space_head+=size;
+        }
+    }
+}
 /** Divide up the currently allocated groups into regions*/
 void carve(int tasks) {
+	if(SERIAL)
+		return;
     assert(tasks >= 2);
     regions = dm_malloc(tasks * sizeof(ppr_list));
     int index, count, j, r = 0;
-    header* current_headers[NUM_CLASSES];
+    header * current_headers[NUM_CLASSES];
     header * temp = NULL;
     for(index = 0; index < NUM_CLASSES; index++)
         current_headers[index] = (header *) headers[index];
@@ -134,7 +173,6 @@ void initialize_group(int group_num) {
 /**size: alligned size, includes space for the header*/
 static inline header * get_header(size_t size, int * which) {
     header * found = NULL;
-    int ind;
     //requested allocation is too big
     if(size > MAX_SIZE) {
         *which = -1;
@@ -144,7 +182,7 @@ static inline header * get_header(size_t size, int * which) {
         found = headers[*which];
     }
     //clean up
-    if(found == NULL || (/*TODO IN_PPR_TASK && */ CASTH(found) == ends[*which]->free.next))
+    if(found == NULL || (!SERIAL && CASTH(found) == ends[*which]->free.next))
         return NULL;
     return found;
 }
@@ -158,22 +196,36 @@ void * dm_malloc(size_t size) {
     header * block = get_header(alloc_size, &which);
     if(block == NULL) {
         //no item in list. Either correct list is empty OR huge block
-        if(which == -1 /*&& !PPR*/) {
-            //use system malloc
-            block = malloc(alloc_size);
-            //don't need to add to free list, just set information
-            block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
-        } else {
-            //TODO BOP_ABORT() if in PPR
+		if(SERIAL){
+        	if(which == -1){
+                //huge block always use system malloc
+                block = malloc(alloc_size);
+                //don't need to add to free list, just set information
+                block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
+			}else{
+                //carve up from larger group
+                block = headers[which + 1]; //block to carve up
+                if(block != NULL){
+                    header* split = block + (sizes[which] >> 1);
+                    //add the split block to right free list, which is empty
+                    split->free.next = NULL;
+                    split->free.prev = NULL;
+                    headers[which] = split;
+                }else{
+                    //need to grow the heap
+                    grow();
+                    block = headers[which];
+                }
+            }
+        } else if (!SERIAL){
+            //TODO BOP_ABORT() if in PPR (!SERIAL)
         }
         return block;
     }
     //update the new size class head
     headers[which] = (header *) block->free.next;
 
-    if(allocatedList == NULL)
-        allocatedList = block;
-    else {
+    if(allocatedList != NULL) {
         block->allocated.next = (void *) allocatedList;
         allocatedList = block;
     }
@@ -207,7 +259,7 @@ void dm_free(void* ptr) {
     header * free_header = HEADER(ptr);
     int which = -1, size = free_header->allocated.blocksize;
     header * append_list;
-    if(0 /*TODO BOP_Running*/) {
+    if(!SERIAL) {
         //just add to the free list
         append_list = freelist;
     } else {
