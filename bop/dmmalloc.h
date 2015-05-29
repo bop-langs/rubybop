@@ -1,6 +1,6 @@
 //prototypes
 void * dm_malloc(size_t);
-void * dm_ralloc(void *, size_t);
+void * dm_realloc(void *, size_t);
 void dm_free(void *);
 void * dm_calloc(size_t, size_t);
 
