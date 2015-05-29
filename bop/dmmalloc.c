@@ -97,6 +97,7 @@ header* freelist = NULL;
 
 int get_index(int size) {
     assert(size == ALIGN(size));
+    int orig_size = size;
     //Space is too big.
     if(size > sizes[NUM_CLASSES - 1])
         return -1; //too big
@@ -105,6 +106,7 @@ int get_index(int size) {
    while (size >>= 1) 
       ++targetlevel;
     assert(targetlevel > 0);
+    assert(sizes[targetlevel] >= orig_size);
     return targetlevel;
 }
 /**Get more space from the system*/
@@ -128,7 +130,6 @@ static void grow(){
             head->free.prev = CASTH(space_head);
             head = (header *) space_head;
             space_head+=size;
-            
         }
     }
 }
