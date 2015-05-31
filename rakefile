@@ -14,7 +14,7 @@ end
 task :bop do
   #build bop
   cd "bop" do
-    sh 'gcc -I. -Wall -O3 *.c -c'
+    sh 'gcc -I. -Wall -O3 *.c -lm -c'
   end
 end
 

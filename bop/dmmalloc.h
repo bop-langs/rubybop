@@ -10,8 +10,8 @@ void initialize_group(int);
 
 typedef union{
 	struct{
+		struct header * next;   // ONLY USED IF NEED PPR-local allocated objects (commit, PPR-local GC)
 		size_t blocksize; // which free list to insert freed items into
-        struct header * next;   // ONLY USED IF NEED PPR-local allocated objects (commit, PPR-local GC)
 	} allocated;
 	struct{
         //doubly linked free list for partioning
