@@ -23,6 +23,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #include <string.h> /* for memcpy */
 #include <assert.h>
 #include <math.h>
+#include <stdbool.h> //boolean types
 #include "dmmalloc.h"
 
 //Variable bit identifier code.
@@ -97,19 +98,25 @@ int counts[NUM_CLASSES];
 header* allocatedList = NULL; //list of items allocated during PPR-mode
 header* freedlist = NULL; //list of items freed during PPR-mode
 
+//helper prototypes
+int get_index(size_t);
+static void grow(void);
+inline void free_now(header*);
+bool list_contains(header* list, header* search_value);
+
 int get_index(size_t size) {
-	assert(size == ALIGN(size));
+    assert(size == ALIGN(size));
     //Space is too big.
     if(size > sizes[NUM_CLASSES - 1])
         return -1; //too big
-	//Computations for the actual index, off set of -5 from macro & array indexing
-	//if the size is not a power of two, it get rounded down so need to add one for none-powers of 2
-    int index = log2(size) - 5; 
-	if(sizes[index] < size)
-		index++;
+    //Computations for the actual index, off set of -5 from macro & array indexing
+    //if the size is not a power of two, it get rounded down so need to add one for none-powers of 2
+    int index = log2(size) - 5;
+    if(sizes[index] < size)
+        index++;
     assert(index >= 0 && index < NUM_CLASSES);
     assert(sizes[index] >= size);
-	assert(index == 0 || sizes[index - 1] < size);
+    assert(index == 0 || sizes[index - 1] < size);
     return index;
 }
 /**Get more space from the system*/
@@ -129,11 +136,11 @@ static void grow() {
         }
         for(blocks_left = num_blocks[class_index]; blocks_left; blocks_left--) {
             ((header *) space_head)->free.next = CASTH(headers[class_index]);
-			head = headers[class_index];
+            head = headers[class_index];
             head->free.prev = CASTH(space_head);
             head = (header *) space_head;
             space_head+=size;
-			headers[class_index] = head;
+            headers[class_index] = head;
         }
     }
 }
@@ -204,39 +211,32 @@ void * dm_malloc(size_t size) {
     assert(which != -2);
     if(block == NULL) {
         //no item in list. Either correct list is empty OR huge block
-        if(SEQUENTIAL) {
-            if(size > MAX_SIZE) {
-                //huge block always use system malloc
-                block = malloc(alloc_size);
-                //don't need to add to free list, just set information
-                block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
-            } else if(which < NUM_CLASSES-1 && headers[which+1] != NULL) { 
-						//not valid operation for the largest size class or empty class
-                //carve up from larger group
-                block = headers[which + 1]; //block to carve up
-                if(block != NULL) {
-                    header* split = (header*) (CHARP(block) + (sizes[which] >> 1)); //cut in half
-                    //add the split block to right free list, which is empty
-                    split->free.next = CASTH(headers[which]);
-                    split->free.prev = NULL;
-					headers[which]->free.prev = CASTH(split);
-                    headers[which] = split;
-                }
-            } else {
-                //need to grow the heap
-                grow();
-                block = headers[which];
+        if(SEQUENTIAL && size > MAX_SIZE) {
+            //huge block always use system malloc
+            block = malloc(alloc_size);
+            //don't need to add to free list, just set information
+            block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
+        } else if(which < NUM_CLASSES-1 && headers[which+1] != NULL) {
+            block = headers[which + 1]; //block to carve up
+            if(block != NULL) {
+                header* split = (header*) (CHARP(block) + (sizes[which] >> 1)); //cut in half
+                //add the split block to right free list, which is empty
+                split->free.next = CASTH(headers[which]);
+                split->free.prev = NULL;
+                headers[which]->free.prev = CASTH(split);
+                headers[which] = split;
             }
+        } else if(SEQUENTIAL) {
+            grow();
+            block = headers[which];
+        }else{
+        	//TODO bop_abort
         }
-    } else if (!SEQUENTIAL) {
-        //TODO BOP_ABORT() if in PPR (!SEQUENTIAL)
     }
-//update the new size class head
-    headers[which] = (header *) block->free.next;
-	//TODO build up the allocated list that is used in PPR mode
+	//actually allocate the block
+    headers[which] = (header *) block->free.next; //remove from free list
     block->allocated.blocksize = sizes[which];
-	block->allocated.next = NULL; //for debugging
-//update counts
+    block->allocated.next = NULL; //for debugging
     counts[which]--;
     return (CHARP(block) + HSIZE);
 }
@@ -260,25 +260,44 @@ void * dm_realloc(void * ptr, size_t new_size) {
     dm_free(ptr);
     return payload;
 }
-
+/**Free a block if any of the following are true
+	1) Any sized block running in SEQ mode
+	2) Small block allocated and freed by this PPR task.
+	A free is queued to be free'd at BOP commit time otherwise.
+*/
 void dm_free(void* ptr) {
     header * free_header = HEADER(ptr);
-    int which = -1, size = free_header->allocated.blocksize;
     if(!SEQUENTIAL) {
-        //if allocated in current PPR, free it as normal. Else, append to the freed list
-    } else {
-        if(size > MAX_SIZE) {
-            free(free_header); //system free
-            return;
+        //needs to be allocated in this PPR task, ie. in the freed list
+        if(list_contains(allocatedList, free_header))
+            free_now(free_header);
+        else {
+            //TODO add to the free list
         }
-		header* stack = get_header(size, &which);
-		assert(sizes[which] == size); //should exactly align
-		//prepend onto free stack
-        stack->free.prev = CASTH(free_header);
-		free_header->free.next = CASTH(stack);
-		free_header->free.prev = NULL; //debug
-		headers[which] = free_header;
-        counts[which]++;
+    } else {
+        free_now(free_header);
     }
-    
 }
+//free a (regular or huge) block now
+inline void free_now(header* head) {
+    int which;
+    size_t size = head->allocated.blocksize;
+    //test for system block
+    if(size > MAX_SIZE) {
+        free(head); //system free, only in PPR
+        return;
+    }
+    header* stack = get_header(size, &which);
+    assert(sizes[which] == size); //should exactly align
+
+    stack->free.prev = CASTH(head);
+    head->free.next = CASTH(stack);
+    head->free.prev = NULL; //debug
+    headers[which] = head;
+    counts[which]++;
+}
+
+bool list_contains(header* list, header* search_value) {
+    return false;
+}
+
