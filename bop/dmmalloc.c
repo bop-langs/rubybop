@@ -207,12 +207,12 @@ void * dm_malloc(size_t size) {
                 block = malloc(alloc_size);
                 //don't need to add to free list, just set information
                 block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
-            } else if(0 && which < NUM_CLASSES && headers[which+1] != NULL) { 
+            } else if(which < NUM_CLASSES-1 && headers[which+1] != NULL) { 
 						//not valid operation for the largest size class or empty class
                 //carve up from larger group
                 block = headers[which + 1]; //block to carve up
                 if(block != NULL) {
-                    header* split = block + (sizes[which] >> 1); //cut in half
+                    header* split = (header*) ((char *) block) + (sizes[which] >> 1); //cut in half
                     //add the split block to right free list, which is empty
                     split->free.next = NULL;
                     split->free.prev = NULL;
