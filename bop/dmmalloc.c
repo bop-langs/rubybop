@@ -87,27 +87,29 @@ ppr_list* regions = NULL;
 
 
 //header info
-header* headers[NUM_CLASSES]; //TODO items default to NULL?? //current heads of free lists
+header* headers[NUM_CLASSES]; //current heads of free lists
 header* ends[NUM_CLASSES]; //end of lists in PPR region
 
 int sizes[NUM_CLASSES] = {SIZE_C(1), SIZE_C(2), SIZE_C(3), SIZE_C(4),
-                          SIZE_C(5), SIZE_C(6), SIZE_C(7), SIZE_C(8)
+                          SIZE_C(5), SIZE_C(6), SIZE_C(7), SIZE_C(8),
                          };
 int counts[NUM_CLASSES];
 
-header* allocatedList = NULL; //list of items allocated during PPR-mode
-header* freedlist = NULL; //list of items freed during PPR-mode
+header* allocatedList= NULL; //list of items allocated during PPR-mode
+header* freedlist= NULL; //list of items freed during PPR-mode
 
 //helper prototypes
 int get_index(size_t);
 static void grow(void);
 inline void free_now(header*);
-bool list_contains(header* list, header* search_value);
+bool list_contains(header* list, header* item);
+inline void add_alloc_list(header** list, header* item);
+const int a = ALIGNMENT; //testing...
 
 int get_index(size_t size) {
     assert(size == ALIGN(size));
     //Space is too big.
-    if(size > sizes[NUM_CLASSES - 1])
+    if(size > MAX_SIZE)
         return -1; //too big
     //Computations for the actual index, off set of -5 from macro & array indexing
     //if the size is not a power of two, it get rounded down so need to add one for none-powers of 2
@@ -216,14 +218,13 @@ void * dm_malloc(size_t size) {
             block = malloc(alloc_size);
             //don't need to add to free list, just set information
             block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
+            return (CHARP(block) + HSIZE);
         } else if(which < NUM_CLASSES-1 && headers[which+1] != NULL) {
             block = headers[which + 1]; //block to carve up
             if(block != NULL) {
                 header* split = (header*) (CHARP(block) + (sizes[which] >> 1)); //cut in half
                 //add the split block to right free list, which is empty
-                split->free.next = CASTH(headers[which]);
-                split->free.prev = NULL;
-                headers[which]->free.prev = CASTH(split);
+                split->free.next = split->free.prev = NULL;
                 headers[which] = split;
             }
         } else if(SEQUENTIAL) {
@@ -238,6 +239,8 @@ void * dm_malloc(size_t size) {
     block->allocated.blocksize = sizes[which];
     block->allocated.next = NULL; //for debugging
     counts[which]--;
+    if(!SEQUENTIAL)
+    	add_alloc_list(&allocatedList, block);
     return (CHARP(block) + HSIZE);
 }
 
@@ -260,10 +263,11 @@ void * dm_realloc(void * ptr, size_t new_size) {
     dm_free(ptr);
     return payload;
 }
-/**Free a block if any of the following are true
-	1) Any sized block running in SEQ mode
-	2) Small block allocated and freed by this PPR task.
-	A free is queued to be free'd at BOP commit time otherwise.
+/*
+ * Free a block if any of the following are true
+ *	1) Any sized block running in SEQ mode
+ *	2) Small block allocated and freed by this PPR task.
+ *	A free is queued to be free'd at BOP commit time otherwise.
 */
 void dm_free(void* ptr) {
     header * free_header = HEADER(ptr);
@@ -272,7 +276,7 @@ void dm_free(void* ptr) {
         if(list_contains(allocatedList, free_header))
             free_now(free_header);
         else {
-            //TODO add to the free list
+        	add_alloc_list(&freedlist, free_header);
         }
     } else {
         free_now(free_header);
@@ -289,15 +293,34 @@ inline void free_now(header* head) {
     }
     header* stack = get_header(size, &which);
     assert(sizes[which] == size); //should exactly align
-
+	if(stack == NULL){
+		//empty stack
+		head->free.next = head->free.prev = NULL;
+		headers[which] = head;
+		return;
+	}
     stack->free.prev = CASTH(head);
     head->free.next = CASTH(stack);
-    head->free.prev = NULL; //debug
+    head->free.prev = NULL; //debug-only remove v1
     headers[which] = head;
     counts[which]++;
 }
 
 bool list_contains(header* list, header* search_value) {
+	if(list == NULL || search_value == NULL)
+		return false;
+    header* current;
+    for(current = list; current != NULL; current = ((header *) (current->free.next))){
+    	if(current == search_value)
+    		return true;
+    }
     return false;
 }
-
+inline void add_alloc_list(header** list, header* item){
+	if(*list == NULL)
+		*list = item;
+	else{
+		(*list)->allocated.next = CASTH(item);
+		*list = item;
+	}
+}
