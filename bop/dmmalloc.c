@@ -69,6 +69,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
 #define CASTH(h) ((struct header *) (h))
 #define CHARP(p) (((char*) (p)))
+#define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))
 
 //class size macros
 #define NUM_CLASSES 8
@@ -203,7 +204,6 @@ static inline header * get_header(size_t size, int * which) {
     return found;
 }
 
-
 //actual malloc implementations
 void * dm_malloc(size_t size) {
     //get the right header
@@ -213,12 +213,16 @@ void * dm_malloc(size_t size) {
     assert(which != -2);
     if(block == NULL) {
         //no item in list. Either correct list is empty OR huge block
-        if(SEQUENTIAL && size > MAX_SIZE) {
+        if(SEQUENTIAL && alloc_size > MAX_SIZE) {
             //huge block always use system malloc
             block = malloc(alloc_size);
+            if(block == NULL){
+            	printf("SYS MALLOC FAILED!!!!!!\n");
+            	return NULL;
+            }
             //don't need to add to free list, just set information
             block->allocated.blocksize = alloc_size; //huge, can check at free for the edge case
-            return (CHARP(block) + HSIZE);
+            return PAYLOAD(block);
         } else if(which < NUM_CLASSES-1 && headers[which+1] != NULL) {
             block = headers[which + 1]; //block to carve up
             if(block != NULL) {
@@ -234,6 +238,7 @@ void * dm_malloc(size_t size) {
         	//TODO bop_abort
         }
     }
+   // assert(which != -1);
 	//actually allocate the block
     headers[which] = (header *) block->free.next; //remove from free list
     block->allocated.blocksize = sizes[which];
@@ -241,7 +246,7 @@ void * dm_malloc(size_t size) {
     counts[which]--;
     if(!SEQUENTIAL)
     	add_alloc_list(&allocatedList, block);
-    return (CHARP(block) + HSIZE);
+    return PAYLOAD(block);
 }
 
 void * dm_calloc(size_t n, size_t size) {
@@ -251,17 +256,41 @@ void * dm_calloc(size_t n, size_t size) {
 }
 
 void * dm_realloc(void * ptr, size_t new_size) {
+	void* payload = dm_malloc(new_size);
+	if(payload == NULL)
+		return NULL;
+	void* n_head = HEADER(payload);
+	void* o_head = HEADER(ptr);
+	memcpy(n_head, o_head, ALIGN(new_size + HSIZE));
+	dm_free(ptr);
+	return payload;
+	/*header* old_head = HEADER(ptr), new_head;
+	void* new_payload;
+	if(old_head->allocated.blocksize > MAX_SIZE){
+		new_payload = realloc(ptr, new_size);
+		new_head = HEADER(new_payload);
+		if(new_head == NULL) 
+			return NULL;
+		new_head->allocated.blocksize = ALIGN(new_size + HSIZE);
+		if(!SEQUENTIAL)
+			if(alloactedlist == NULL)
+				allocatedlist = new_head;
+			else{
+				new_head->allocated.next = allocatedlist;
+				allocatedlist = new_head;			
+			}
+		return new_payload;
+	}
     void * payload = dm_malloc(new_size);
-    if(payload == NULL) {
-        //failed to allocate new memory
+    if(payload == NULL) //failed to allocate
         return NULL;
-    }
     header * old_head = HEADER(ptr);
     size_t old_size = old_head->allocated.blocksize;
-
+	if(old_size > MAX_SIZE)
+		return realloc(ptr, new_size);
     memcpy(payload, ptr, old_size);
     dm_free(ptr);
-    return payload;
+    return payload;*/
 }
 /*
  * Free a block if any of the following are true
@@ -275,20 +304,19 @@ void dm_free(void* ptr) {
         //needs to be allocated in this PPR task, ie. in the freed list
         if(list_contains(allocatedList, free_header))
             free_now(free_header);
-        else {
+        else
         	add_alloc_list(&freedlist, free_header);
-        }
     } else {
         free_now(free_header);
     }
 }
 //free a (regular or huge) block now
-inline void free_now(header* head) {
+void free_now(header* head) {
     int which;
     size_t size = head->allocated.blocksize;
     //test for system block
     if(size > MAX_SIZE) {
-        free(head); //system free, only in PPR
+       //TODO... free(head); //system free, only in PPR
         return;
     }
     header* stack = get_header(size, &which);
