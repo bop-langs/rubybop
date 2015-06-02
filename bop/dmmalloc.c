@@ -225,12 +225,18 @@ void * dm_malloc(size_t size) {
             return PAYLOAD(block);
         } else if(which < NUM_CLASSES-1 && headers[which+1] != NULL) {
             block = headers[which + 1]; //block to carve up
-            if(block != NULL) {
-                header* split = (header*) (CHARP(block) + (sizes[which] >> 1)); //cut in half
-                //add the split block to right free list, which is empty
-                split->free.next = split->free.prev = NULL;
-                headers[which] = split;
-            }
+            header* split = (header*) (CHARP(block) + sizes[which]); //cut in half
+            //split-specific info sets
+            headers[which] = split; // was null
+            headers[which+1] = (header*) headers[which+1]->free.next; //remove split up block
+            block->allocated.blocksize = sizes[which];
+			
+			split->free.next = split->free.prev = NULL;
+            block->free.next = CASTH(split);            
+            
+            //handle book-keeping
+            counts[which] = 1;
+            counts[which+1]--;
         } else if(SEQUENTIAL) {
             grow();
             block = headers[which];
@@ -238,7 +244,6 @@ void * dm_malloc(size_t size) {
         	//TODO bop_abort
         }
     }
-   // assert(which != -1);
 	//actually allocate the block
     headers[which] = (header *) block->free.next; //remove from free list
     block->allocated.blocksize = sizes[which];
