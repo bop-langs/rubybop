@@ -22,6 +22,9 @@ Work Notes
 Set low bit in pointers for allocation in a PPR task. 
 
 */
+
+#define NDEBUG //ignore the assert messages
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> /* for memcpy */
@@ -148,6 +151,7 @@ int get_index(size_t size) {
 /**Get more space from the system*/
 static void grow() {
     char * space_head = calloc(GROW_S, 1); //system malloc, use byte-sized type
+    assert(space_head != NULL); //ran out of sys memory
     int num_blocks[] = {BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6,
 				    	BLKS_7,	BLKS_8, BLKS_9, BLKS_10, BLKS_11, BLKS_12};
     int class_index, blocks_left, size;
@@ -335,7 +339,6 @@ void * dm_realloc(void * ptr, size_t gsize) {
 	header* new_head;
 	size_t new_size = ALIGN(gsize + HSIZE);
 	int new_index = get_index(new_size);
-	
 	void* payload; //what the programmer gets
 	if(SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE){
 		//use system realloc
@@ -352,7 +355,7 @@ void * dm_realloc(void * ptr, size_t gsize) {
 		payload = memcpy( payload, ptr,  old_head->allocated.blocksize); //copy memory
 		old_head->allocated.blocksize = size;
 		//TODO re-enable once not re-writing sys mallloc info 
-		dm_free(old_head);
+		dm_free(ptr);
 		return payload;
 	}
 }
@@ -364,6 +367,7 @@ void * dm_realloc(void * ptr, size_t gsize) {
 */
 void dm_free(void* ptr) {
     header * free_header = HEADER(ptr);
+    assert(ptr == PAYLOAD(free_header));
     if(!SEQUENTIAL) {
         //needs to be allocated in this PPR task, ie. in the freed list
         if(list_contains(allocatedList, free_header))
@@ -371,18 +375,17 @@ void dm_free(void* ptr) {
         else
         	add_alloc_list(&freedlist, free_header);
     } else {
-       	free_now(free_header);
+   		free_now(free_header);
     }
 }
 //free a (regular or huge) block now
 static inline void free_now(header* head) {
     int which = -2;
     size_t size = head->allocated.blocksize;
-    assert(size == ALIGN(size));
+    assert(size == ALIGN(size)); //size is aligned, ie write value was written
     //test for system block
     if(size > MAX_SIZE && SEQUENTIAL) {
-    	printf("SYS FREE SIZE: %d\n", size);
-        free(PAYLOAD(head)); //system free, only in PPR
+    	free(head); //system free, only in PPR
         return;
     }
     header* free_stack = get_header(size, &which);
