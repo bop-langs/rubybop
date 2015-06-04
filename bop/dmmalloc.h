@@ -3,6 +3,7 @@ void * dm_malloc(size_t);
 void * dm_realloc(void *, size_t);
 void dm_free(void *);
 void * dm_calloc(size_t, size_t);
+void dm_print_info(void);
 
 //initializers
 void carve(int); //divide up avaliable memory
