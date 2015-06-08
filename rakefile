@@ -1,6 +1,6 @@
-task :default => :build
+task :default => :ruby
 
-task :build => :bop do
+task :ruby => :bop do
   #build ruby
   cd "ruby" do
     if (!File.exists?("Makefile")) then
@@ -18,7 +18,7 @@ task :bop do
   end
 end
 
-task :test => :build do
+task :test => :default do
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
@@ -32,6 +32,7 @@ task :clean do
 	cd "ruby" do
 		if(File.exists?("Makefile")) then
 			sh 'make clean'
+			sh 'rm -f Makefile'
 		end
 	end
   cd "bop" do
