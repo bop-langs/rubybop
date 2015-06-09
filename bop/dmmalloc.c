@@ -18,6 +18,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 */
 
 //For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
+
 #define NDEBUG			//Uncommented = ignore the assert messages
 
 #ifndef NDEBUG
@@ -27,9 +28,15 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>		//boolean types
 #include "dmmalloc.h"
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
+#define LOG(x) llog2(x)
+#else
+#include <math.h>
+#define LOG(x) log2(x)
+#endif
 
 //Alignment based on word size
 #if __WORDSIZE == 64
@@ -39,6 +46,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #else
 #error "need 32 or 64 bit word size"
 #endif
+
 
 //alignement/ header macros
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
@@ -88,12 +96,16 @@ ppr_list *regions = NULL;
 header *headers[NUM_CLASSES];	//current heads of free lists
 
 
-int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
-                           SIZE_C (5), SIZE_C (6), SIZE_C (7), SIZE_C (8),
-                           SIZE_C (9), SIZE_C (10), SIZE_C (11), SIZE_C (12)
-                         };
+const int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
+				                 SIZE_C (5), SIZE_C (6), SIZE_C (7), SIZE_C (8),
+				                 SIZE_C (9), SIZE_C (10), SIZE_C (11), SIZE_C (12)
+                        	   };
+const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6,
+                         BLKS_7, BLKS_8, BLKS_9, BLKS_10, BLKS_11, BLKS_12
+                       };                        
 
-int counts[NUM_CLASSES];
+static int counts[NUM_CLASSES];
+
 header* allocatedList= NULL; //list of items allocated during PPR-mode
 header* freedlist= NULL; //list of items freed during PPR-mode
 
@@ -110,12 +122,23 @@ static inline int index_bigger (int);
 
 #ifndef NDEBUG
 static int grow_count = 0;
+static int growth_size = 0;
 static int missed_splits = 0;
 static int splits = 0;
 static int multi_splits = 0;
 static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
+
+
+static inline int llog2(const int x) {
+  int y;
+  asm ( "\tbsr %1, %0\n"
+      : "=r"(y)
+      : "r" (x)
+  );
+  return y;
+}
 
 static inline int get_index (size_t size) {
     assert (size == ALIGN (size));
@@ -124,8 +147,8 @@ static inline int get_index (size_t size) {
     if (size > MAX_SIZE)
         return -1;			//too big
     //Computations for the actual index, off set of -5 from macro & array indexing
-    //if the size is not a power of two, it get rounded down so need to add one for none-powers of 2
-    int index = log2 (size) - 5;
+   	int index = LOG(size) - 5;
+   	
     if (sizes[index] < size)
         index++;
     assert (index >= 0 && index < NUM_CLASSES);
@@ -136,26 +159,48 @@ static inline int get_index (size_t size) {
 
 /**Get more space from the system*/
 static inline void grow () {
+	int class_index, blocks_left, size;
 #ifndef NDEBUG
+	printf("\n\tgrowing\n");
     grow_count++;
 #endif
-    char *space_head = malloc (GROW_S);	//system malloc, use byte-sized type
+
+#if 1
+	//compute the number of blocks to allocate
+	size_t growth = 0;
+	int blocks[NUM_CLASSES];
+	
+	for(class_index = 0; class_index < NUM_CLASSES; class_index++){
+		blocks_left = goal_counts[class_index] - counts[class_index];
+		blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
+		growth += blocks[class_index] * sizes[class_index];
+	}
+#else
+	size_t growth = GROW_S;
+	int blocks[NUM_CLASSES];
+	
+	for(class_index = 0; class_index < NUM_CLASSES; class_index++){
+		blocks[class_index] =  goal_counts[class_index];
+	}
+#endif 
+
+#ifndef NDEBUG
+	growth_size+=growth;
+#endif
+    char *space_head = malloc (growth);	//system malloc, use byte-sized type
     assert (space_head != NULL);	//ran out of sys memory
-    int num_blocks[] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6,
-                         BLKS_7, BLKS_8, BLKS_9, BLKS_10, BLKS_11, BLKS_12
-                       };
-    int class_index, blocks_left, size;
+    
     header *head;
     for (class_index = 0; class_index < NUM_CLASSES; class_index++) {
         size = sizes[class_index];
-        counts[class_index] += num_blocks[class_index];
+        counts[class_index] += blocks[class_index];
         if (headers[class_index] == NULL) {
             //list was empty
             headers[class_index] = (header *) space_head;
             space_head += size;
-            num_blocks[class_index]--;
+            blocks[class_index]--;
         }
-        for (blocks_left = num_blocks[class_index]; blocks_left; blocks_left--) {
+        for (blocks_left = blocks[class_index]; blocks_left; blocks_left--) {
             ((header *) space_head)->free.next = CASTH (headers[class_index]);
             head = headers[class_index];
             head->free.prev = CASTH (space_head);
@@ -172,8 +217,9 @@ void dm_print_info (void) {
     int i;
     printf("******DM Debug info******\n");
     printf ("Grow count: %'d\n", grow_count);
-    printf("Grow size: %'d B\n", GROW_S);
-    printf("Total managed mem: %'d B\n", grow_count * GROW_S);
+    printf("Max grow size: %'d B\n", GROW_S);
+    printf("Total managed mem: %'d B\n", growth_size);
+    printf("Differnce in actual & max: %'d B\n", (grow_count * (GROW_S)) - growth_size);
     for(i = 0; i < NUM_CLASSES; i++) {
         printf("\tSplit to give class %d (%'d B) %d times. It was given %d heads\n",
                i+1, sizes[i], split_attempts[i],split_gave_head[i]);
