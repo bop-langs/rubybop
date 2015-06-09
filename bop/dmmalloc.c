@@ -18,7 +18,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 */
 
 //For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
-//#define NDEBUG			//Uncommented = ignore the assert messages
+#define NDEBUG			//Uncommented = ignore the assert messages
 
 #ifndef NDEBUG
 #include <locale.h> //commas in debug information
@@ -81,7 +81,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //BOP macros
 #define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
 
-typedef struct{
+typedef struct {
     header *start[NUM_CLASSES];
     header *end[NUM_CLASSES];
 } ppr_list;
@@ -142,9 +142,9 @@ int get_index (size_t size) {
 
 /**Get more space from the system*/
 void grow () {
-	#ifndef NDEBUG
+#ifndef NDEBUG
     grow_count++;
-    #endif
+#endif
     char *space_head = malloc (GROW_S);	//system malloc, use byte-sized type
     assert (space_head != NULL);	//ran out of sys memory
     int num_blocks[] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6,
@@ -173,23 +173,23 @@ void grow () {
 }
 
 void dm_print_info (void) {
-	#ifndef NDEBUG
-	setlocale(LC_ALL, "");
-	int i;
-	printf("******DM Debug info******\n");
-	printf ("Grow count: %'d\n", grow_count);
-	printf("Grow size: %'d B\n", GROW_S);
-	printf("Total managed mem: %'d B\n", grow_count * GROW_S);
-	for(i = 0; i < NUM_CLASSES; i++){
-		printf("\tSplit to give class %d (%'d B) %d times. It was given %d heads\n",
-			i+1, sizes[i], split_attempts[i],split_gave_head[i]);
-	}
-	printf("Splits: %'d\n", splits);
-	printf("Miss splits: %'d\n", missed_splits);
-	printf("Multi splits: %'d\n", multi_splits);
-	for(i = 0; i < NUM_CLASSES; i++)
-		printf("Class %d had %'d remaining items\n", i+1, counts[i]);
-	#endif
+#ifndef NDEBUG
+    setlocale(LC_ALL, "");
+    int i;
+    printf("******DM Debug info******\n");
+    printf ("Grow count: %'d\n", grow_count);
+    printf("Grow size: %'d B\n", GROW_S);
+    printf("Total managed mem: %'d B\n", grow_count * GROW_S);
+    for(i = 0; i < NUM_CLASSES; i++) {
+        printf("\tSplit to give class %d (%'d B) %d times. It was given %d heads\n",
+               i+1, sizes[i], split_attempts[i],split_gave_head[i]);
+    }
+    printf("Splits: %'d\n", splits);
+    printf("Miss splits: %'d\n", missed_splits);
+    printf("Multi splits: %'d\n", multi_splits);
+    for(i = 0; i < NUM_CLASSES; i++)
+        printf("Class %d had %'d remaining items\n", i+1, counts[i]);
+#endif
 }
 
 /** Divide up the currently allocated groups into regions*/
@@ -239,7 +239,7 @@ static inline header * get_header (size_t size, int *which) {
     if (size > MAX_SIZE) {
         *which = -1;
         return NULL;
-    }    else {
+    } else {
         *which = get_index (size);
         found = headers[*which];
     }
@@ -257,7 +257,7 @@ void *dm_malloc (size_t size) {
     header *block = get_header (alloc_size, &which);
     assert (which != -2);
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
-    		(headers[which] != NULL && counts[which] > 0));
+            (headers[which] != NULL && counts[which] > 0));
     if (block == NULL) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
@@ -271,41 +271,37 @@ void *dm_malloc (size_t size) {
             block->allocated.blocksize = alloc_size;
             assert (block->allocated.blocksize != 0);
             if(!SEQUENTIAL)
-				add_alloc_list(&allocatedList, block);
+                add_alloc_list(&allocatedList, block);
             return PAYLOAD (block);
-        }
-        else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
-        	#ifndef NDEBUG
+        } else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+#ifndef NDEBUG
             splits++;
-			#endif
+#endif
             block = dm_split (which);
-        }
-        else if (SEQUENTIAL) {
-        	#ifndef NDEBUG
+        } else if (SEQUENTIAL) {
+#ifndef NDEBUG
             if (index_bigger (which) != -1)
-            	missed_splits++;
-            #endif
+                missed_splits++;
+#endif
             grow ();
             block = headers[which];
             block->allocated.blocksize = sizes[which];
             assert (block != NULL);
             assert (block->allocated.blocksize != 0);
+        } else {
+            //bop_abort
         }
-        else {
-            //TODO bop_abort
-        }
-    }
-    else
+    } else
         block->allocated.blocksize = sizes[which];
     assert (block != NULL);
     //actually allocate the block
     headers[which] = (header *) block->free.next;	//remove from free list
     counts[which]--;
-   if(!SEQUENTIAL)
-		add_alloc_list(&allocatedList, block);
+    if(!SEQUENTIAL)
+        add_alloc_list(&allocatedList, block);
     assert (block->allocated.blocksize != 0);
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
-    		(headers[which] != NULL && counts[which] > 0));
+            (headers[which] != NULL && counts[which] > 0));
     return PAYLOAD (block);
 }
 
@@ -324,10 +320,10 @@ static inline int index_bigger (int which) {
 
 //Recursively split a larger block into a block of the required size
 static inline header* dm_split (int which) {
-	#ifndef NDEBUG
-	split_attempts[which]++;
-	split_gave_head[which]++;
-	#endif
+#ifndef NDEBUG
+    split_attempts[which]++;
+    split_gave_head[which]++;
+#endif
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to carve up
     header *split = (header *) (CHARP (block) + sizes[which]);	//cut in half
@@ -348,11 +344,11 @@ static inline header* dm_split (int which) {
     assert (block->allocated.blocksize != 0);
     //recursively split...
     which++;
-    #ifndef NDEBUG
+#ifndef NDEBUG
     if (headers[which] == NULL && which != larger)
         multi_splits++;
-        split_gave_head[which]+= larger - which;
-    #endif
+    split_gave_head[which]+= larger - which;
+#endif
     while (which < larger) {
         //update the headers
         split = (header *) (CHARP (split) + sizes[which - 1]);
@@ -382,7 +378,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
         //use system realloc in sequential mode for large->large blocks
         new_head = realloc (old_head, new_size);
         return PAYLOAD (new_head);
-    }else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
+    } else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
         return ptr;			//no need to update
     else {
         assert (old_head->allocated.blocksize != 0);
@@ -409,11 +405,10 @@ void dm_free (void *ptr) {
     if (!SEQUENTIAL) {
         //needs to be allocated in this PPR task, ie. in the freed list
         if(list_contains(allocatedList, free_header))
-           free_now(free_header);
+            free_now(free_header);
         else
-           add_alloc_list(&freedlist, free_header);
-    }
-    else {
+            add_alloc_list(&freedlist, free_header);
+    } else {
         free_now (free_header);
     }
 }
