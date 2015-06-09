@@ -17,31 +17,21 @@ Size classes need to be finite, so there will be some sizes not handled by this 
     free: when one of these is freed, check the block size. if it’s too large for any size class it was allocated with dl malloc. use dl free OR if sufficiently large divide up for use in our size classes.
 */
 
-/*
-Work Notes
-Set low bit in pointers for allocation in a PPR task.
+//For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
+//#define NDEBUG			//Uncommented = ignore the assert messages
 
-*/
-
-#define NDEBUG			//ignore the assert messages
-
+#ifndef NDEBUG
+#include <locale.h> //commas in debug information
+#endif
 #include <stdio.h>
-#include <locale.h>
 #include <stdlib.h>
-#include <string.h>		/* for memcpy */
+#include <string.h>
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>		//boolean types
 #include "dmmalloc.h"
 
-//Variable bit identifier code.
-//#define BIT_IDENTIFIER k uses the kth lowest bit
-#define BIT_IDENTIFIER 3
-#define HEADER_IDENTIFIER_MASK (1<<(BIT_IDENTIFIER-1))
-
-#define IS_ALLOCED_BY_DM(HEADER_P) ((HEADER_P) & HEADER_IDENTIFIER_MASK)
-
-//bit masks for marking large objects when allocated. We have 2 bits to play with
+//Alignment based on word size
 #ifndef MASK
 #if __WORDSIZE == 64
 #define MASK 0xfffffffffffffffc
@@ -54,10 +44,19 @@ Set low bit in pointers for allocation in a PPR task.
 #endif
 #endif
 
-
-//alignment macros
+//alignement/ header macros
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
+#define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
+#define CASTH(h) ((struct header *) (h))
+#define CHARP(p) (((char*) (p)))
+#define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))
+#define PTR_MATH(ptr, d) ((CHARP(ptr)) + d)
+
+//class size macros
+#define NUM_CLASSES 12
+#define MAX_SIZE sizes[NUM_CLASSES - 1]
+#define SIZE_C(k) ALIGN((1 << (k + 4)))	//allows for recursive spliting
 
 //grow macros
 #define BLKS_1 50
@@ -79,25 +78,10 @@ Set low bit in pointers for allocation in a PPR task.
 				(BLKS_9 * SIZE_C(9)) + (BLKS_10 * SIZE_C(10)) +\
 				(BLKS_11 * SIZE_C(11)) + (BLKS_12 * SIZE_C(12)) )
 
-//header macros
-#define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
-#define CASTH(h) ((struct header *) (h))
-#define CHARP(p) (((char*) (p)))
-#define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))
-#define PTR_MATH(ptr, d) ((CHARP(ptr)) + d)
-
-//class size macros
-#define NUM_CLASSES 12
-#define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define SIZE_C(k) ALIGN((1 << (k + 4)))	//allows for recursive spliting
-
 //BOP macros
 #define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
 
-//DEBUGING
-
-typedef struct
-{
+typedef struct{
     header *start[NUM_CLASSES];
     header *end[NUM_CLASSES];
 } ppr_list;
@@ -116,13 +100,10 @@ int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
 
 
 int counts[NUM_CLASSES];
-/**
-TODO reanable for BOP-enabled
 header* allocatedList= NULL; //list of items allocated during PPR-mode
 header* freedlist= NULL; //list of items freed during PPR-mode
 
 header* ends[NUM_CLASSES]; //end of lists in PPR region
-**/
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -133,13 +114,14 @@ static inline void add_alloc_list (header ** list, header * item);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
 
-
+#ifndef NDEBUG
 static int grow_count = 0;
 static int missed_splits = 0;
 static int splits = 0;
 static int multi_splits = 0;
 static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
+#endif
 
 int get_index (size_t size) {
     assert (size == ALIGN (size));
@@ -160,7 +142,9 @@ int get_index (size_t size) {
 
 /**Get more space from the system*/
 void grow () {
+	#ifndef NDEBUG
     grow_count++;
+    #endif
     char *space_head = malloc (GROW_S);	//system malloc, use byte-sized type
     assert (space_head != NULL);	//ran out of sys memory
     int num_blocks[] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6,
@@ -189,21 +173,23 @@ void grow () {
 }
 
 void dm_print_info (void) {
+	#ifndef NDEBUG
 	setlocale(LC_ALL, "");
 	int i;
-    printf("******DM Debug info******\n");
-    printf ("Grow count: %'d\n", grow_count);
-    printf("Grow size: %'d B\n", GROW_S);
-    printf("Total managed mem: %'d B\n", grow_count * GROW_S);
-    for(i = 0; i < NUM_CLASSES; i++){
-    	printf("\tSplit to give class %d (%'d B) %d times. It was given %d heads\n",
-    		i+1, sizes[i], split_attempts[i],split_gave_head[i]);
-    }
-    printf("Splits: %'d\n", splits);
-    printf("Miss splits: %'d\n", missed_splits);
-    printf("Multi splits: %'d\n", multi_splits);
-    for(i = 0; i < NUM_CLASSES; i++)
-    	printf("Class %d had %'d remaining items\n", i+1, counts[i]);
+	printf("******DM Debug info******\n");
+	printf ("Grow count: %'d\n", grow_count);
+	printf("Grow size: %'d B\n", GROW_S);
+	printf("Total managed mem: %'d B\n", grow_count * GROW_S);
+	for(i = 0; i < NUM_CLASSES; i++){
+		printf("\tSplit to give class %d (%'d B) %d times. It was given %d heads\n",
+			i+1, sizes[i], split_attempts[i],split_gave_head[i]);
+	}
+	printf("Splits: %'d\n", splits);
+	printf("Miss splits: %'d\n", missed_splits);
+	printf("Multi splits: %'d\n", multi_splits);
+	for(i = 0; i < NUM_CLASSES; i++)
+		printf("Class %d had %'d remaining items\n", i+1, counts[i]);
+	#endif
 }
 
 /** Divide up the currently allocated groups into regions*/
@@ -240,7 +226,7 @@ void initialize_group (int group_num) {
     ppr_list my_list = regions[group_num];
     int ind;
     for (ind = 0; ind < NUM_CLASSES; ind++) {
-        //TODO enable ends[ind] = my_list.end[ind];
+        ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
     }
 }
@@ -253,13 +239,12 @@ static inline header * get_header (size_t size, int *which) {
     if (size > MAX_SIZE) {
         *which = -1;
         return NULL;
-    }
-    else {
+    }    else {
         *which = get_index (size);
         found = headers[*which];
     }
     //clean up
-    if (found == NULL) /*TODO enable || (!SEQUENTIAL && CASTH(found) == ends[*which]->free.next) */
+    if (found == NULL || (!SEQUENTIAL && CASTH(found) == ends[*which]->free.next))
         return NULL;
     return found;
 }
@@ -285,17 +270,21 @@ void *dm_malloc (size_t size) {
             //don't need to add to free list, just set information
             block->allocated.blocksize = alloc_size;
             assert (block->allocated.blocksize != 0);
+            if(!SEQUENTIAL)
+				add_alloc_list(&allocatedList, block);
             return PAYLOAD (block);
         }
         else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+        	#ifndef NDEBUG
             splits++;
-
+			#endif
             block = dm_split (which);
-
         }
         else if (SEQUENTIAL) {
+        	#ifndef NDEBUG
             if (index_bigger (which) != -1)
-                missed_splits++;
+            	missed_splits++;
+            #endif
             grow ();
             block = headers[which];
             block->allocated.blocksize = sizes[which];
@@ -312,8 +301,8 @@ void *dm_malloc (size_t size) {
     //actually allocate the block
     headers[which] = (header *) block->free.next;	//remove from free list
     counts[which]--;
-    //TODO  if(!SEQUENTIAL)
-    //  TODO  add_alloc_list(&allocatedList, block);
+   if(!SEQUENTIAL)
+		add_alloc_list(&allocatedList, block);
     assert (block->allocated.blocksize != 0);
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
     		(headers[which] != NULL && counts[which] > 0));
@@ -335,8 +324,10 @@ static inline int index_bigger (int which) {
 
 //Recursively split a larger block into a block of the required size
 static inline header* dm_split (int which) {
+	#ifndef NDEBUG
 	split_attempts[which]++;
 	split_gave_head[which]++;
+	#endif
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to carve up
     header *split = (header *) (CHARP (block) + sizes[which]);	//cut in half
@@ -357,11 +348,13 @@ static inline header* dm_split (int which) {
     assert (block->allocated.blocksize != 0);
     //recursively split...
     which++;
+    #ifndef NDEBUG
     if (headers[which] == NULL && which != larger)
         multi_splits++;
+        split_gave_head[which]+= larger - which;
+    #endif
     while (which < larger) {
         //update the headers
-        split_gave_head[which]++;
         split = (header *) (CHARP (split) + sizes[which - 1]);
         memset (split, 0, HSIZE);
         headers[which] = split;
@@ -386,14 +379,12 @@ void * dm_realloc (void *ptr, size_t gsize) {
     int new_index = get_index (new_size);
     void *payload;		//what the programmer gets
     if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
-        //use system realloc
+        //use system realloc in sequential mode for large->large blocks
         new_head = realloc (old_head, new_size);
         return PAYLOAD (new_head);
-    }
-    else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
+    }else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
         return ptr;			//no need to update
     else {
-
         assert (old_head->allocated.blocksize != 0);
         size_t size = old_head->allocated.blocksize;
         //we're reallocating within managed memory
@@ -401,7 +392,6 @@ void * dm_realloc (void *ptr, size_t gsize) {
 
         payload = memcpy (payload, ptr, old_head->allocated.blocksize);	//copy memory
         old_head->allocated.blocksize = size;
-        //TODO re-enable once not re-writing sys mallloc info
         dm_free (ptr);
         return payload;
     }
@@ -417,11 +407,11 @@ void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
     assert (ptr == PAYLOAD (free_header));
     if (!SEQUENTIAL) {
-        /*  //needs to be allocated in this PPR task, ie. in the freed list
+        //needs to be allocated in this PPR task, ie. in the freed list
         if(list_contains(allocatedList, free_header))
            free_now(free_header);
         else
-           add_alloc_list(&freedlist, free_header); */
+           add_alloc_list(&freedlist, free_header);
     }
     else {
         free_now (free_header);
@@ -430,7 +420,7 @@ void dm_free (void *ptr) {
 
 //free a (regular or huge) block now
 static inline void free_now (header * head) {
-    int which = -2;
+    int which;
     size_t size = head->allocated.blocksize;
     assert (size == ALIGN (size));	//size is aligned, ie write value was written
     //test for system block
