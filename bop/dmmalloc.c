@@ -32,16 +32,12 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #include "dmmalloc.h"
 
 //Alignment based on word size
-#ifndef MASK
 #if __WORDSIZE == 64
-#define MASK 0xfffffffffffffffc
 #define ALIGNMENT 8
 #elif __WORDSIZE == 32
-#define mask 0xfffffffc
 #define ALIGNMENT 4
 #else
 #error "need 32 or 64 bit word size"
-#endif
 #endif
 
 //alignement/ header macros
@@ -97,8 +93,6 @@ int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
                            SIZE_C (9), SIZE_C (10), SIZE_C (11), SIZE_C (12)
                          };
 
-
-
 int counts[NUM_CLASSES];
 header* allocatedList= NULL; //list of items allocated during PPR-mode
 header* freedlist= NULL; //list of items freed during PPR-mode
@@ -123,7 +117,7 @@ static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
 
-int get_index (size_t size) {
+static inline int get_index (size_t size) {
     assert (size == ALIGN (size));
     assert (size >= HSIZE);
     //Space is too big.
@@ -141,7 +135,7 @@ int get_index (size_t size) {
 }
 
 /**Get more space from the system*/
-void grow () {
+static inline void grow () {
 #ifndef NDEBUG
     grow_count++;
 #endif
@@ -264,7 +258,7 @@ void *dm_malloc (size_t size) {
             //huge block always use system malloc
             block = calloc (alloc_size, 1);
             if (block == NULL) {
-                printf ("system malloc failed\n");
+                fprintf (stderr, "system malloc failed\n");
                 return NULL;
             }
             //don't need to add to free list, just set information
@@ -381,6 +375,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
     } else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
         return ptr;			//no need to update
     else {
+    	//build off malloc and free
         assert (old_head->allocated.blocksize != 0);
         size_t size = old_head->allocated.blocksize;
         //we're reallocating within managed memory
@@ -408,9 +403,8 @@ void dm_free (void *ptr) {
             free_now(free_header);
         else
             add_alloc_list(&freedlist, free_header);
-    } else {
+    } else
         free_now (free_header);
-    }
 }
 
 //free a (regular or huge) block now

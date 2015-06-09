@@ -10,8 +10,9 @@ void carve(int); //divide up avaliable memory
 void initialize_group(int);
 
 typedef union{
+	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
 	struct{
-		struct header * next;   // ONLY USED IF NEED PPR-local allocated objects (commit, PPR-local GC)
+		struct header * next;   // ppr-allocated object list
 		size_t blocksize; // which free list to insert freed items into
 	} allocated;
 	struct{
