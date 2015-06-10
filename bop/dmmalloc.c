@@ -113,10 +113,10 @@ header* ends[NUM_CLASSES]; //end of lists in PPR region
 
 //helper prototypes
 static inline int get_index (size_t);
-static inline void grow (void);
+static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
-static inline void add_alloc_list (header ** list, header * item);
+static inline void add_alloc_list (header**, header *);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
 
@@ -130,7 +130,7 @@ static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
 
-
+/** x86 assembly code for computing the log2 of a value. This is much faster than math.h log2*/
 static inline int llog2(const int x) {
   int y;
   asm ( "\tbsr %1, %0\n"
@@ -139,7 +139,7 @@ static inline int llog2(const int x) {
   );
   return y;
 }
-
+/**Get the index corresponding to the given size. If size > MAX_SIZE, then return -1*/
 static inline int get_index (size_t size) {
     assert (size == ALIGN (size));
     assert (size >= HSIZE);
@@ -157,8 +157,8 @@ static inline int get_index (size_t size) {
     return index;
 }
 
-/**Get more space from the system*/
-static inline void grow () {
+/**Grow the managed space so that each size class as tasks * their goal block count.*/
+static inline void grow (const int tasks) {
 	int class_index, blocks_left, size;
 #ifndef NDEBUG
 	printf("\n\tgrowing\n");
@@ -171,7 +171,7 @@ static inline void grow () {
 	int blocks[NUM_CLASSES];
 	
 	for(class_index = 0; class_index < NUM_CLASSES; class_index++){
-		blocks_left = goal_counts[class_index] - counts[class_index];
+		blocks_left = tasks * goal_counts[class_index] - counts[class_index];
 		blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
 		growth += blocks[class_index] * sizes[class_index];
 	}
@@ -210,7 +210,7 @@ static inline void grow () {
         }
     }
 }
-
+/**Print debug info*/
 void dm_print_info (void) {
 #ifndef NDEBUG
     setlocale(LC_ALL, "");
@@ -232,9 +232,11 @@ void dm_print_info (void) {
 #endif
 }
 
-/** Divide up the currently allocated groups into regions*/
+/** Divide up the currently allocated groups into regions. 
+	Insures that each task will have a percentage of a sequential goal*/
 void carve (int tasks) {
     assert (tasks >= 2);
+   	grow(tasks / 1.5);
     if (regions != NULL)
         dm_free (regions);		//don't need old bounds anymore
     regions = dm_malloc (tasks * sizeof (ppr_list));
@@ -272,7 +274,7 @@ void initialize_group (int group_num) {
 }
 
 
-/**size: alligned size, includes space for the header*/
+/**Get the head of the free list. This uses get_index and additional logic for PPR execution*/
 static inline header * get_header (size_t size, int *which) {
     header* found = NULL;
     //requested allocation is too big
@@ -289,7 +291,7 @@ static inline header * get_header (size_t size, int *which) {
     return found;
 }
 
-//actual malloc implementations
+/**BOP-safe malloc implementation based off of size classes.*/
 void *dm_malloc (size_t size) {
     //get the right header
     size_t alloc_size = ALIGN (size + HSIZE);
@@ -323,7 +325,7 @@ void *dm_malloc (size_t size) {
             if (index_bigger (which) != -1)
                 missed_splits++;
 #endif
-            grow ();
+            grow (1);
             block = headers[which];
             block->allocated.blocksize = sizes[which];
             assert (block != NULL);
@@ -337,7 +339,7 @@ void *dm_malloc (size_t size) {
     //actually allocate the block
     headers[which] = (header *) block->free.next;	//remove from free list
     counts[which]--;
-    if(!SEQUENTIAL)
+   // if(!SEQUENTIAL)
         add_alloc_list(&allocatedList, block);
     assert (block->allocated.blocksize != 0);
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
@@ -345,7 +347,7 @@ void *dm_malloc (size_t size) {
     return PAYLOAD (block);
 }
 
-//return the index of the next-largest non-null size class
+/**Compute the index of the next lagest index > which st the index has a non-null headers*/
 static inline int index_bigger (int which) {
     which++;
     if (which == -1)
@@ -399,13 +401,14 @@ static inline header* dm_split (int which) {
     }
     return block;
 }
-
+/**Bop safe calloc built off of dm_malloc*/
 void * dm_calloc (size_t n, size_t size) {
     void *allocd = dm_malloc (size * n);
     memset (allocd, 0, size * n);
     return allocd;
 }
-
+/**Standard BOP-safe reallocator which optimizations from using size classes. 
+   The standard case is using dmmalloc and free as normal.*/
 void * dm_realloc (void *ptr, size_t gsize) {
     //use syst-realloc if possible
     header *old_head = HEADER (ptr);
@@ -453,7 +456,7 @@ void dm_free (void *ptr) {
         free_now (free_header);
 }
 
-//free a (regular or huge) block now
+//free a (regular or huge) block now. all saftey checks must be done before calling this function
 static inline void free_now (header * head) {
     int which;
     size_t size = head->allocated.blocksize;
@@ -489,12 +492,12 @@ static inline bool list_contains (header * list, header * search_value) {
     }
     return false;
 }
-
-static inline void add_alloc_list (header ** list, header * item) {
-    if (*list == NULL)
-        *list = item;
-    else {
-        (*list)->allocated.next = CASTH (item);
-        *list = item;
-    }
+//add an allocated item to the allocated list
+static inline void add_alloc_list (header** list_head, header * item) {
+	if(*list_head == NULL)
+		*list_head = item;
+	else{
+		item->allocated.next = CASTH(*list_head);
+		*list_head = item;	
+	}
 }
