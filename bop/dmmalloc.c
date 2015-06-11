@@ -9,7 +9,7 @@ If a PPR task runs out of memory, it must abort speculation. Calls to the underl
 The under study maintains access to the entire free list. Since either the understudy or the PPR tasks will survive past the commit stage, this is still safe.
 At commit time, the free lists of PPR tasks are merged along with the standard BOP changes. This allows memory not used by PPR tasks to be reclaimed and used later.
 Freeing
-when a PPR task frees something from the global heap (something it did not allocate, eg it was either allocated by a prior PPR task or before and PPRs were started) it marks as freed and moves to a new list. This list is parsed at commit time and is always (???) accepted. We cannot immediately move it into the free list since when allocating a new object of that size. If multiple PPR tasks do this (which is correct in sequential execution) and both allocate the new object, the merge will fail.
+when a PPR task frees something from the global heap (something it did not allocate, eg it was either allocated by a prior PPR task or before and PPRs were started) it marks as freed and moves to a new list. This list is parsed at commit time and is always accepted. We cannot immediately move it into the free list since when allocating a new object of that size. If multiple PPR tasks do this (which is correct in sequential execution) and both allocate the new object, the merge will fail.
 
 Large objects:
 Size classes need to be finite, so there will be some sizes not handled by this method, the work around is:
@@ -19,16 +19,16 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 //For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
 
-#define NDEBUG			//Uncommented = ignore the assert messages
+#define NDEBUG			//defined: no debug or asserts. Comment or delete to enable assertions and debug info
 
 #ifndef NDEBUG
-#include <locale.h> //commas in debug information
+#include <locale.h> //commas numbers (debug information)
 #endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <stdbool.h>		//boolean types
+#include <stdio.h> //print errors
+#include <stdlib.h> //system malloc & free
+#include <string.h> //memcopy
+#include <assert.h> //debug
+#include <stdbool.h> //boolean types
 #include "dmmalloc.h"
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
@@ -165,7 +165,6 @@ static inline void grow (const int tasks) {
     grow_count++;
 #endif
 
-#if 1
 	//compute the number of blocks to allocate
 	size_t growth = 0;
 	int blocks[NUM_CLASSES];
@@ -175,15 +174,6 @@ static inline void grow (const int tasks) {
 		blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
 		growth += blocks[class_index] * sizes[class_index];
 	}
-#else
-	size_t growth = GROW_S;
-	int blocks[NUM_CLASSES];
-	
-	for(class_index = 0; class_index < NUM_CLASSES; class_index++){
-		blocks[class_index] =  goal_counts[class_index];
-	}
-#endif 
-
 #ifndef NDEBUG
 	growth_size+=growth;
 #endif
@@ -237,7 +227,7 @@ void dm_print_info (void) {
 void carve (int tasks) {
     assert (tasks >= 2);
    	grow(tasks / 1.5);
-    if (regions != NULL)
+    if (regions != NULL) //remove old regions information
         dm_free (regions);		//don't need old bounds anymore
     regions = dm_malloc (tasks * sizeof (ppr_list));
     int index, count, j, r;
@@ -349,9 +339,9 @@ void *dm_malloc (size_t size) {
 
 /**Compute the index of the next lagest index > which st the index has a non-null headers*/
 static inline int index_bigger (int which) {
-    which++;
     if (which == -1)
-        return which;
+        return -1;
+    which++;
     while (which < NUM_CLASSES) {
         if (headers[which] != NULL)
             return which;
@@ -422,16 +412,14 @@ void * dm_realloc (void *ptr, size_t gsize) {
         new_head = realloc (old_head, new_size);
         return PAYLOAD (new_head);
     } else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
-        return ptr;			//no need to update
+        return ptr;		//no need to update
     else {
     	//build off malloc and free
         assert (old_head->allocated.blocksize != 0);
-        size_t size = old_head->allocated.blocksize;
         //we're reallocating within managed memory
         payload = dm_malloc (new_size);
 
         payload = memcpy (payload, ptr, old_head->allocated.blocksize);	//copy memory
-        old_head->allocated.blocksize = size;
         dm_free (ptr);
         return payload;
     }
@@ -477,7 +465,6 @@ static inline void free_now (header * head) {
     }
     free_stack->free.prev = CASTH (head);
     head->free.next = CASTH (free_stack);
-    head->free.prev = NULL;	//debug-only remove v1
     headers[which] = head;
     counts[which]++;
 }
