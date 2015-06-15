@@ -97,7 +97,7 @@ ppr_list *regions = NULL;
 header *headers[NUM_CLASSES];	//current heads of free lists
 
 
-const int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
+const unsigned int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
 				                 SIZE_C (5), SIZE_C (6), SIZE_C (7), SIZE_C (8),
 				                 SIZE_C (9), SIZE_C (10), SIZE_C (11), SIZE_C (12)
                         	   };

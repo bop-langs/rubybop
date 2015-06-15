@@ -1,7 +1,7 @@
 CC = gcc
 OBJS = malloc_wrapper.o dmmalloc.o
 
-CFLAGS = -W  -ldl -ggdb #--no-as-needed
+CFLAGS = -W  -ggdb -pg -ldl -fPIC #--no-as-needed
 
 DEPS = dmmalloc.h malloc_wrapper.h
 
