@@ -14,7 +14,7 @@ end
 task :bop do
   #build bop
   cd "bop" do
-    sh 'gcc -I. -Wall -O3 *.c -lm -c'
+    sh 'make'
   end
 end
 
@@ -36,6 +36,6 @@ task :clean do
 		end
 	end
   cd "bop" do
-    sh 'rm -f *.o'
+    sh 'make clean'
   end
 end

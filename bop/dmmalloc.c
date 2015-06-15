@@ -30,6 +30,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #include <assert.h> //debug
 #include <stdbool.h> //boolean types
 #include "dmmalloc.h"
+#include "malloc_wrapper.h"
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
 #define LOG(x) llog2(x)
@@ -133,7 +134,7 @@ static int split_gave_head[NUM_CLASSES];
 /** x86 assembly code for computing the log2 of a value. This is much faster than math.h log2*/
 static inline int llog2(const int x) {
   int y;
-  asm ( "\tbsr %1, %0\n"
+  __asm__ ( "\tbsr %1, %0\n"
       : "=r"(y)
       : "r" (x)
   );
@@ -177,7 +178,7 @@ static inline void grow (const int tasks) {
 #ifndef NDEBUG
 	growth_size+=growth;
 #endif
-    char *space_head = malloc (growth);	//system malloc, use byte-sized type
+    char *space_head = sys_malloc (growth);	//system malloc, use byte-sized type
     assert (space_head != NULL);	//ran out of sys memory
     
     header *head;
@@ -294,7 +295,7 @@ void *dm_malloc (size_t size) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
             //huge block always use system malloc
-            block = calloc (alloc_size, 1);
+            block = sys_malloc (alloc_size);
             if (block == NULL) {
                 fprintf (stderr, "system malloc failed\n");
                 return NULL;
@@ -409,7 +410,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
     void *payload;		//what the programmer gets
     if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in sequential mode for large->large blocks
-        new_head = realloc (old_head, new_size);
+        new_head = sys_realloc (old_head, new_size);
         return PAYLOAD (new_head);
     } else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
         return ptr;		//no need to update
@@ -451,7 +452,7 @@ static inline void free_now (header * head) {
     assert (size == ALIGN (size));	//size is aligned, ie write value was written
     //test for system block
     if (size > MAX_SIZE && SEQUENTIAL) {
-        free (head);		//system free, only in PPR
+        sys_free (head);		//system free, only in PPR
         return;
     }
     header *free_stack = get_header (size, &which);

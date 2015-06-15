@@ -1,3 +1,8 @@
+#ifndef DM_MALLOC_H
+
+#define DM_MALLOC_H
+#include <stddef.h>
+
 //prototypes
 void * dm_malloc(size_t);
 void * dm_realloc(void *, size_t);
@@ -25,3 +30,4 @@ typedef union{
 //data accessors for merge time
 void get_lists(header* freed, header* allocated); //give data
 void update_internal_lists(header * freed, header * allocated); //update my data
+#endif
