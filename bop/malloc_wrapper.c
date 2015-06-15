@@ -21,8 +21,6 @@ void free(void * p){
 void * calloc(size_t sz, size_t n){
 	return dm_calloc(sz, n);
 }
-static int PRINT = 0;
-
 //Wrappers for use by dmmalloc.c
 inline void * sys_malloc(size_t s){
 	void *(*libc_malloc)(size_t) = dlsym(RTLD_NEXT, "malloc");
@@ -30,7 +28,7 @@ inline void * sys_malloc(size_t s){
     return libc_malloc(s);
 }
 inline void * sys_realloc(void * p , size_t size){
-	void *(*libc_remalloc)(void*, size_t) = dlsym(RTLD_NEXT, "remalloc");
+	void *(*libc_remalloc)(void*, size_t) = dlsym(RTLD_NEXT, "realloc");
     printf("wrapped REMALLOC\n");
     return libc_remalloc(p, size);
 }

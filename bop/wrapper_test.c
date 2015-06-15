@@ -11,6 +11,7 @@ int main(){
 		ints[i] = i;
 	for(i = 0; i < 300; i++)
 		count += ints[i];
+	free(ints);
 	printf("sum %d\n", count);
 	return 1;
 }
