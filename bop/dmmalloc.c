@@ -19,7 +19,9 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 //For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
 
-#define NDEBUG			//defined: no debug or asserts. Comment or delete to enable assertions and debug info
+//#define NDEBUG			//defined: no debug variables or asserts.
+//#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
+//#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
 
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
@@ -162,7 +164,9 @@ static inline int get_index (size_t size) {
 static inline void grow (const int tasks) {
 	int class_index, blocks_left, size;
 #ifndef NDEBUG
+#ifdef PRINT
 	printf("\n\tgrowing\n");
+#endif
     grow_count++;
 #endif
 
@@ -220,6 +224,8 @@ void dm_print_info (void) {
     printf("Multi splits: %'d\n", multi_splits);
     for(i = 0; i < NUM_CLASSES; i++)
         printf("Class %d had %'d remaining items\n", i+1, counts[i]);
+#else
+	printf("dm malloc not compiled in debug mode. Recompile without NDEBUG defined to keep track of debug information.\n");
 #endif
 }
 
@@ -284,20 +290,25 @@ static inline header * get_header (size_t size, int *which) {
 
 /**BOP-safe malloc implementation based off of size classes.*/
 void *dm_malloc (size_t size) {
+	if(size == 0) return NULL;
     //get the right header
     size_t alloc_size = ALIGN (size + HSIZE);
     int which = -2;
     header *block = get_header (alloc_size, &which);
     assert (which != -2);
+#ifdef CHECK_COUNTS
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
             (headers[which] != NULL && counts[which] > 0));
+#endif         
     if (block == NULL) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
             //huge block always use system malloc
             block = sys_malloc (alloc_size);
             if (block == NULL) {
-                fprintf (stderr, "system malloc failed\n");
+#ifdef PRINT          	
+                printf ("system malloc failed\n");
+#endif              
                 return NULL;
             }
             //don't need to add to free list, just set information
@@ -333,8 +344,10 @@ void *dm_malloc (size_t size) {
    // if(!SEQUENTIAL)
         add_alloc_list(&allocatedList, block);
     assert (block->allocated.blocksize != 0);
+#ifdef CHECK_COUNTS
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
             (headers[which] != NULL && counts[which] > 0));
+#endif   
     return PAYLOAD (block);
 }
 
@@ -394,13 +407,17 @@ static inline header* dm_split (int which) {
 }
 /**Bop safe calloc built off of dm_malloc*/
 void * dm_calloc (size_t n, size_t size) {
-    void *allocd = dm_malloc (size * n);
-    memset (allocd, 0, size * n);
+	assert((n * size) >= n && (n * size) >= size); //overflow
+    char *allocd = dm_malloc (size * n);
+    if(allocd != NULL)
+    	memset (allocd, 0, size * n);
     return allocd;
 }
 /**Standard BOP-safe reallocator which optimizations from using size classes. 
    The standard case is using dmmalloc and free as normal.*/
 void * dm_realloc (void *ptr, size_t gsize) {
+	if(gsize == 0) 
+		return NULL;
     //use syst-realloc if possible
     header *old_head = HEADER (ptr);
     assert (old_head->allocated.blocksize != 0);
@@ -408,19 +425,21 @@ void * dm_realloc (void *ptr, size_t gsize) {
     size_t new_size = ALIGN (gsize + HSIZE);
     int new_index = get_index (new_size);
     void *payload;		//what the programmer gets
-    if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
+    if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize) {
+        return ptr;	//no need to update
+    } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in sequential mode for large->large blocks
         new_head = sys_realloc (old_head, new_size);
         return PAYLOAD (new_head);
-    } else if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize)
-        return ptr;		//no need to update
-    else {
+    } else {
     	//build off malloc and free
         assert (old_head->allocated.blocksize != 0);
+        size_t size_cache = old_head->allocated.blocksize;
         //we're reallocating within managed memory
         payload = dm_malloc (new_size);
 
         payload = memcpy (payload, ptr, old_head->allocated.blocksize);	//copy memory
+        old_head->allocated.blocksize = size_cache;
         dm_free (ptr);
         return payload;
     }
@@ -434,7 +453,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
 */
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
-    assert (ptr == PAYLOAD (free_header));
+    assert (free_header->allocated.blocksize > 0);
     if (!SEQUENTIAL) {
         //needs to be allocated in this PPR task, ie. in the freed list
         if(list_contains(allocatedList, free_header))
@@ -489,3 +508,4 @@ static inline void add_alloc_list (header** list_head, header * item) {
 		*list_head = item;	
 	}
 }
+#undef NDEBUG
