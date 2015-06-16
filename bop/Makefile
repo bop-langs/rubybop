@@ -1,15 +1,17 @@
 CC = gcc
 OBJS = malloc_wrapper.o dmmalloc.o
-
-CFLAGS = -W -ggdb -pg
+#
+CFLAGS = -Wall -fPIC -ggdb3 -g3
 LFLAGS = -ldl
 
-DEPS = dmmalloc.h malloc_wrapper.h
+DEPS = dlmalloc.h malloc_wrapper.h dmmalloc.h
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 	
-wrapper: dmmalloc.o malloc_wrapper.o
+library: malloc_wrapper.o dmmalloc.o
+	
+test: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(LFLAGS) -o wrapper wrapper_test.c
 
 clean:
