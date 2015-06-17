@@ -1,5 +1,6 @@
 *~
-.stamp
+*.stamp
+core.*
 .nfs*
 *.o
 *.a

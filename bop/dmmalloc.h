@@ -20,7 +20,7 @@ typedef union{
 	struct{
 		struct header * next;   // ppr-allocated object list
 		size_t blocksize; // which free list to insert freed items into
-		char padding[7]; //....
+		char padding[8]; //....
 	} allocated;
 	struct{
         //doubly linked free list for partioning

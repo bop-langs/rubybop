@@ -147,10 +147,9 @@ static inline int llog2(const int x) {
   return y;
 }
 static inline size_t align(size_t size, size_t alignment){
-	/*int log = LOG(alignemnt);
+	int log = LOG(alignment);
 	assert(alignment == (1 << log));
-	return (((size) + (alignment-1)) & ~(alignment-1));*/
-	return -21;
+	return (((size) + (alignment-1)) & ~(alignment-1));
 }
 /**Get the index corresponding to the given size. If size > MAX_SIZE, then return -1*/
 static inline int get_index (size_t size) {
@@ -299,8 +298,9 @@ static inline header * get_header (size_t size, int *which) {
 }
 
 /**BOP-safe malloc implementation based off of size classes.*/
-void *dm_malloc (size_t size) {
-	if(size == 0) return NULL;
+void *dm_malloc (const size_t size) {
+	if(size == 0) 
+		return NULL;
     //get the right header
     size_t alloc_size = ALIGN (size + HSIZE);
     int which = -2;
@@ -326,12 +326,14 @@ void *dm_malloc (size_t size) {
             assert (block->allocated.blocksize != 0);
             if(!SEQUENTIAL)
                 add_alloc_list(&allocatedList, block);
+            assert (block->allocated.blocksize != 0);
             return PAYLOAD (block);
         } else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
             splits++;
 #endif
             block = dm_split (which);
+            assert (block->allocated.blocksize != 0);
         } else if (SEQUENTIAL) {
 #ifndef NDEBUG
             if (index_bigger (which) != -1)
@@ -421,6 +423,7 @@ void * dm_calloc (size_t n, size_t size) {
     char *allocd = dm_malloc (size * n);
     if(allocd != NULL)
     	memset (allocd, 0, size * n);
+    assert (HEADER(allocd)->allocated.blocksize != 0);
     return allocd;
 }
 /**Standard BOP-safe reallocator which optimizations from using size classes. 
@@ -428,7 +431,8 @@ void * dm_calloc (size_t n, size_t size) {
 void * dm_realloc (void *ptr, size_t gsize) {
 	if(gsize == 0) 
 		return NULL;
-    //use syst-realloc if possible
+	if(ptr == NULL)
+		return dm_malloc(gsize);
     header *old_head = HEADER (ptr);
     assert (old_head->allocated.blocksize != 0);
     header *new_head;
@@ -466,8 +470,6 @@ void * dm_realloc (void *ptr, size_t gsize) {
 */
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
-    if(free_header->allocated.blocksize <= 0)
-    	return;
     assert (free_header->allocated.blocksize > 0);
     if (!SEQUENTIAL) {
         //needs to be allocated in this PPR task, ie. in the freed list
@@ -482,7 +484,7 @@ void dm_free (void *ptr) {
 static inline void free_now (header * head) {
     int which;
     size_t size = head->allocated.blocksize;
-    assert (size == ALIGN (size));	//size is aligned, ie write value was written
+    assert (size >= HSIZE && size == ALIGN (size));	//size is aligned, ie write value was written
     //test for system block
     if (size > MAX_SIZE && SEQUENTIAL) {
         sys_free (head);		//system free, only in PPR
@@ -505,13 +507,7 @@ static inline void free_now (header * head) {
 size_t dm_malloc_usable_size(void* ptr){
 	header *free_header = HEADER (ptr);
 	size_t head_size = free_header->allocated.blocksize;
-	if(head_size == 0){
-		return sys_malloc_usable_size(ptr);
-	}else if(head_size < MAX_SIZE){
-		int index = get_index(head_size);
-		return sizes[index];
-	}
-	return head_size; //even for system-allocated chunks.
+	return head_size - HSIZE; //even for system-allocated chunks.
 }
 static inline bool list_contains (header * list, header * search_value) {
     if (list == NULL || search_value == NULL)
