@@ -91,7 +91,9 @@ size_t malloc_usable_size(void* ptr){
 	printf("s");
 	fflush(stdout);
 #endif
-	return dm_malloc_usable_size(ptr);
+	size_t size = dm_malloc_usable_size(ptr);
+	assert(size > 0);
+	return size;
 }
 
 

@@ -7374,7 +7374,6 @@ static void *
 objspace_xrealloc(rb_objspace_t *objspace, void *ptr, size_t new_size, size_t old_size)
 {
     void *mem;
-
     if ((ssize_t)new_size < 0) {
 	negative_size_allocation_error("negative re-allocation size");
     }
