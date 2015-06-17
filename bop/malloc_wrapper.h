@@ -5,14 +5,13 @@ void * malloc(size_t);
 void * realloc(void *, size_t);
 void free(void *);
 void * calloc(size_t, size_t);
-/*#define malloc(s) dm_malloc(s)
-#define calloc(n, s) dm_calloc(n, s)
-#define free(p) dm_free(p)
-#define realloc(p, s) dm_realloc(p, s)*/
-
+int posix_mem_align(void**, size_t alignment, size_t size); //0 on success
+void* aligned_malloc(size_t alignment, size_t size);
+size_t malloc_usable_size(void*);
 
 inline void * sys_malloc(size_t);
 inline void * sys_realloc(void *, size_t);
 inline void sys_free(void *);
 inline void * sys_calloc(size_t, size_t);
+inline size_t sys_malloc_usable_size(void*);
 #endif

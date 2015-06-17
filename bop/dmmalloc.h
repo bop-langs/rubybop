@@ -9,6 +9,7 @@ void * dm_realloc(void *, size_t);
 void dm_free(void *);
 void * dm_calloc(size_t, size_t);
 void dm_print_info(void);
+size_t dm_malloc_usable_size(void*);
 
 //initializers
 void carve(int); //divide up avaliable memory
@@ -24,6 +25,7 @@ typedef union{
         //doubly linked free list for partioning
 		struct header * next;
 		struct header * prev;
+		char padding[7]; //....
 	} free;
 } header;
 

@@ -341,7 +341,7 @@ void *dm_malloc (size_t size) {
     //actually allocate the block
     headers[which] = (header *) block->free.next;	//remove from free list
     counts[which]--;
-   // if(!SEQUENTIAL)
+    if(!SEQUENTIAL)
         add_alloc_list(&allocatedList, block);
     assert (block->allocated.blocksize != 0);
 #ifdef CHECK_COUNTS
@@ -453,6 +453,8 @@ void * dm_realloc (void *ptr, size_t gsize) {
 */
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
+    if(free_header->allocated.blocksize <= 0)
+    	return;
     assert (free_header->allocated.blocksize > 0);
     if (!SEQUENTIAL) {
         //needs to be allocated in this PPR task, ie. in the freed list
@@ -488,7 +490,17 @@ static inline void free_now (header * head) {
     headers[which] = head;
     counts[which]++;
 }
-
+size_t dm_malloc_usable_size(void* ptr){
+	header *free_header = HEADER (ptr);
+	size_t head_size = free_header->allocated.blocksize;
+	if(head_size == 0){
+		return sys_malloc_usable_size(ptr);
+	}else if(head_size < MAX_SIZE){
+		int index = get_index(head_size);
+		return sizes[index];
+	}
+	return head_size; //even for system-allocated chunks.
+}
 static inline bool list_contains (header * list, header * search_value) {
     if (list == NULL || search_value == NULL)
         return false;

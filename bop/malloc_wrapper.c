@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 
 //http://stackoverflow.com/questions/262439/create-a-wrapper-function-for-malloc-and-free-in-c
 
@@ -17,21 +18,44 @@ static inline void calloc_init();
 
 static void *(*libc_malloc)(size_t) = NULL;
 static void *(*libc_realloc)(void*, size_t) = NULL;
-static void *(*libc_free)(void*) = NULL;
+static void (*libc_free)(void*) = NULL;
 static void *(*libc_calloc)(size_t, size_t) = NULL;
+static size_t (*libc_malloc_usable_size)(void*) = NULL;
 static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workaround
 
 #define CHARSIZE 10000
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
 
+int posix_mem_align(void** dest_ptr, size_t align, size_t size){
+	int ones = __builtin_popcount (align);
+	if(ones != 1)
+		return -1; //not power of 2
 
+	void* dmm = aligned_malloc(align, size);
+	if(dmm == NULL)
+		return -1; //REAL ERROR???
+	*dest_ptr = dmm;
+	return 0;
+}
+
+bool is_aligned(void* ptr, size_t alignment){
+	return false;
+}
+void* aligned_malloc(size_t align, size_t size){
+	size_t malloc_size = size + align;
+	void* raw = malloc (malloc_size);
+	if(!is_aligned(raw, align)){
+		
+	
+	}
+	return NULL;
+}
 void* malloc(size_t s){
 	void* p = dm_malloc(s);
 	assert (p != NULL);
 	return p;
 }
-
 void* realloc(void *p , size_t s){
 	if(p == calloc_hack || p == NULL){ 
 		void* payload = dm_malloc(s);
@@ -46,8 +70,12 @@ void* realloc(void *p , size_t s){
 	
 }
 void free(void * p){
-	if(p == NULL || p == calloc_hack) return; //FIXME: NULL shouldn't be happening???
+	if(p == NULL || p == calloc_hack) return;
 	dm_free(p);
+}
+
+size_t malloc_usable_size(void* ptr){
+	return dm_malloc_usable_size(ptr);
 }
 
 void * calloc(size_t sz, size_t n){
@@ -103,6 +131,11 @@ inline void sys_free(void * p){
 	assert(libc_free != NULL);
     libc_free(p);
 }
+inline size_t sys_malloc_usable_size(void* p){
+	if(libc_malloc_usable_size == NULL)
+		libc_malloc_usable_size = dlsym(RTLD_NEXT, "malloc_usable_size");
+	return libc_malloc_usable_size(p);
+}
 inline void * sys_calloc(size_t s, size_t n){
 	calloc_init();
 	assert(libc_calloc != NULL);
@@ -110,4 +143,5 @@ inline void * sys_calloc(size_t s, size_t n){
     assert (p!=NULL);
 	return p;
 }
+
 #undef CHARSIZE
