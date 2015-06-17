@@ -31,6 +31,7 @@ static short initializing = 0;
 int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 #ifdef VISUALIZE
 	printf("p");
+	fflush(stdout);
 #endif
 	int ones = __builtin_popcount (align);
 	if(ones != 1)
@@ -45,6 +46,7 @@ int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 void* aligned_malloc(size_t align, size_t size){
 #ifdef VISUALIZE
 	printf("a");
+	fflush(stdout);
 #endif
 	size_t malloc_size = size * align;
 	void* raw = malloc (malloc_size);
@@ -53,6 +55,7 @@ void* aligned_malloc(size_t align, size_t size){
 void* malloc(size_t s){
 #ifdef VISUALIZE
 	printf("+");
+	fflush(stdout);
 #endif
 	void* p = dm_malloc(s);
 	assert (p != NULL);
@@ -61,6 +64,7 @@ void* malloc(size_t s){
 void* realloc(void *p , size_t s){
 #ifdef VISUALIZE
 	printf(".");
+	fflush(stdout);
 #endif
 	if(p == calloc_hack || p == NULL){ 
 		void* payload = dm_malloc(s);
@@ -76,6 +80,7 @@ void* realloc(void *p , size_t s){
 void free(void * p){
 #ifdef VISUALIZE
 	printf("-");
+	fflush(stdout);
 #endif
 	if(p == NULL || p == calloc_hack) return;
 	dm_free(p);
@@ -84,6 +89,7 @@ void free(void * p){
 size_t malloc_usable_size(void* ptr){
 #ifdef VISUALIZE
 	printf("s");
+	fflush(stdout);
 #endif
 	return dm_malloc_usable_size(ptr);
 }
@@ -92,6 +98,7 @@ size_t malloc_usable_size(void* ptr){
 void * calloc(size_t sz, size_t n){
 #ifdef VISUALIZE
 	printf("0");
+	fflush(stdout);
 #endif
 	calloc_init();
 	assert(calloc_func != NULL);
