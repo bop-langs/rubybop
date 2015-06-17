@@ -7,7 +7,7 @@ task :ruby => :bop do
       sh 'autoconf'
       sh './configure'
     end
-    sh 'make -j'
+    sh 'make'
   end
 end
 

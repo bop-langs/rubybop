@@ -1,4 +1,5 @@
 *~
+.stamp
 .nfs*
 *.o
 *.a
