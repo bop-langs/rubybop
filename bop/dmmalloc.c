@@ -440,6 +440,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
     } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in sequential mode for large->large blocks
         new_head = sys_realloc (old_head, new_size);
+        new_head->allocated.blocksize = new_size;
         return PAYLOAD (new_head);
     } else {
     	//build off malloc and free
