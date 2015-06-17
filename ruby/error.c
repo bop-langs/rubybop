@@ -1074,7 +1074,6 @@ rb_name_error_str(VALUE str, const char *fmt, ...)
 
     argv[1] = str;
     exc = rb_class_new_instance(2, argv, rb_eNameError);
-    abort();
     rb_exc_raise(exc);
 }
 

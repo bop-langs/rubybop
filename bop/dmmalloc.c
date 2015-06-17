@@ -470,6 +470,8 @@ void * dm_realloc (void *ptr, size_t gsize) {
 */
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
+    if(free_header->allocated.blocksize <= 0)
+    	return; //FIXME: shouldn't be happening, but for now...
     assert (free_header->allocated.blocksize > 0);
     if (!SEQUENTIAL) {
         //needs to be allocated in this PPR task, ie. in the freed list
