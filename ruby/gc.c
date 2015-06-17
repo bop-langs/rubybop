@@ -7167,29 +7167,12 @@ aligned_malloc(size_t alignment, size_t size)
 {
     void *res;
 
-#if defined __MINGW32__
-    res = __mingw_aligned_malloc(size, alignment);
-#elif defined _WIN32 && !defined __CYGWIN__
-    void *_aligned_malloc(size_t, size_t);
-    res = _aligned_malloc(size, alignment);
-#elif defined(HAVE_POSIX_MEMALIGN)
-    if (posix_memalign(&res, alignment, size) == 0) {
-        return res;
-    }
-    else {
-        return NULL;
-    }
-#elif defined(HAVE_MEMALIGN)
-    res = memalign(alignment, size);
-#else
     char* aligned;
     res = malloc(alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);
     aligned -= ((VALUE)aligned & (alignment - 1));
     ((void**)aligned)[-1] = res;
     res = (void*)aligned;
-#endif
-
 #if defined(_DEBUG) || GC_DEBUG
     /* alignment must be a power of 2 */
     assert(((alignment - 1) & alignment) == 0);
