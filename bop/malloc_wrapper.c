@@ -9,6 +9,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <malloc.h>
 
 //http://stackoverflow.com/questions/262439/create-a-wrapper-function-for-malloc-and-free-in-c
 
@@ -27,7 +28,26 @@ static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workar
 #define VISUALIZE
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
-
+//unsupported malloc operations are aborted immediately
+void* memalign(size_t size, size_t boundary){
+	printf("\nUNSUPPORTED OPERATION memalign\n");
+	abort();
+}
+void* aligned_alloc(size_t size, size_t boundary){
+	printf("\nUNSUPPORTED OPERATION: aligned_alloc\n");
+	abort();
+	return NULL;
+}
+void* valloc(size_t size){
+	printf("\nUNSUPPORTED OPERATION: valloc\n");
+	abort();
+	return NULL;
+}
+struct mallinfo mallinfo(){
+	printf("\nUNSUPPORTED OPERATION: mallinfo\n");
+	abort();
+}
+//Supported allocation functions
 int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 #ifdef VISUALIZE
 	printf("p");

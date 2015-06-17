@@ -441,6 +441,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
         //use system realloc in sequential mode for large->large blocks
         new_head = sys_realloc (old_head, new_size);
         new_head->allocated.blocksize = new_size;
+        assert (new_head->allocated.blocksize != 0);
         return PAYLOAD (new_head);
     } else {
     	//build off malloc and free
@@ -450,6 +451,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
         payload = dm_malloc (new_size);
 
         payload = memcpy (payload, ptr, old_head->allocated.blocksize);	//copy memory
+        assert (HEADER(payload)->allocated.blocksize);
         old_head->allocated.blocksize = size_cache;
         dm_free (ptr);
         return payload;
