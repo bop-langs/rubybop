@@ -25,7 +25,6 @@ static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workar
 
 #define CHARSIZE 100
 #define VISUALIZE
->>>>>>> some useful debug things
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
 int posix_mem_align(void** dest_ptr, size_t align, size_t size){
