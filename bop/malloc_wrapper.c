@@ -1,4 +1,4 @@
-//#include "dmmalloc.h"
+#include "dmmalloc.h"
 #include "malloc_wrapper.h"
 #undef NDEBUG
 #define _GNU_SOURCE
@@ -42,13 +42,13 @@ int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 }
 
 void* aligned_malloc(size_t align, size_t size){
-return aligned_alloc(align, size);
-size_t malloc_size = size * align;
+	//return aligned_alloc(align, size);
+	size_t malloc_size = size * align;
 	void* raw = malloc (malloc_size);
 	return raw;
 }
 void* malloc(size_t s){
-return sys_malloc(s);
+//return sys_malloc(s);
 #ifdef VISUALIZE
 	printf("+");
 #endif
@@ -69,7 +69,7 @@ void* realloc(void *p , size_t s){
 	}
 	void* p2 = dm_realloc(p, s);
 	assert (p2!=NULL);
-	return p2;*/
+	return p2;
 	
 }
 void free(void * p){

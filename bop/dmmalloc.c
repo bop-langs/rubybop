@@ -22,7 +22,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //#define NDEBUG			//defined: no debug variables or asserts.
 //#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
-.*
+
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
 #endif
