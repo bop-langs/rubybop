@@ -27,6 +27,7 @@ static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workar
 #define VISUALIZE
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
+
 int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 #ifdef VISUALIZE
 	printf("p");
@@ -42,24 +43,33 @@ int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 }
 
 void* aligned_malloc(size_t align, size_t size){
+<<<<<<< Updated upstream
 	//return aligned_alloc(align, size);
+=======
+>>>>>>> Stashed changes
 	size_t malloc_size = size * align;
 	void* raw = malloc (malloc_size);
 	return raw;
 }
 void* malloc(size_t s){
+<<<<<<< Updated upstream
 //return sys_malloc(s);
 #ifdef VISUALIZE
 	printf("+");
 #endif
+=======
+>>>>>>> Stashed changes
 	void* p = dm_malloc(s);
 	assert (p != NULL);
 	return p;
 }
 void* realloc(void *p , size_t s){
+<<<<<<< Updated upstream
 #ifdef VISUALIZE
 	printf(".");
 #endif
+=======
+>>>>>>> Stashed changes
 	if(p == calloc_hack || p == NULL){ 
 		void* payload = dm_malloc(s);
 		if(p != NULL)
@@ -70,6 +80,7 @@ void* realloc(void *p , size_t s){
 	void* p2 = dm_realloc(p, s);
 	assert (p2!=NULL);
 	return p2;
+<<<<<<< Updated upstream
 	
 }
 void free(void * p){
@@ -84,6 +95,15 @@ size_t malloc_usable_size(void* ptr){
 #ifdef VISUALIZE
 	printf(" ");
 #endif
+=======
+}
+void free(void * p){
+	if(p == NULL || p == calloc_hack) return;
+		dm_free(p);
+}
+
+size_t malloc_usable_size(void* ptr){
+>>>>>>> Stashed changes
 	return dm_malloc_usable_size(ptr);
 }
 
@@ -109,6 +129,10 @@ static inline void calloc_init(){
 	}
 }
 void* tempcalloc(size_t s, size_t n){
+	if(s * n > CHARSIZE){
+		abort();
+		return NULL;
+	}
 	int i;
 	for(i = 0; i < CHARSIZE; i++)
 		calloc_hack[i] = '\0';
@@ -145,6 +169,7 @@ inline void sys_free(void * p){
 inline size_t sys_malloc_usable_size(void* p){
 	if(libc_malloc_usable_size == NULL)
 		libc_malloc_usable_size = dlsym(RTLD_NEXT, "malloc_usable_size");
+	assert (libc_malloc_usable_size != NULL);
 	return libc_malloc_usable_size(p);
 }
 inline void * sys_calloc(size_t s, size_t n){

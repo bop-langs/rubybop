@@ -62,7 +62,7 @@ OUTFLAG = @OUTFLAG@$(empty)
 COUTFLAG = @COUTFLAG@$(empty)
 ARCH_FLAG = @ARCH_FLAG@
 CFLAGS_NO_ARCH = @CFLAGS@
-CFLAGS = $(CFLAGS_NO_ARCH) $(ARCH_FLAG) -ldl -fPIC -ggdb -g
+CFLAGS = $(CFLAGS_NO_ARCH) $(ARCH_FLAG) -fPIC -ggdb -g
 cflags = @cflags@
 optflags = @optflags@
 debugflags = @debugflags@
@@ -71,7 +71,7 @@ cppflags = @cppflags@
 INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir) -I$(srcdir) -I$(BOPDIR)
 XCFLAGS = @XCFLAGS@
 CPPFLAGS = @CPPFLAGS@ $(INCFLAGS)
-LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ $(MALLOC_WRAPPER)
+LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ $(MALLOC_WRAPPER) -ldl
 EXTLDFLAGS = @EXTLDFLAGS@
 XLDFLAGS = @XLDFLAGS@ $(EXTLDFLAGS)
 EXTLIBS =
@@ -99,7 +99,7 @@ LIBEXT = @LIBEXT@
 PROGRAM=$(RUBY_INSTALL_NAME)$(EXEEXT)
 RUBY = $(RUBY_INSTALL_NAME)
 MINIRUBY = @MINIRUBY@\
-	$(MINIRUBYOPT) -ldl
+	$(MINIRUBYOPT) 
 # RUNRUBY_COMMAND:: runruby.rb or baseruby. do not append options directly
 RUNRUBY_COMMAND = @RUNRUBY_COMMAND@
 # RUNRUBY:: run ruby with RUN_OPTS which is passed to ruby
