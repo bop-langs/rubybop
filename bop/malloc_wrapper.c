@@ -24,10 +24,14 @@ static size_t (*libc_malloc_usable_size)(void*) = NULL;
 static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workaround
 
 #define CHARSIZE 100
+#define VISUALIZE
+>>>>>>> some useful debug things
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
-	/*
 int posix_mem_align(void** dest_ptr, size_t align, size_t size){
+#ifdef VISUALIZE
+	printf("p");
+#endif
 	int ones = __builtin_popcount (align);
 	if(ones != 1)
 		return -1; //not power of 2
@@ -43,16 +47,21 @@ return aligned_alloc(align, size);
 size_t malloc_size = size * align;
 	void* raw = malloc (malloc_size);
 	return raw;
-}*/
+}
 void* malloc(size_t s){
 return sys_malloc(s);
-	/*void* p = dm_malloc(s);
+#ifdef VISUALIZE
+	printf("+");
+#endif
+	void* p = dm_malloc(s);
 	assert (p != NULL);
-	return p;*/
+	return p;
 }
 void* realloc(void *p , size_t s){
-return sys_realloc(p, s);
-	/*if(p == calloc_hack || p == NULL){ 
+#ifdef VISUALIZE
+	printf(".");
+#endif
+	if(p == calloc_hack || p == NULL){ 
 		void* payload = dm_malloc(s);
 		if(p != NULL)
 			payload = memcpy(payload, p, CHARSIZE);
@@ -65,17 +74,24 @@ return sys_realloc(p, s);
 	
 }
 void free(void * p){
-return sys_free(p);
-	//if(p == NULL || p == calloc_hack) return;
-//	dm_free(p);
+#ifdef VISUALIZE
+	printf("-");
+#endif
+	if(p == NULL || p == calloc_hack) return;
+	dm_free(p);
 }
 
 size_t malloc_usable_size(void* ptr){
-return sys_malloc_usable_size(ptr);
-//	return dm_malloc_usable_size(ptr);
+#ifdef VISUALIZE
+	printf(" ");
+#endif
+	return dm_malloc_usable_size(ptr);
 }
 
 void * calloc(size_t sz, size_t n){
+#ifdef VISUALIZE
+	printf("0");
+#endif
 	calloc_init();
 	assert(calloc_func != NULL);
 	void* p = calloc_func(sz, n);

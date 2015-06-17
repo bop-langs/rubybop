@@ -2747,7 +2747,11 @@ Init_VM(void)
 	/*
 	 * The Binding of the top level scope
 	 */
+	//printf("\nREACHES BEFORE TOPLEVEL DEFINE\n");
+	//fflush(stdout);
 	rb_define_global_const("TOPLEVEL_BINDING", rb_binding_new());
+	//printf("\nREACHES AFTER TOPLEVEL DEFINE\n");
+	//fflush(stdout);
     }
     vm_init_redefined_flag();
 

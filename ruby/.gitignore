@@ -155,3 +155,5 @@ y.tab.c
 # /win32/
 /win32/*.ico
 /win32/.time
+
+/enc/unicode/name2ctype.h
