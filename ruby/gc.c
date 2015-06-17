@@ -7184,15 +7184,7 @@ aligned_malloc(size_t alignment, size_t size)
 static void
 aligned_free(void *ptr)
 {
-#if defined __MINGW32__
-    __mingw_aligned_free(ptr);
-#elif defined _WIN32 && !defined __CYGWIN__
-    _aligned_free(ptr);
-#elif defined(HAVE_MEMALIGN) || defined(HAVE_POSIX_MEMALIGN)
     free(ptr);
-#else
-    free(((void**)ptr)[-1]);
-#endif
 }
 
 static inline size_t
