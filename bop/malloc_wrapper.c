@@ -48,7 +48,7 @@ struct mallinfo mallinfo(){
 	abort();
 }
 //Supported allocation functions
-int posix_mem_align(void** dest_ptr, size_t align, size_t size){
+int posix_memalign(void** dest_ptr, size_t align, size_t size){
 #ifdef VISUALIZE
 	printf("p");
 	fflush(stdout);
@@ -56,21 +56,11 @@ int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 	int ones = __builtin_popcount (align);
 	if(ones != 1)
 		return -1; //not power of 2
-	void* dmm = aligned_malloc(align, size);
+	void* dmm = aligned_alloc(align, size);
 	if(dmm == NULL)
 		return -1; //REAL ERROR???
 	*dest_ptr = dmm;
 	return 0;
-}
-
-void* aligned_malloc(size_t align, size_t size){
-#ifdef VISUALIZE
-	printf("a");
-	fflush(stdout);
-#endif
-	size_t malloc_size = size * align;
-	void* raw = malloc (malloc_size);
-	return raw;
 }
 void* malloc(size_t s){
 #ifdef VISUALIZE
@@ -86,13 +76,7 @@ void* realloc(void *p , size_t s){
 	printf(".");
 	fflush(stdout);
 #endif
-	if(p == calloc_hack || p == NULL){ 
-		void* payload = dm_malloc(s);
-		if(p != NULL)
-			payload = memcpy(payload, p, CHARSIZE);
-		assert(payload != NULL);
-		return payload;
-	}
+	assert (p != calloc_hack);
 	void* p2 = dm_realloc(p, s);
 	assert (p2!=NULL);
 	return p2;
@@ -136,7 +120,7 @@ static inline void calloc_init(){
 		calloc_func = tempcalloc;
 		libc_calloc = dlsym(RTLD_NEXT, "calloc");
 		assert(libc_calloc != NULL);
-		calloc_func = libc_calloc; //dm_calloc;
+		calloc_func = dm_calloc;
 	}
 }
 void* tempcalloc(size_t s, size_t n){
