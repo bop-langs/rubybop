@@ -43,33 +43,25 @@ int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 }
 
 void* aligned_malloc(size_t align, size_t size){
-<<<<<<< Updated upstream
-	//return aligned_alloc(align, size);
-=======
->>>>>>> Stashed changes
+#ifdef VISUALIZE
+	printf("a");
+#endif
 	size_t malloc_size = size * align;
 	void* raw = malloc (malloc_size);
 	return raw;
 }
 void* malloc(size_t s){
-<<<<<<< Updated upstream
-//return sys_malloc(s);
 #ifdef VISUALIZE
 	printf("+");
 #endif
-=======
->>>>>>> Stashed changes
 	void* p = dm_malloc(s);
 	assert (p != NULL);
 	return p;
 }
 void* realloc(void *p , size_t s){
-<<<<<<< Updated upstream
 #ifdef VISUALIZE
 	printf(".");
 #endif
-=======
->>>>>>> Stashed changes
 	if(p == calloc_hack || p == NULL){ 
 		void* payload = dm_malloc(s);
 		if(p != NULL)
@@ -80,8 +72,6 @@ void* realloc(void *p , size_t s){
 	void* p2 = dm_realloc(p, s);
 	assert (p2!=NULL);
 	return p2;
-<<<<<<< Updated upstream
-	
 }
 void free(void * p){
 #ifdef VISUALIZE
@@ -93,19 +83,11 @@ void free(void * p){
 
 size_t malloc_usable_size(void* ptr){
 #ifdef VISUALIZE
-	printf(" ");
+	printf("s");
 #endif
-=======
-}
-void free(void * p){
-	if(p == NULL || p == calloc_hack) return;
-		dm_free(p);
-}
-
-size_t malloc_usable_size(void* ptr){
->>>>>>> Stashed changes
 	return dm_malloc_usable_size(ptr);
 }
+
 
 void * calloc(size_t sz, size_t n){
 #ifdef VISUALIZE
