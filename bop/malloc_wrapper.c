@@ -1,4 +1,4 @@
-#include "dmmalloc.h"
+//#include "dmmalloc.h"
 #include "malloc_wrapper.h"
 #undef NDEBUG
 #define _GNU_SOURCE
@@ -23,15 +23,14 @@ static void *(*libc_calloc)(size_t, size_t) = NULL;
 static size_t (*libc_malloc_usable_size)(void*) = NULL;
 static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workaround
 
-#define CHARSIZE 10000
+#define CHARSIZE 100
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
-
+	/*
 int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 	int ones = __builtin_popcount (align);
 	if(ones != 1)
 		return -1; //not power of 2
-
 	void* dmm = aligned_malloc(align, size);
 	if(dmm == NULL)
 		return -1; //REAL ERROR???
@@ -39,25 +38,21 @@ int posix_mem_align(void** dest_ptr, size_t align, size_t size){
 	return 0;
 }
 
-bool is_aligned(void* ptr, size_t alignment){
-	return false;
-}
 void* aligned_malloc(size_t align, size_t size){
-	size_t malloc_size = size + align;
+return aligned_alloc(align, size);
+size_t malloc_size = size * align;
 	void* raw = malloc (malloc_size);
-	if(!is_aligned(raw, align)){
-		
-	
-	}
-	return NULL;
-}
+	return raw;
+}*/
 void* malloc(size_t s){
-	void* p = dm_malloc(s);
+return sys_malloc(s);
+	/*void* p = dm_malloc(s);
 	assert (p != NULL);
-	return p;
+	return p;*/
 }
 void* realloc(void *p , size_t s){
-	if(p == calloc_hack || p == NULL){ 
+return sys_realloc(p, s);
+	/*if(p == calloc_hack || p == NULL){ 
 		void* payload = dm_malloc(s);
 		if(p != NULL)
 			payload = memcpy(payload, p, CHARSIZE);
@@ -66,16 +61,18 @@ void* realloc(void *p , size_t s){
 	}
 	void* p2 = dm_realloc(p, s);
 	assert (p2!=NULL);
-	return p2;
+	return p2;*/
 	
 }
 void free(void * p){
-	if(p == NULL || p == calloc_hack) return;
-	dm_free(p);
+return sys_free(p);
+	//if(p == NULL || p == calloc_hack) return;
+//	dm_free(p);
 }
 
 size_t malloc_usable_size(void* ptr){
-	return dm_malloc_usable_size(ptr);
+return sys_malloc_usable_size(ptr);
+//	return dm_malloc_usable_size(ptr);
 }
 
 void * calloc(size_t sz, size_t n){
@@ -93,7 +90,7 @@ static inline void calloc_init(){
 		calloc_func = tempcalloc;
 		libc_calloc = dlsym(RTLD_NEXT, "calloc");
 		assert(libc_calloc != NULL);
-		calloc_func = dm_calloc;
+		calloc_func = libc_calloc; //dm_calloc;
 	}
 }
 void* tempcalloc(size_t s, size_t n){
@@ -110,7 +107,6 @@ inline void * sys_malloc(size_t s){
     return libc_malloc(s);
 }
 inline void * sys_realloc(void * p , size_t size){
-	assert (p != NULL);
 	if(p == calloc_hack){
 		void* payload = sys_malloc(size);
 		payload = memcpy(payload, p, CHARSIZE);

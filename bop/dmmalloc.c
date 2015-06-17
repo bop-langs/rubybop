@@ -22,7 +22,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //#define NDEBUG			//defined: no debug variables or asserts.
 //#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
-
+.*
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
 #endif
@@ -122,6 +122,7 @@ static inline bool list_contains (header * list, header * item);
 static inline void add_alloc_list (header**, header *);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
+static inline size_t align(size_t size, size_t align);
 
 #ifndef NDEBUG
 static int grow_count = 0;
@@ -133,6 +134,9 @@ static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
 
+static size_t head_size = HSIZE;
+static size_t head_raw = sizeof(header);
+
 /** x86 assembly code for computing the log2 of a value. This is much faster than math.h log2*/
 static inline int llog2(const int x) {
   int y;
@@ -141,6 +145,12 @@ static inline int llog2(const int x) {
       : "r" (x)
   );
   return y;
+}
+static inline size_t align(size_t size, size_t alignment){
+	/*int log = LOG(alignemnt);
+	assert(alignment == (1 << log));
+	return (((size) + (alignment-1)) & ~(alignment-1));*/
+	return -21;
 }
 /**Get the index corresponding to the given size. If size > MAX_SIZE, then return -1*/
 static inline int get_index (size_t size) {
@@ -465,7 +475,6 @@ void dm_free (void *ptr) {
     } else
         free_now (free_header);
 }
-
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
 static inline void free_now (header * head) {
     int which;
@@ -477,7 +486,7 @@ static inline void free_now (header * head) {
         return;
     }
     header *free_stack = get_header (size, &which);
-    assert (sizes[which] == size);	//should exactly align
+   	assert (sizes[which] == size);	//should exactly align
     if (free_stack == NULL) {
         //empty free_stack
         head->free.next = head->free.prev = NULL;
