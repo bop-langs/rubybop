@@ -205,30 +205,19 @@ void wrapper_debug(){
 	long long m = 0LL;
 	long long c =  0LL;
 	long long r = 0LL;
-	for(f = 0LL; f < fc; f++)
-	{
-		for(m = 0LL; m < mc; m++)
-		{
-			if(mallocs[m] == frees[f]){
+	for(f = 0LL; f < fc; f++){
+		found = 0;
+		for(m = 0LL; !found && m < mc; m++){
+			if(mallocs[m] == frees[f])
 				found = 1;
-				break;
-			}
 		}
-		for(c = 0LL; c < cc; c++)
-		{
-			if(callocs[c] == frees[f]){
+		for(c = 0LL; !found && c < cc; c++){
+			if(callocs[c] == frees[f])
 				found = 1;
-				break;
-			}
-			
 		}
-		for(r = 0LL; r < rc; r++)
-		{
-			if(reallocs[r] == frees[f]){
+		for(r = 0LL; !found && r < rc; r++){
+			if(reallocs[r] == frees[f])
 				found = 1;
-				break;
-			}
-		
 		}
 		if(found == 0){
 			printf("Freed unallocated block: %p", frees[f]);
