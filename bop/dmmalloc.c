@@ -396,6 +396,7 @@ static inline header* dm_split (int which) {
     split->free.next = split->free.prev = NULL;
 
     //handle book-keeping
+    assert(counts[which] == 0);
     counts[which] = 2; //for when the count is decremented by dm_malloc
     counts[larger]--;
 
