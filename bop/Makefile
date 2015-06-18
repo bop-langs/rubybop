@@ -4,9 +4,7 @@ OBJS = malloc_wrapper.o dmmalloc.o
 CFLAGS = -Wall -fPIC -ggdb3 -g3 -I.
 LFLAGS = -ldl
 
-DEPS = dlmalloc.h malloc_wrapper.h dmmalloc.h
-
-%.o: %.c $(DEPS)
+%.o: %.c
 	$(CC) -c -o $@ $^ $(CFLAGS)
 	
 library: malloc_wrapper.o dmmalloc.o
