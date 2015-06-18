@@ -42,53 +42,6 @@ static long long fc=0LL;
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
 //unsupported malloc operations are aborted immediately
-void wrapper_debug(){
-#ifdef VISUALIZE
-	printf("\nmalloc count %lld\n", mc);
-	printf("calloc count %lld\n", cc);
-	printf("realloc count %lld\n", rc);
-	printf("free count %lld\n", fc);
-	int found = 0;
-	long long f = 0LL;
-	long long m = 0LL;
-	long long c =  0LL;
-	long long r = 0LL;
-	for(f = 0LL; f < fc; f++)
-	{
-		for(m = 0LL; m < mc; m++)
-		{
-			if(mallocs[m] == frees[f]){
-				found = 1;
-				break;
-			}
-		}
-		for(c = 0LL; c < cc; c++)
-		{
-			if(callocs[c] == frees[f]){
-				found = 1;
-				break;
-			}
-			
-		}
-		for(r = 0LL; r < rc; r++)
-		{
-			if(reallocs[r] == frees[f]){
-				found = 1;
-				break;
-			}
-		
-		}
-		if(found == 0){
-			printf("Freed unallocated block: %p", frees[f]);
-			abort();
-		}
-	}
-	printf("ALL FREES PASS\n");
-#else
-	printf("frees not tracked");
-#endif
-}
-
 void* memalign(size_t size, size_t boundary){
 	printf("\nUNSUPPORTED OPERATION memalign\n");
 	abort();
@@ -238,6 +191,54 @@ inline void * sys_calloc(size_t s, size_t n){
     void* p = libc_calloc(s, n);
     assert (p!=NULL);
 	return p;
+}
+
+//debug information
+void wrapper_debug(){
+#ifdef VISUALIZE
+	printf("\nmalloc count %lld\n", mc);
+	printf("calloc count %lld\n", cc);
+	printf("realloc count %lld\n", rc);
+	printf("free count %lld\n", fc);
+	int found = 0;
+	long long f = 0LL;
+	long long m = 0LL;
+	long long c =  0LL;
+	long long r = 0LL;
+	for(f = 0LL; f < fc; f++)
+	{
+		for(m = 0LL; m < mc; m++)
+		{
+			if(mallocs[m] == frees[f]){
+				found = 1;
+				break;
+			}
+		}
+		for(c = 0LL; c < cc; c++)
+		{
+			if(callocs[c] == frees[f]){
+				found = 1;
+				break;
+			}
+			
+		}
+		for(r = 0LL; r < rc; r++)
+		{
+			if(reallocs[r] == frees[f]){
+				found = 1;
+				break;
+			}
+		
+		}
+		if(found == 0){
+			printf("Freed unallocated block: %p", frees[f]);
+			abort();
+		}
+	}
+	printf("ALL FREES PASS\n");
+#else
+	printf("frees not tracked");
+#endif
 }
 
 #undef CHARSIZE
