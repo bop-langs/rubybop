@@ -3,6 +3,7 @@ task :default => :ruby
 task :ruby => :bop do
   #build ruby
   cd "ruby" do
+  	sh 'rm -f miniruby core*'
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
       sh './configure'
@@ -25,7 +26,7 @@ task :test do
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
-				fail "tests failed (status = #{res.exitstatus}"
+				fail "Ruby tests failed with exit code = #{res.exitstatu}"
 			end
 		end
 	end
