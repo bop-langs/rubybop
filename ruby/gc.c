@@ -7218,11 +7218,7 @@ aligned_free(void *ptr)
 static inline size_t
 objspace_malloc_size(rb_objspace_t *objspace, void *ptr, size_t hint)
 {
-#ifdef HAVE_MALLOC_USABLE_SIZE
     return malloc_usable_size(ptr);
-#else
-    return hint;
-#endif
 }
 
 enum memop_type {
@@ -7414,10 +7410,6 @@ objspace_xrealloc(rb_objspace_t *objspace, void *ptr, size_t new_size, size_t ol
 static void
 objspace_xfree(rb_objspace_t *objspace, void *ptr, size_t old_size)
 {
-#if CALC_EXACT_MALLOC_SIZE
-    ptr = ((size_t *)ptr) - 1;
-    old_size = ((size_t*)ptr)[0];
-#endif
     old_size = objspace_malloc_size(objspace, ptr, old_size);
 
     free(ptr);
