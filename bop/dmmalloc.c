@@ -65,8 +65,9 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 //class size macros
 #define NUM_CLASSES 12
+#define CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + CLASS_OFFSET)
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define SIZE_C(k) ALIGN((1 << (k + 4)))	//allows for recursive spliting
+#define SIZE_C(k) ALIGN((1 << (k + CLASS_OFFSET)))	//allows for recursive spliting
 
 //grow macros
 #define BLKS_1 50
@@ -161,13 +162,13 @@ static inline int get_index (size_t size) {
     if (size > MAX_SIZE)
         return -1;			//too big
     //Computations for the actual index, off set of -5 from macro & array indexing
-   	int index = LOG(size) - 5;
+   	int index = LOG(size) - CLASS_OFFSET - 1;
    	
-    if (sizes[index] < size)
+    if (index == -1 || sizes[index] < size)
         index++;
     assert (index >= 0 && index < NUM_CLASSES);
-    assert (sizes[index] >= size);
-    assert (index == 0 || sizes[index - 1] < size);
+    assert (sizes[index] >= size); //this size class is large enough
+    assert (index == 0 || sizes[index - 1] < size); //using the minimal valid size class 
     return index;
 }
 

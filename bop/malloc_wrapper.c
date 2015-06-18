@@ -2,19 +2,18 @@
 #include "malloc_wrapper.h"
 #undef NDEBUG
 #define _GNU_SOURCE
-#define VISUALIZE
-
 #include <dlfcn.h>
-#ifdef VISUALIZE
 #include <stdio.h>
-#endif
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <malloc.h>
+
+#define VISUALIZE
 #define TABLESIZE 100000
 #define CHARSIZE 100
+//#define PTR_CHECK
 
 //http://stackoverflow.com/questions/262439/create-a-wrapper-function-for-malloc-and-free-in-c
 
@@ -30,6 +29,7 @@ static size_t (*libc_malloc_usable_size)(void*) = NULL;
 static int (*libc_posix_memalign)(void**, size_t, size_t) = NULL;
 static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workaround
 
+#ifdef PTR_CHECK
 static void *mallocs[TABLESIZE];
 static void *callocs[TABLESIZE];
 static void *reallocs[TABLESIZE];
@@ -38,6 +38,7 @@ static long long mc=0LL;
 static long long cc=0LL;
 static long long rc=0LL;
 static long long fc=0LL;
+#endif
 
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
@@ -69,8 +70,10 @@ void* malloc(size_t s){
 	fflush(stdout);
 #endif
 	void* p = dm_malloc(s);
+#ifdef PTR_CHECK
 	mallocs[mc] = p;
 	mc++;
+#endif
 	assert (p != NULL);
 	return p;
 }
@@ -81,8 +84,10 @@ void* realloc(void *p , size_t s){
 #endif
 	assert (p != calloc_hack);
 	void* p2 = dm_realloc(p, s);
+#ifdef PTR_CHECK
 	reallocs[rc] = p2;
 	rc++;
+#endif
 	assert (p2!=NULL);
 	return p2;
 }
@@ -92,9 +97,10 @@ void free(void * p){
 	fflush(stdout);
 #endif
 	if(p == NULL || p == calloc_hack) return;
-	
+#ifdef PTR_CHECK
 	frees[fc] = p;
 	fc++;
+#endif
 	wrapper_debug();
 	dm_free(p);
 }
@@ -121,8 +127,10 @@ void * calloc(size_t sz, size_t n){
 	assert( (initializing && calloc_func == tempcalloc) || 
 			(!initializing && calloc_func == dm_calloc) );
 	void* p = calloc_func(sz, n);
+#ifdef PTR_CHECK
 	callocs[cc] = p;
 	cc++;
+#endif
 	assert (p!=NULL);
 	return p;
 }
@@ -195,7 +203,7 @@ inline void * sys_calloc(size_t s, size_t n){
 
 //debug information
 void wrapper_debug(){
-#ifdef VISUALIZE
+#ifdef PTR_CHECK
 	printf("\nmalloc count %lld\n", mc);
 	printf("calloc count %lld\n", cc);
 	printf("realloc count %lld\n", rc);
@@ -225,8 +233,6 @@ void wrapper_debug(){
 		}
 	}
 	printf("ALL FREES PASS\n");
-#else
-	printf("frees not tracked");
 #endif
 }
 

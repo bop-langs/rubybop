@@ -15,7 +15,7 @@ size_t dm_malloc_usable_size(void*);
 void carve(int); //divide up avaliable memory
 void initialize_group(int);
 
-#define PAD_SIZE 7
+#define PAD_SIZE 0
 typedef union{
 	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
 	struct{
