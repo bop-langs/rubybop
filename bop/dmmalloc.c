@@ -87,7 +87,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 //BOP macros
 #define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
-
+#define VISUALIZE
 typedef struct {
     header *start[NUM_CLASSES];
     header *end[NUM_CLASSES];
@@ -378,6 +378,9 @@ static inline int index_bigger (int which) {
 
 //Recursively split a larger block into a block of the required size
 static inline header* dm_split (int which) {
+#ifdef VISUALIZE
+	printf("s");
+#endif
 #ifndef NDEBUG
     split_attempts[which]++;
     split_gave_head[which]++;
