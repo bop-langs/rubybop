@@ -18,7 +18,10 @@ task :bop do
   end
 end
 
-task :test => :default do
+task :test do
+  cd "bop" do
+  		sh 'make'
+  	end
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
