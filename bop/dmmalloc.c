@@ -23,6 +23,8 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
 
+#define VISUALIZE
+#define CHECK_COUNTS
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
 #endif
@@ -88,7 +90,6 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 //BOP macros
 #define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
-#define VISUALIZE
 typedef struct {
     header *start[NUM_CLASSES];
     header *end[NUM_CLASSES];
