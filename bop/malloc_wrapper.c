@@ -2,15 +2,19 @@
 #include "malloc_wrapper.h"
 #undef NDEBUG
 #define _GNU_SOURCE
+#define VISUALIZE
+
 #include <dlfcn.h>
+#ifdef VISUALIZE
 #include <stdio.h>
-#include <stdlib.h>
+#endif
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
-#include <stdbool.h>
+#include <stdlib.h>
 #include <malloc.h>
 #define TABLESIZE 100000
+#define CHARSIZE 100
 
 //http://stackoverflow.com/questions/262439/create-a-wrapper-function-for-malloc-and-free-in-c
 
@@ -23,6 +27,7 @@ static void *(*libc_realloc)(void*, size_t) = NULL;
 static void (*libc_free)(void*) = NULL;
 static void *(*libc_calloc)(size_t, size_t) = NULL;
 static size_t (*libc_malloc_usable_size)(void*) = NULL;
+static int (*libc_posix_memalign)(void**, size_t, size_t) = NULL;
 static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workaround
 
 static void *mallocs[TABLESIZE];
@@ -34,8 +39,6 @@ static long long cc=0LL;
 static long long rc=0LL;
 static long long fc=0LL;
 
-#define CHARSIZE 100
-#define VISUALIZE
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
 //unsupported malloc operations are aborted immediately
@@ -86,43 +89,27 @@ void wrapper_debug(){
 #endif
 }
 
-
-
-
-
 void* memalign(size_t size, size_t boundary){
 	printf("\nUNSUPPORTED OPERATION memalign\n");
+	abort();
+}
+int posix_memalign (void **memptr, size_t alignment, size_t size){
+	printf("\nUNSUPPORTED OPERATION posix_memalign\n");
 	abort();
 }
 void* aligned_alloc(size_t size, size_t boundary){
 	printf("\nUNSUPPORTED OPERATION: aligned_alloc\n");
 	abort();
-	return NULL;
 }
 void* valloc(size_t size){
 	printf("\nUNSUPPORTED OPERATION: valloc\n");
 	abort();
-	return NULL;
 }
 struct mallinfo mallinfo(){
 	printf("\nUNSUPPORTED OPERATION: mallinfo\n");
 	abort();
 }
-//Supported allocation functions
-int posix_memalign(void** dest_ptr, size_t align, size_t size){
-#ifdef VISUALIZE
-	printf("p");
-	fflush(stdout);
-#endif
-	int ones = __builtin_popcount (align);
-	if(ones != 1)
-		return -1; //not power of 2
-	void* dmm = aligned_alloc(align, size);
-	if(dmm == NULL)
-		return -1; //REAL ERROR???
-	*dest_ptr = dmm;
-	return 0;
-}
+
 void* malloc(size_t s){
 #ifdef VISUALIZE
 	printf("+");
@@ -176,7 +163,10 @@ void * calloc(size_t sz, size_t n){
 	fflush(stdout);
 #endif
 	calloc_init();
+	//make sure the right calloc_func is being used
 	assert(calloc_func != NULL);
+	assert( (initializing && calloc_func == tempcalloc) || 
+			(!initializing && calloc_func == dm_calloc) );
 	void* p = calloc_func(sz, n);
 	callocs[cc] = p;
 	cc++;
@@ -190,6 +180,7 @@ static inline void calloc_init(){
 		initializing = 1; //don't recurse
 		calloc_func = tempcalloc;
 		libc_calloc = dlsym(RTLD_NEXT, "calloc");
+		initializing = 0;
 		assert(libc_calloc != NULL);
 		calloc_func = dm_calloc;
 	}
@@ -212,12 +203,7 @@ inline void * sys_malloc(size_t s){
     return libc_malloc(s);
 }
 inline void * sys_realloc(void * p , size_t size){
-	if(p == calloc_hack){
-		void* payload = sys_malloc(size);
-		payload = memcpy(payload, p, CHARSIZE);
-		assert(payload != NULL);
-		return payload;
-	}
+	assert(p != calloc_hack);
 	if(libc_realloc == NULL)
 		libc_realloc = dlsym(RTLD_NEXT, "realloc");
 	assert(libc_realloc != NULL);
@@ -226,7 +212,8 @@ inline void * sys_realloc(void * p , size_t size){
 	return p2;
 }
 inline void sys_free(void * p){
-	if(p == NULL || p == calloc_hack) return;
+	if(p == calloc_hack) 
+		return;
 	if(libc_free == NULL)
 		libc_free = dlsym(RTLD_NEXT, "free");
 	assert(libc_free != NULL);
@@ -238,6 +225,13 @@ inline size_t sys_malloc_usable_size(void* p){
 	assert (libc_malloc_usable_size != NULL);
 	return libc_malloc_usable_size(p);
 }
+inline int sys_posix_memalign(void** p, size_t a, size_t s){
+	if(libc_posix_memalign == NULL)
+		libc_posix_memalign = dlsym(RTLD_NEXT, "posix_memalign");
+	assert(libc_posix_memalign != NULL);
+	return libc_posix_memalign(p, a, s);
+}
+
 inline void * sys_calloc(size_t s, size_t n){
 	calloc_init();
 	assert(libc_calloc != NULL);

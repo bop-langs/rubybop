@@ -16,4 +16,5 @@ inline void * sys_realloc(void *, size_t);
 inline void sys_free(void *);
 inline void * sys_calloc(size_t, size_t);
 inline size_t sys_malloc_usable_size(void*);
+inline int sys_posix_memalign(void**, size_t, size_t);
 #endif
