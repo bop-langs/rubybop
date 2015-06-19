@@ -234,6 +234,7 @@ void wrapper_debug(){
 	}
 	printf("ALL FREES PASS\n");
 #endif
+	fflush(stdout);
 }
 
 #undef CHARSIZE
