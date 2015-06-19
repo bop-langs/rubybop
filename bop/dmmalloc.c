@@ -23,7 +23,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
 
-#define VISUALIZE
+//#define VISUALIZE
 #define CHECK_COUNTS
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
@@ -149,6 +149,11 @@ static inline int llog2(const int x) {
   );
   return y;
 }
+void dm_check(void* payload){
+	assert (payload != NULL);
+	header* head = HEADER (payload);
+	ASSERTBLK (head);
+}
 static inline size_t align(size_t size, size_t alignment){
 	int log = LOG(alignment);
 	assert(alignment == (1 << log));
@@ -168,7 +173,7 @@ static inline int get_index (size_t size) {
         index++;
     assert (index >= 0 && index < NUM_CLASSES);
     assert (sizes[index] >= size); //this size class is large enough
-    assert (index == 0 || sizes[index - 1] < size); //using the minimal valid size class 
+    assert (index == 0 || sizes[index - 1] < size); //using the minimal valid size class
     return index;
 }
 
@@ -329,13 +334,14 @@ void *dm_malloc (const size_t size) {
             block->allocated.blocksize = alloc_size;
             if(!SEQUENTIAL)
                 add_alloc_list(&allocatedList, block);
-            assert (block->allocated.blocksize != 0);
+            ASSERTBLK(block);
             return PAYLOAD (block);
         } else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
             splits++;
 #endif
             block = dm_split (which);
+            ASSERTBLK(block);
             splitd = 1;
         } else if (SEQUENTIAL) {
 #ifndef NDEBUG
@@ -439,37 +445,48 @@ void * dm_calloc (size_t n, size_t size) {
     ASSERTBLK(HEADER(allocd));
     return allocd;
 }
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 /**Standard BOP-safe reallocator which optimizations from using size classes. 
    The standard case is using dmmalloc and free as normal.*/
 void * dm_realloc (void *ptr, size_t gsize) {
+	header* old_head;
+	header* new_head;
 	if(gsize == 0) 
 		return NULL;
-	if(ptr == NULL)
-		return dm_malloc(gsize);
-    header *old_head = HEADER (ptr);
+	if(ptr == NULL){
+		new_head = HEADER(dm_malloc(gsize));
+		ASSERTBLK (new_head);
+		return PAYLOAD (new_head);
+	}
+    old_head = HEADER (ptr);
     ASSERTBLK(old_head);
-    header *new_head;
     size_t new_size = ALIGN (gsize + HSIZE);
     int new_index = get_index (new_size);
     void *payload;		//what the programmer gets
+    size_t old_size = old_head->allocated.blocksize;
+ //   printf ("\t\tREALLOC: oldsize= %u newsize =%u ptr=%p\n", old_size, sizes[new_index], ptr);
+    fflush(stdout);
     if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize) {
+   // 	printf("\t\t\tREALLOC USING THE SAME SIZE!!!!\n");
         return ptr;	//no need to update
     } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in sequential mode for large->large blocks
+        
         new_head = sys_realloc (old_head, new_size);
-        new_head->allocated.blocksize = new_size;
-        assert (new_head->allocated.blocksize != 0);
-        ASSERTBLK(new_head);
+        new_head->allocated.blocksize = new_size; //sytem block
+        new_head->allocated.next = NULL;
+        ASSERTBLK (new_head);
         return PAYLOAD (new_head);
     } else {
     	//build off malloc and free
     	ASSERTBLK(old_head);
         size_t size_cache = old_head->allocated.blocksize;
         //we're reallocating within managed memory
-        payload = dm_malloc (new_size);
-
-        payload = memcpy (payload, PAYLOAD(old_head), size_cache - HSIZE);	//copy memory
-        assert (HEADER(payload)->allocated.blocksize);
+        payload = dm_malloc (gsize); //use the originally requested size
+		size_t copySize = MIN(size_cache, new_size) - HSIZE;
+        payload = memcpy (payload, PAYLOAD(old_head), copySize);	//copy memory, don't copy the header
+		new_head = HEADER(payload);
+        assert (new_index == -1 || new_head->allocated.blocksize == sizes[new_index]);
         old_head->allocated.blocksize = size_cache;
         ASSERTBLK(old_head);
         dm_free (ptr);
@@ -521,9 +538,10 @@ static inline void free_now (header * head) {
     headers[which] = head;
     counts[which]++;
 }
-size_t dm_malloc_usable_size(void* ptr){
+inline size_t dm_malloc_usable_size(void* ptr){
 	header *free_header = HEADER (ptr);
 	size_t head_size = free_header->allocated.blocksize;
+	//printf("size info alloc: next= %p blocksize= %u\n", free_header->allocated.next, head_size);
 	return head_size - HSIZE; //even for system-allocated chunks.
 }
 static inline bool list_contains (header * list, header * search_value) {

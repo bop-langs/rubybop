@@ -10,12 +10,13 @@ void dm_free(void *);
 void * dm_calloc(size_t, size_t);
 void dm_print_info(void);
 size_t dm_malloc_usable_size(void*);
+void dm_check(void*);
 
 //initializers
 void carve(int); //divide up avaliable memory
 void initialize_group(int);
 
-#define PAD_SIZE 0
+#define PAD_SIZE 0 //sizeof(void*)
 typedef union{
 	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
 	struct{

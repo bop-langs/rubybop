@@ -9,8 +9,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <stdbool.h>
 
-#define VISUALIZE
+//#define VISUALIZE
 #define TABLESIZE 100000
 #define CHARSIZE 100
 //#define PTR_CHECK
@@ -20,6 +21,7 @@
 //prototypes for the dlsym using calloc workaround
 void* tempcalloc(size_t, size_t);
 static inline void calloc_init();
+static inline char* check_pointer(void*);
 
 static void *(*libc_malloc)(size_t) = NULL;
 static void *(*libc_realloc)(void*, size_t) = NULL;
@@ -49,7 +51,8 @@ void* memalign(size_t size, size_t boundary){
 }
 int posix_memalign (void **memptr, size_t alignment, size_t size){
 	printf("\nUNSUPPORTED OPERATION posix_memalign\n");
-	abort();
+	//abort();
+	return sys_posix_memalign(memptr, alignment, size);
 }
 void* aligned_alloc(size_t size, size_t boundary){
 	printf("\nUNSUPPORTED OPERATION: aligned_alloc\n");
@@ -74,6 +77,7 @@ void* malloc(size_t s){
 	mallocs[mc] = p;
 	mc++;
 #endif
+	dm_check(p);
 	assert (p != NULL);
 	return p;
 }
@@ -89,6 +93,7 @@ void* realloc(void *p , size_t s){
 	rc++;
 #endif
 	assert (p2!=NULL);
+	dm_check(p2);
 	return p2;
 }
 void free(void * p){
@@ -101,7 +106,8 @@ void free(void * p){
 	frees[fc] = p;
 	fc++;
 #endif
-	wrapper_debug();
+	check_pointer(p);
+	dm_check(p);
 	dm_free(p);
 }
 
@@ -110,6 +116,11 @@ size_t malloc_usable_size(void* ptr){
 	printf(" ");
 	fflush(stdout);
 #endif
+	assert(ptr != calloc_hack);
+	char* msg = check_pointer(ptr);
+	//printf("\n\tusable_size found allocated pointer valid pointer (%p). It was %s.\n", ptr, msg);
+	//fflush(stdout); fflush(stdout); fflush(stdout); fflush(stdout);
+	dm_check(ptr);
 	size_t size = dm_malloc_usable_size(ptr);
 	assert(size > 0);
 	return size;
@@ -132,6 +143,10 @@ void * calloc(size_t sz, size_t n){
 	cc++;
 #endif
 	assert (p!=NULL);
+	if(calloc_func == dm_calloc){
+		check_pointer(p);
+		dm_check(p);
+	}
 	return p;
 }
 
@@ -200,39 +215,40 @@ inline void * sys_calloc(size_t s, size_t n){
     assert (p!=NULL);
 	return p;
 }
-
-//debug information
-void wrapper_debug(){
+static inline char* check_pointer(void* raw_pointer){
 #ifdef PTR_CHECK
-	printf("\nmalloc count %lld\n", mc);
-	printf("calloc count %lld\n", cc);
-	printf("realloc count %lld\n", rc);
-	printf("free count %lld\n", fc);
-	int found = 0;
-	long long f = 0LL;
 	long long m = 0LL;
 	long long c =  0LL;
 	long long r = 0LL;
-	for(f = 0LL; f < fc; f++){
-		found = 0;
-		for(m = 0LL; !found && m < mc; m++){
-			if(mallocs[m] == frees[f])
-				found = 1;
-		}
-		for(c = 0LL; !found && c < cc; c++){
-			if(callocs[c] == frees[f])
-				found = 1;
-		}
-		for(r = 0LL; !found && r < rc; r++){
-			if(reallocs[r] == frees[f])
-				found = 1;
-		}
-		if(found == 0){
-			printf("Freed unallocated block: %p", frees[f]);
-			abort();
-		}
+	bool found = false;
+	for(m = 0LL; !found && m < mc; m++){
+		if(mallocs[m] == raw_pointer)
+			return "mallocd";
 	}
-	printf("ALL FREES PASS\n");
+	for(c = 0LL; !found && c < cc; c++){
+		if(callocs[c] == raw_pointer)
+			return "callocd";
+	}
+	for(r = 0LL; !found && r < rc; r++){
+		return "reallocd";
+	}
+	printf("Freed unallocated block: %p", raw_pointer);
+	abort();
+	return NULL;
+#endif
+}
+//debug information
+void wrapper_debug(){
+#ifdef PTR_CHECK
+	/*printf("\nmalloc count %lld\n", mc);
+	printf("calloc count %lld\n", cc);
+	printf("realloc count %lld\n", rc);
+	printf("free count %lld\n", fc);*/
+	long long f = 0LL;
+	for(f = 0LL; f < fc; f++){
+		check_pointer(frees[f]);
+	}
+	//printf("ALL FREES PASS\n");
 #endif
 	fflush(stdout);
 }
