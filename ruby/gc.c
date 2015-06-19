@@ -29,6 +29,9 @@
 #include <setjmp.h>
 #include <sys/types.h>
 #include <assert.h>
+//Undefine various functions to use the subset malloc functions supported by DM malloc
+#undef HAVE_POSIX_MEMALIGN
+#undef HAVE_MEMALIGN
 
 #undef rb_data_object_alloc
 
@@ -7167,7 +7170,6 @@ aligned_malloc(size_t alignment, size_t size)
 {
     void *res;
 
-/*
 #if defined __MINGW32__
     res = __mingw_aligned_malloc(size, alignment);
 #elif defined _WIN32 && !defined __CYGWIN__
@@ -7183,14 +7185,13 @@ aligned_malloc(size_t alignment, size_t size)
 #elif defined(HAVE_MEMALIGN)
     res = memalign(alignment, size);
 #else
-*/
     char* aligned;
     res = malloc(alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);
     aligned -= ((VALUE)aligned & (alignment - 1));
     ((void**)aligned)[-1] = res;
     res = (void*)aligned;
-//#endif
+#endif
 
 #if defined(_DEBUG) || GC_DEBUG
     /* alignment must be a power of 2 */
@@ -7203,7 +7204,6 @@ aligned_malloc(size_t alignment, size_t size)
 static void
 aligned_free(void *ptr)
 {
-/*
 #if defined __MINGW32__
     __mingw_aligned_free(ptr);
 #elif defined _WIN32 && !defined __CYGWIN__
@@ -7211,14 +7211,18 @@ aligned_free(void *ptr)
 #elif defined(HAVE_MEMALIGN) || defined(HAVE_POSIX_MEMALIGN)
     free(ptr);
 #else
-*/
     free(((void**)ptr)[-1]);
-//#endif
+#endif
 }
+
 static inline size_t
 objspace_malloc_size(rb_objspace_t *objspace, void *ptr, size_t hint)
 {
+#ifdef HAVE_MALLOC_USABLE_SIZE
     return malloc_usable_size(ptr);
+#else
+    return hint;
+#endif
 }
 
 enum memop_type {
@@ -7370,6 +7374,7 @@ static void *
 objspace_xrealloc(rb_objspace_t *objspace, void *ptr, size_t new_size, size_t old_size)
 {
     void *mem;
+
     if ((ssize_t)new_size < 0) {
 	negative_size_allocation_error("negative re-allocation size");
     }
@@ -7409,6 +7414,10 @@ objspace_xrealloc(rb_objspace_t *objspace, void *ptr, size_t new_size, size_t ol
 static void
 objspace_xfree(rb_objspace_t *objspace, void *ptr, size_t old_size)
 {
+#if CALC_EXACT_MALLOC_SIZE
+    ptr = ((size_t *)ptr) - 1;
+    old_size = ((size_t*)ptr)[0];
+#endif
     old_size = objspace_malloc_size(objspace, ptr, old_size);
 
     free(ptr);
