@@ -16,21 +16,16 @@ void dm_check(void*);
 void carve(int); //divide up avaliable memory
 void initialize_group(int);
 
-#define PAD_SIZE 0 //sizeof(void*)
 typedef union{
 	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
 	struct{
-	 	char padding[PAD_SIZE];
 		struct header * next;   // ppr-allocated object list
 		size_t blocksize; // which free list to insert freed items into
-		char padding1[PAD_SIZE]; //....
 	} allocated;
 	struct{
-		char padding[PAD_SIZE];
         //doubly linked free list for partioning
 		struct header * next;
 		struct header * prev;
-		char padding1[PAD_SIZE];
 		
 	} free;
 } header;
