@@ -22,13 +22,13 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //#define NDEBUG			//defined: no debug variables or asserts.
 //#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
-
 //#define VISUALIZE
-#define CHECK_COUNTS
+
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
 #endif
 #include <stdio.h> //print errors
+#include <pthread.h> //mutex
 #include <stdlib.h> //system malloc & free
 #include <string.h> //memcopy
 #include <assert.h> //debug
@@ -111,6 +111,7 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
                        };                        
 
 static int counts[NUM_CLASSES] = {0,0,0,0,0,0,0,0,0,0,0,0};
+static pthread_mutex_t lock;
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode
 header* freedlist= NULL; //list of items freed during PPR-mode
@@ -126,6 +127,8 @@ static inline void add_alloc_list (header**, header *);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
 static inline size_t align(size_t size, size_t align);
+static inline void get_lock();
+static inline void release_lock();
 
 #ifndef NDEBUG
 static int grow_count = 0;
@@ -176,6 +179,13 @@ static inline int get_index (size_t size) {
     assert (index == 0 || sizes[index - 1] < size); //using the minimal valid size class
     return index;
 }
+/**Locking functions*/
+static inline void get_lock(){
+	pthread_mutex_lock(&lock);
+}
+static inline void release_lock(){
+	pthread_mutex_unlock(&lock);
+}
 
 /**Grow the managed space so that each size class as tasks * their goal block count.*/
 static inline void grow (const int tasks) {
@@ -186,7 +196,6 @@ static inline void grow (const int tasks) {
 #endif
     grow_count++;
 #endif
-
 	//compute the number of blocks to allocate
 	size_t growth = HSIZE;
 	int blocks[NUM_CLASSES];
@@ -309,10 +318,10 @@ static inline header * get_header (size_t size, int *which) {
 void *dm_malloc (const size_t size) {
 	if(size == 0) 
 		return NULL;
+	get_lock();
     //get the right header
     size_t alloc_size = ALIGN (size + HSIZE);
     int which = -2;
-    int splitd = 0;
     header *block = get_header (alloc_size, &which);
     assert (which != -2);
 #ifdef CHECK_COUNTS
@@ -327,7 +336,8 @@ void *dm_malloc (const size_t size) {
             if (block == NULL) {
 #ifdef PRINT          	
                 printf ("system malloc failed\n");
-#endif              
+#endif          
+				release_lock();
                 return NULL;
             }
             //don't need to add to free list, just set information
@@ -335,6 +345,7 @@ void *dm_malloc (const size_t size) {
             if(!SEQUENTIAL)
                 add_alloc_list(&allocatedList, block);
             ASSERTBLK(block);
+            release_lock();
             return PAYLOAD (block);
         } else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
@@ -342,7 +353,6 @@ void *dm_malloc (const size_t size) {
 #endif
             block = dm_split (which);
             ASSERTBLK(block);
-            splitd = 1;
         } else if (SEQUENTIAL) {
 #ifndef NDEBUG
             if (index_bigger (which) != -1)
@@ -369,6 +379,7 @@ void *dm_malloc (const size_t size) {
             (headers[which] != NULL && counts[which] > 0));
 #endif
 	ASSERTBLK(block);
+	release_lock();
     return PAYLOAD (block);
 }
 
@@ -464,14 +475,11 @@ void * dm_realloc (void *ptr, size_t gsize) {
     int new_index = get_index (new_size);
     void *payload;		//what the programmer gets
     size_t old_size = old_head->allocated.blocksize;
- //   printf ("\t\tREALLOC: oldsize= %u newsize =%u ptr=%p\n", old_size, sizes[new_index], ptr);
     fflush(stdout);
     if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize) {
-   // 	printf("\t\t\tREALLOC USING THE SAME SIZE!!!!\n");
         return ptr;	//no need to update
     } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in sequential mode for large->large blocks
-        
         new_head = sys_realloc (old_head, new_size);
         new_head->allocated.blocksize = new_size; //sytem block
         new_head->allocated.next = NULL;
@@ -524,6 +532,8 @@ static inline void free_now (header * head) {
    		sys_free(head);
         return;
     }
+    //synchronised region
+    get_lock();
     header *free_stack = get_header (size, &which);
    	assert (sizes[which] == size);	//should exactly align
     if (free_stack == NULL) {
@@ -531,12 +541,14 @@ static inline void free_now (header * head) {
         head->free.next = head->free.prev = NULL;
         headers[which] = head;
         counts[which]++;
+        release_lock();
         return;
     }
     free_stack->free.prev = CASTH (head);
     head->free.next = CASTH (free_stack);
     headers[which] = head;
     counts[which]++;
+    release_lock();
 }
 inline size_t dm_malloc_usable_size(void* ptr){
 	header *free_header = HEADER (ptr);
