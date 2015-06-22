@@ -12,9 +12,9 @@ void dm_print_info(void);
 size_t dm_malloc_usable_size(void*);
 void dm_check(void*);
 
-//initializers
+//bop-related functions
 void carve(int); //divide up avaliable memory
-void initialize_group(int);
+void initialize_group(int); //set end pointers for this ppr task
 
 typedef union{
 	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c

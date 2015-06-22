@@ -20,7 +20,7 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 //For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
 
 //#define NDEBUG			//defined: no debug variables or asserts.
-//#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
+#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
 //#define VISUALIZE
 
@@ -123,7 +123,7 @@ static inline int get_index (size_t);
 static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
-static inline void add_alloc_list (header**, header *);
+static inline void add_next_list (header**, header *);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
 static inline size_t align(size_t size, size_t align);
@@ -139,9 +139,6 @@ static int multi_splits = 0;
 static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
-
-static size_t head_size = HSIZE;
-static size_t head_raw = sizeof(header);
 
 /** x86 assembly code for computing the log2 of a value. This is much faster than math.h log2*/
 static inline int llog2(const int x) {
@@ -343,7 +340,7 @@ void *dm_malloc (const size_t size) {
             //don't need to add to free list, just set information
             block->allocated.blocksize = alloc_size;
             if(!SEQUENTIAL)
-                add_alloc_list(&allocatedList, block);
+                add_next_list(&allocatedList, block);
             ASSERTBLK(block);
             release_lock();
             return PAYLOAD (block);
@@ -373,7 +370,7 @@ void *dm_malloc (const size_t size) {
     headers[which] = (header *) block->free.next;	//remove from free list
     counts[which]--;
     if(!SEQUENTIAL)
-        add_alloc_list(&allocatedList, block);
+        add_next_list(&allocatedList, block);
 #ifdef CHECK_COUNTS
     assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
             (headers[which] != NULL && counts[which] > 0));
@@ -406,7 +403,7 @@ static inline header* dm_split (int which) {
     split_gave_head[which]++;
 #endif
     int larger = index_bigger (which);
-    header *block = headers[larger];	//block to carve up
+    header *block = headers[larger];	//block to split up
     header *split = (header *) (CHARP (block) + sizes[which]);	//cut in half
     assert (block != split);
     //split-specific info sets
@@ -474,8 +471,6 @@ void * dm_realloc (void *ptr, size_t gsize) {
     size_t new_size = ALIGN (gsize + HSIZE);
     int new_index = get_index (new_size);
     void *payload;		//what the programmer gets
-    size_t old_size = old_head->allocated.blocksize;
-    fflush(stdout);
     if (new_index != -1 && sizes[new_index] == old_head->allocated.blocksize) {
         return ptr;	//no need to update
     } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
@@ -512,14 +507,10 @@ void * dm_realloc (void *ptr, size_t gsize) {
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
-    if (!SEQUENTIAL) {
-        //needs to be allocated in this PPR task, ie. in the freed list
-        if(list_contains(allocatedList, free_header))
-            free_now(free_header);
-        else
-            add_alloc_list(&freedlist, free_header);
-    } else
-        free_now (free_header);
+    if(SEQUENTIAL || list_contains(allocatedList, free_header))
+		free_now (free_header);
+	else
+		add_next_list(&freedlist, free_header);
 }
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
 static inline void free_now (header * head) {
@@ -567,7 +558,7 @@ static inline bool list_contains (header * list, header * search_value) {
     return false;
 }
 //add an allocated item to the allocated list
-static inline void add_alloc_list (header** list_head, header * item) {
+static inline void add_next_list (header** list_head, header * item) {
 	if(*list_head == NULL)
 		*list_head = item;
 	else{
@@ -575,4 +566,3 @@ static inline void add_alloc_list (header** list_head, header * item) {
 		*list_head = item;	
 	}
 }
-#undef NDEBUG
