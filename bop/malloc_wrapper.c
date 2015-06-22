@@ -117,9 +117,7 @@ size_t malloc_usable_size(void* ptr){
 	fflush(stdout);
 #endif
 	assert(ptr != calloc_hack);
-	char* msg = check_pointer(ptr);
-	//printf("\n\tusable_size found allocated pointer valid pointer (%p). It was %s.\n", ptr, msg);
-	//fflush(stdout); fflush(stdout); fflush(stdout); fflush(stdout);
+	check_pointer(ptr);
 	dm_check(ptr);
 	size_t size = dm_malloc_usable_size(ptr);
 	assert(size > 0);
@@ -235,6 +233,8 @@ static inline char* check_pointer(void* raw_pointer){
 	printf("Freed unallocated block: %p", raw_pointer);
 	abort();
 	return NULL;
+#else
+	return "not tracking pointers";
 #endif
 }
 //debug information
