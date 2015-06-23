@@ -2,6 +2,20 @@
 
 #define DM_MALLOC_H
 #include <stddef.h>
+//dm structs, unions etc
+typedef union{
+	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
+	struct{
+		union header * next;   // ppr-allocated object list
+		size_t blocksize; // which free list to insert freed items into
+	} allocated;
+	struct{
+        //doubly linked free list for partioning
+		union header * next;
+		union header * prev;
+		
+	} free;
+} header;
 
 //prototypes
 void * dm_malloc(size_t);
@@ -16,21 +30,6 @@ void dm_check(void*);
 void carve(int); //divide up avaliable memory
 void initialize_group(int); //set end pointers for this ppr task
 
-typedef union{
-	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
-	struct{
-		struct header * next;   // ppr-allocated object list
-		size_t blocksize; // which free list to insert freed items into
-	} allocated;
-	struct{
-        //doubly linked free list for partioning
-		struct header * next;
-		struct header * prev;
-		
-	} free;
-} header;
-
 //data accessors for merge time
-void get_lists(header* freed, header* allocated); //give data
-void update_internal_lists(header * freed, header * allocated); //update my data
+void merge(int, bool); //give data. int--> ppr task bool--> was aborted (all heads considered free).
 #endif
