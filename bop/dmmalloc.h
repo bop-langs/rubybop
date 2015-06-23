@@ -6,7 +6,7 @@
 
 //dm structs, unions etc
 typedef union{
-	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
+	//NOTE: the two nexts must be the same address for some utility functions in dmmalloc.c
 	struct{
 		union header * next;   // ppr-allocated object list
 		size_t blocksize; // which free list to insert freed items into
