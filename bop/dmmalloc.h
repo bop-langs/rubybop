@@ -2,6 +2,8 @@
 
 #define DM_MALLOC_H
 #include <stddef.h>
+#include <stdbool.h>
+
 //dm structs, unions etc
 typedef union{
 	//NOTE: the two nexts must be the same address for sum utility functions in dmmalloc.c
