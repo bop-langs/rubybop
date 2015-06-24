@@ -1,7 +1,7 @@
 CC = gcc
 OBJS = malloc_wrapper.o dmmalloc.o
 #
-CFLAGS = -Wall -fPIC -O3 -ggdb3 -g3 -I.
+CFLAGS = -Wall -fPIC -O2 -ggdb3 -g3 -I.
 LFLAGS = -ldl
 
 %.o: %.c
