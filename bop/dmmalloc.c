@@ -21,7 +21,6 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 
 //#define NDEBUG			//defined: no debug variables or asserts.
 #define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
-//#define PRINT				//defined: print (some) debug information. Does not affect dm_print_info
 //#define VISUALIZE
 
 #ifndef NDEBUG
@@ -52,6 +51,37 @@ Size classes need to be finite, so there will be some sizes not handled by this 
 #define ALIGNMENT 4
 #else
 #error "need 32 or 64 bit word size"
+#endif
+
+
+//debug macros
+#ifdef CHECK_COUNTS
+#define ASSERT_VALID_COUNT(which) \
+	if(which != -1){\
+		if(!((headers[(which)] == NULL && counts[(which)] == 0)  || \
+			 (headers[(which)] != NULL && counts[(which)] > 0))){\
+			 printf("\n%s:%d: invalid counts on which= %d counts[which]=%d headers[which]=%p\n",\
+			 	__FILE__, __LINE__, which, counts[which], headers[which]);\
+			 abort();\
+		}\
+	}
+#define CHECK_EMPTY(which)\
+	if(which != -1){\
+		if(!(headers[(which)] == NULL && counts[(which)] == 0)){\
+			 printf("\n%s:%d: non-empty which= %d counts[which]=%d headers[which]=%p\n",\
+			 	__FILE__, __LINE__, which, counts[which], headers[which]);\
+			 abort();\
+		}\
+	}
+#else
+#define ASSERT_VALID_COUNT(which)
+#define CHECK_EMPTY(which)
+#endif
+
+#ifdef NDEBUG
+#define PRINT(msg) printf("dmmalloc: %s at %s:%d\n", msg, __FILE__, __LINE__)
+#else
+#define PRINT(msg)
 #endif
 
 
@@ -257,10 +287,8 @@ void merge(int ppr_id, bool was_aborteds){
 //Grow the managed space so that each size class as tasks * their goal block counts
 static inline void grow (const int tasks) {
 	int class_index, blocks_left, size;
+	PRINT("growing");
 #ifndef NDEBUG
-#ifdef PRINT
-	printf("\n\tgrowing\n");
-#endif
     grow_count++;
 #endif
 	//compute the number of blocks to allocate
@@ -325,19 +353,13 @@ void *dm_malloc (const size_t size) {
     int which = -2;
     header *block = get_header (alloc_size, &which);
     assert (which != -2);
-#ifdef CHECK_COUNTS
-    assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
-            (headers[which] != NULL && counts[which] > 0));
-#endif         
+	ASSERT_VALID_COUNT(which);
     if (block == NULL) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
             //huge block always use system malloc
             block = sys_calloc (alloc_size, 1);
             if (block == NULL) {
-#ifdef PRINT          	
-                printf ("system malloc failed\n");
-#endif          
 				release_lock();
                 return NULL;
             }
@@ -375,10 +397,7 @@ void *dm_malloc (const size_t size) {
     counts[which]--;
     if(!SEQUENTIAL)
         add_next_list(&allocatedList, block);
-#ifdef CHECK_COUNTS
-    assert (which == -1 || (headers[which] == NULL && counts[which] == 0) ||
-            (headers[which] != NULL && counts[which] > 0));
-#endif
+    ASSERT_VALID_COUNT(which);
 	ASSERTBLK(block);
 	release_lock();
     return PAYLOAD (block);
@@ -406,6 +425,8 @@ static inline header* dm_split (int which) {
     split_attempts[which]++;
     split_gave_head[which]++;
 #endif
+   	CHECK_EMPTY(which);
+   	
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = (header *) (CHARP (block) + sizes[which]);	//cut in half
@@ -419,10 +440,6 @@ static inline header* dm_split (int which) {
     block->free.next = CASTH (split);
     split->free.next = split->free.prev = NULL;
 
-    //handle book-keeping
-#ifdef CHECK_COUNTS
-    assert(counts[which] == 0);
-#endif
     counts[which] = 2; //for when the count is decremented by dm_malloc
     counts[larger]--;
 
@@ -437,11 +454,8 @@ static inline header* dm_split (int which) {
         //update the headers
         split = (header *) (CHARP (split) + sizes[which - 1]);
         memset (split, 0, HSIZE);
-        assert(headers[which] == NULL);
+		CHECK_EMPTY(which);        
         headers[which] = split;
-#ifdef CHECK_COUNTS
-		assert(counts[which] == 0);
-#endif        
         counts[which] = 1;
         which++;
     }
