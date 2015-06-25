@@ -245,10 +245,11 @@ void initialize_group (int group_num) {
 2) Integrate counts based off of abort
 */
 void malloc_promise(){
-	//Loop through the lists 
 	header* head;
 	for(head = allocatedList; head != NULL; head = (header*) head->allocated.next)
-		BOP_promise(head, head->allocated.blocksize);
+		 BOP_promise(head, head->allocated.blocksize);//playload matters
+	for(head = freedlist; head != NULL; head = (header*) head->allocated.next)
+		BOP_promise(head, HSIZE); //payload doesn't matter
 	memcpy(counts, promise_counts, sizeof(counts));
 	BOP_promise(promise_counts, sizeof(counts));
 }
