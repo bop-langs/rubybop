@@ -25,5 +25,5 @@ int main(){
 	}
 	ints = calloc(nums, sizeof(int));
 	
-	return 1;
+	return 0;
 }

@@ -11,6 +11,7 @@ library: malloc_wrapper.o dmmalloc.o
 	
 test: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(LFLAGS) -o wrapper wrapper_test.c
+	./wrapper
 
 clean:
 	rm -f $(OBJS) wrapper
