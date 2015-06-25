@@ -1,6 +1,5 @@
 #include "dmmalloc.h"
 #include "malloc_wrapper.h"
-#undef NDEBUG
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
@@ -11,7 +10,13 @@
 #include <malloc.h>
 #include <stdbool.h>
 
-//#define VISUALIZE
+#ifdef NDEBUG
+#define VISUALIZE(s)
+#else
+#define VISUALIZE(s) printf(s); fflush(stdout);
+#endif
+
+
 #define TABLESIZE 100000
 #define CHARSIZE 100
 //#define PTR_CHECK
@@ -51,8 +56,7 @@ void* memalign(size_t size, size_t boundary){
 }
 int posix_memalign (void **memptr, size_t alignment, size_t size){
 	printf("\nUNSUPPORTED OPERATION posix_memalign\n");
-	//abort();
-	return sys_posix_memalign(memptr, alignment, size);
+	abort();
 }
 void* aligned_alloc(size_t size, size_t boundary){
 	printf("\nUNSUPPORTED OPERATION: aligned_alloc\n");
@@ -68,10 +72,7 @@ struct mallinfo mallinfo(){
 }
 
 void* malloc(size_t s){
-#ifdef VISUALIZE
-	printf("+");
-	fflush(stdout);
-#endif
+	VISUALIZE("+");
 	void* p = dm_malloc(s);
 #ifdef PTR_CHECK
 	mallocs[mc] = p;
@@ -82,10 +83,7 @@ void* malloc(size_t s){
 	return p;
 }
 void* realloc(void *p , size_t s){
-#ifdef VISUALIZE
-	printf(".");
-	fflush(stdout);
-#endif
+	VISUALIZE(".");
 	assert (p != calloc_hack);
 	void* p2 = dm_realloc(p, s);
 #ifdef PTR_CHECK
@@ -97,10 +95,7 @@ void* realloc(void *p , size_t s){
 	return p2;
 }
 void free(void * p){
-#ifdef VISUALIZE
-	printf("-");
-	fflush(stdout);
-#endif
+	VISUALIZE("-");
 	if(p == NULL || p == calloc_hack) return;
 #ifdef PTR_CHECK
 	frees[fc] = p;
@@ -112,10 +107,7 @@ void free(void * p){
 }
 
 size_t malloc_usable_size(void* ptr){
-#ifdef VISUALIZE
-	printf(" ");
-	fflush(stdout);
-#endif
+	VISUALIZE(" ");
 	assert(ptr != calloc_hack);
 	check_pointer(ptr);
 	dm_check(ptr);
@@ -126,10 +118,7 @@ size_t malloc_usable_size(void* ptr){
 
 
 void * calloc(size_t sz, size_t n){
-#ifdef VISUALIZE
-	printf("0");
-	fflush(stdout);
-#endif
+	VISUALIZE("0");
 	calloc_init();
 	//make sure the right calloc_func is being used
 	assert(calloc_func != NULL);
