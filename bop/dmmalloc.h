@@ -6,18 +6,18 @@
 #include <stdbool.h>
 
 //dm structs, unions etc
-typedef union{
-	//NOTE: the two nexts must be the same address for some utility functions in dmmalloc.c
-	struct{
-		union header * next;   // ppr-allocated object list
-		size_t blocksize; // which free list to insert freed items into
-	} allocated;
-	struct{
+typedef union {
+    //NOTE: the two nexts must be the same address for some utility functions in dmmalloc.c
+    struct {
+        union header * next;   // ppr-allocated object list
+        size_t blocksize; // which free list to insert freed items into
+    } allocated;
+    struct {
         //doubly linked free list for partioning
-		union header * next;
-		union header * prev;
-		
-	} free;
+        union header * next;
+        union header * prev;
+
+    } free;
 } header;
 
 //prototypes
