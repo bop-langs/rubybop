@@ -10,7 +10,7 @@
 #include <malloc.h>
 #include <stdbool.h>
 
-#ifdef NDEBUG
+#ifndef NDEBUG
 #define VISUALIZE(s)
 #else
 #define VISUALIZE(s) printf(s); fflush(stdout);
