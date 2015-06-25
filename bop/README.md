@@ -1,0 +1,3 @@
+Co-malloc: PPR Task Memory Allocator
+
+This approach to PPR Memory allocation uses Doug Lea's memory allocator (dlmalloc) to allocate private heaps that are then managed by the separate allocator, comalloc. The allocator identifies the allocations done by itself and dlmalloc by a special bit chosen by the programmer. When not executing a PPR task, the allocator simple forwards allocation calls to dlmalloc.
