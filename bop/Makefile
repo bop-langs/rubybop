@@ -15,7 +15,7 @@ $(SPECIAL_OBJS): EXTRA_FLAGS := -O3
 	
 library: malloc_wrapper.o dmmalloc.o
 	
-test: $(OBJS) $(SPECIAL_OBS)
+test: all
 	$(CC) $(CFLAGS) $(EXTRA_FLAGS) $(OBJS) $(SPECIAL_OBJS) $(LFLAGS) -o wrapper wrapper_test.c
 	./wrapper
 
