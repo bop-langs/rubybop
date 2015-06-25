@@ -1,5 +1,3 @@
-//For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
-
 //#define NDEBUG			//defined: no debug variables or asserts.
 #define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
 //#define VISUALIZE
@@ -37,7 +35,7 @@
 //debug macros
 #ifdef CHECK_COUNTS
 #define ASSERT_VALID_COUNT(which) \
-	if(which != -1){\
+	if(which != -1 && SEQUENTIAL){\
 		if(!((headers[(which)] == NULL && counts[(which)] == 0)  || \
 			 (headers[(which)] != NULL && counts[(which)] > 0))){\
 			 printf("\n%s:%d: invalid counts on which= %d counts[which]=%d headers[which]=%p\n",\
@@ -46,7 +44,7 @@
 		}\
 	}
 #define CHECK_EMPTY(which)\
-	if(which != -1){\
+	if(which != -1 && SEQUENTIAL){\
 		if(!(headers[(which)] == NULL && counts[(which)] == 0)){\
 			 printf("\n%s:%d: non-empty which= %d counts[which]=%d headers[which]=%p\n",\
 			 	__FILE__, __LINE__, which, counts[which], headers[which]);\
@@ -79,7 +77,7 @@
 #define NUM_CLASSES 12
 #define CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + CLASS_OFFSET)
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define SIZE_C(k) ALIGN((1 << (k + CLASS_OFFSET)))	//allows for recursive spliting
+#define SIZE_C(k) ALIGN((1 << (k + CLASS_OFFSET)))	//allows for iterative spliting
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 //grow macros
@@ -104,7 +102,8 @@
 
 //BOP macros & structures
 #define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
-#define SHARED_SIZE getpagesize()
+#define BOP_promise(x, s)   //again just for testing. Will be replaced with the actual function once the library is added in
+
 typedef struct {
     header *start[NUM_CLASSES];
     header *end[NUM_CLASSES];
@@ -125,6 +124,7 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
                        };                        
 
 static int counts[NUM_CLASSES] = {0,0,0,0,0,0,0,0,0,0,0,0};
+static int promise_counts[NUM_CLASSES]; //the merging PPR tasks promises these values, which are the then handled by the surving PPR task. The surviving task copies the counts OR (on abort) adds the total counts that the PPR task got, which is constant for all tasks
 static pthread_mutex_t lock;
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode
@@ -242,10 +242,21 @@ void initialize_group (int group_num) {
 
 /** Merge
 1) Promise everything in both allocated and free list
-2) Read the counts, do the addition and promise those
+2) Integrate counts based off of abort
 */
-void malloc_merge(){
+void malloc_promise(){
 	//Loop through the lists 
+	header* head;
+	for(head = allocatedList; head != NULL; head = (header*) head->allocated.next)
+		BOP_promise(head, head->allocated.blocksize);
+	memcpy(counts, promise_counts, sizeof(counts));
+	BOP_promise(promise_counts, sizeof(counts));
+}
+void malloc_merge_counts(bool aborted){
+	int index;
+	const int * array = aborted ? goal_counts : promise_counts;
+	for(index = 0; index < NUM_CLASSES; index++)
+		counts[index] += array[index];
 }
 
 /** Standard malloc library functions */

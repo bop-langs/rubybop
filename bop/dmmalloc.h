@@ -1,6 +1,7 @@
 #ifndef DM_MALLOC_H
-
 #define DM_MALLOC_H
+
+#define DM_DEBUG
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -33,5 +34,6 @@ void carve(int); //divide up avaliable memory
 void initialize_group(int); //set end pointers for this ppr task
 
 //data accessors for merge time
-void malloc_merge();
+void malloc_merge(void);
+void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 #endif
