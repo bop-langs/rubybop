@@ -1,4 +1,5 @@
-
+//BOP Memory allocator for PPR tasks. Uses dlmalloc by Doug Lea to allocate private heaps
+//Various macro definitions and the find free algorithm come from Computer Systems: A Programmer's Perspective by Bryant and O'Hallaron
 
 #include <stdlib.h>
 #include "malloc.c"
