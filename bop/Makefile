@@ -1,3 +1,5 @@
+#NOTE: for malloc_wrapper to build correctly it cannot be compiled with optimizaitons (ie don't specify -O option). All other seperate files can be compiled with optimizations as normal and still build correctly.
+
 CC = gcc
 OBJS = malloc_wrapper.o
 SPECIAL_OBJS = dmmalloc.o
