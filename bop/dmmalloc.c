@@ -13,7 +13,6 @@
 #include <string.h> //memcopy
 #include <assert.h> //debug
 #include <stdbool.h> //boolean types
-#include <sys/mman.h> //mmap etc for shared regions
 #include <unistd.h> //get page size
 #include "dmmalloc.h"
 #include "malloc_wrapper.h"
@@ -110,15 +109,8 @@ typedef struct {
     header *start[NUM_CLASSES];
     header *end[NUM_CLASSES];
 } ppr_list;
-typedef struct {
-	void* start; //the return result of malloc-like call
-	size_t used_size; //total bytes used at moment
-	pthread_mutex_t * page_lock; //at the start of the page. aquire before doing any work with the page. Not currently used
-	header * header_info;
-} metaspace;
 
 ppr_list *regions = NULL;
-metaspace shared_region;
 
 //header info
 header *headers[NUM_CLASSES];	//current heads of free lists
@@ -133,7 +125,6 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
                        };                        
 
 static int counts[NUM_CLASSES] = {0,0,0,0,0,0,0,0,0,0,0,0};
-static int pre_ppr_counts[NUM_CLASSES]; //used to resolve free lists differences
 static pthread_mutex_t lock;
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode
@@ -237,19 +228,6 @@ void carve (int tasks) {
             }
         }
     }
-    //set up the shared page of memory
-    if(shared_region.start == NULL){
-		shared_region.start = mmap(NULL, SHARED_SIZE,
-				PROT_READ | PROT_WRITE, MAP_SHARED, 0, 0);
-		if(shared_region.start == MAP_FAILED){
-			printf("couldn't allocated a shared page. aborting");
-			abort();
-		}
-	}
-	shared_region.used_size = 0;
-	shared_region.header_info = shared_region.start;
-   	memset(shared_region.start, 0, SHARED_SIZE); //0 out old memory
-   	memcpy(pre_ppr_counts, counts, sizeof(counts));
 }
 
 /**set the range of values to be used by this PPR task*/
@@ -261,18 +239,13 @@ void initialize_group (int group_num) {
         headers[ind] = my_list.start[ind];
     }
 }
-/** Merge
-1) copy the counts onto the shared page. The changes from the original 
-2) compute change in counts array and put in shared memory. This is how many header pointers need to be updated in the free list. The payload of these blocks do not need to be copied (because they're free). Copy these invalidations into ppr task K+1
-3) Set the end of the ppr task K's end[i]->free.next pointers to be headers[i] of ppr task K+1 for all i
-4) copy allocated regions. This requires copying onto the shared page (payload, starting address, size --> MAX_SIZE + blocksize + starting address == blocksize). Then mirror this into the correct private memory spaces
-5) Loop through the freed list and free all of the elements. This time, just the headers need to be copied. The actual payloads do not matter. These are then passed through free_now (making sure that is now running in SEQ mode).
-6) Merge complete.
 
+/** Merge
+1) Promise everything in both allocated and free list
+2) Read the counts, do the addition and promise those
 */
-void merge(int ppr_id, bool was_aborted){
-	//get the shared page lock
-	
+void malloc_merge(){
+	//Loop through the lists 
 }
 
 /** Standard malloc library functions */

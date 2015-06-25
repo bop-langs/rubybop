@@ -33,5 +33,5 @@ void carve(int); //divide up avaliable memory
 void initialize_group(int); //set end pointers for this ppr task
 
 //data accessors for merge time
-void merge(int, bool); //give data. int--> ppr task bool--> was aborted (all heads considered free).
+void malloc_merge();
 #endif
