@@ -5,7 +5,7 @@ OBJS = malloc_wrapper.o
 SPECIAL_OBJS = dmmalloc.o
 all: $(OBJS) $(SPECIAL_OBJS)
 #
-CFLAGS = -Wall -fPIC -ggdb3 -g3 -I. --no-as-needed
+CFLAGS = -Wall -fPIC -ggdb3 -g3 -I.
 LFLAGS = -ldl
 
 $(SPECIAL_OBJS): EXTRA_FLAGS := -O3
