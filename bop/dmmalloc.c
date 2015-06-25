@@ -1,22 +1,3 @@
-/**Divide & Merge Malloc
-
-A dual-stage malloc implementation to support safe PPR forks
-Each stage (sequential/no PPR tasks running) and a PPR tasks’ design is the same, a basic size-class allocator. The complications come when PPR_begin is called:
-Allocating
-A PPR task is given part of the parent’s free lists to use for its memory. This ensures that there will be no ‘extra’ conflicts at commit time.
-If there is not enough memory, the parent gets new memory from the system and then gives it to the PPR task (GROUP_INIT)
-If a PPR task runs out of memory, it must abort speculation. Calls to the underlying malloc are not guaranteed to not conflict with other.
-The under study maintains access to the entire free list. Since either the understudy or the PPR tasks will survive past the commit stage, this is still safe.
-At commit time, the free lists of PPR tasks are merged along with the standard BOP changes. This allows memory not used by PPR tasks to be reclaimed and used later.
-Freeing
-when a PPR task frees something from the global heap (something it did not allocate, eg it was either allocated by a prior PPR task or before and PPRs were started) it marks as freed and moves to a new list. This list is parsed at commit time and is always accepted. We cannot immediately move it into the free list since when allocating a new object of that size. If multiple PPR tasks do this (which is correct in sequential execution) and both allocate the new object, the merge will fail.
-
-Large objects:
-Size classes need to be finite, so there will be some sizes not handled by this method, the work around is:
-    allocation: if in PPR task, abort if not use DL malloc.
-    free: when one of these is freed, check the block size. if it’s too large for any size class it was allocated with dl malloc. use dl free OR if sufficiently large divide up for use in our size classes.
-*/
-
 //For debug information, uncomment the next line. To ignore debug information, comment (or delete) it.
 
 //#define NDEBUG			//defined: no debug variables or asserts.
@@ -152,6 +133,7 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
                        };                        
 
 static int counts[NUM_CLASSES] = {0,0,0,0,0,0,0,0,0,0,0,0};
+static int pre_ppr_counts[NUM_CLASSES]; //used to resolve free lists differences
 static pthread_mutex_t lock;
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode
@@ -267,6 +249,7 @@ void carve (int tasks) {
 	shared_region.used_size = 0;
 	shared_region.header_info = shared_region.start;
    	memset(shared_region.start, 0, SHARED_SIZE); //0 out old memory
+   	memcpy(pre_ppr_counts, counts, sizeof(counts));
 }
 
 /**set the range of values to be used by this PPR task*/
@@ -278,9 +261,18 @@ void initialize_group (int group_num) {
         headers[ind] = my_list.start[ind];
     }
 }
-//merge the book-keeping of different ppr tasks
-void merge(int ppr_id, bool was_aborteds){
-	//step 1: merge the free lists
+/** Merge
+1) copy the counts onto the shared page. The changes from the original 
+2) compute change in counts array and put in shared memory. This is how many header pointers need to be updated in the free list. The payload of these blocks do not need to be copied (because they're free). Copy these invalidations into ppr task K+1
+3) Set the end of the ppr task K's end[i]->free.next pointers to be headers[i] of ppr task K+1 for all i
+4) copy allocated regions. This requires copying onto the shared page (payload, starting address, size --> MAX_SIZE + blocksize + starting address == blocksize). Then mirror this into the correct private memory spaces
+5) Loop through the freed list and free all of the elements. This time, just the headers need to be copied. The actual payloads do not matter. These are then passed through free_now (making sure that is now running in SEQ mode).
+6) Merge complete.
+
+*/
+void merge(int ppr_id, bool was_aborted){
+	//get the shared page lock
+	
 }
 
 /** Standard malloc library functions */
