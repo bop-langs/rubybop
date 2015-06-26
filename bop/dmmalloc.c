@@ -67,7 +67,8 @@
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
 #define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
-#define CASTH(h) ((union header *) (h))
+#define CAST_SH(h) ((union header *) (h))
+#define CAST_H(h) ((header*) (h))
 #define CHARP(p) (((char*) (p)))
 #define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))
 #define PTR_MATH(ptr, d) ((CHARP(ptr)) + d)
@@ -137,6 +138,7 @@ static inline int get_index (size_t);
 static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
+static inline header* remove_from_alloc_list (header *);
 static inline void add_next_list (header**, header *);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
@@ -154,7 +156,8 @@ static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
 
-/** x86 assembly code for computing the log2 of a value. This is much faster than math.h log2*/
+/** x86 assembly code for computing the log2 of a value.
+		This is much faster than math.h log2*/
 static inline int llog2(const int x) {
     int y;
     __asm__ ( "\tbsr %1, %0\n"
@@ -211,20 +214,20 @@ void carve (int tasks) {
     header *current_headers[NUM_CLASSES];
     header *temp = NULL;
     for (index = 0; index < NUM_CLASSES; index++)
-        current_headers[index] = (header *) headers[index];
+        current_headers[index] = CAST_H (headers[index]);
     //actually split the lists
     for (index = 0; index < NUM_CLASSES; index++) {
         count = counts[index] /= tasks;
         for (r = 0; r < tasks; r++) {
             regions[r].start[index] = current_headers[index];
             for (j = 0; j < count && temp; j++) {
-                temp = (header *) current_headers[index]->free.next;
+                temp = CAST_H (current_headers[index]->free.next);
             }
             current_headers[index] = temp;
             if (r != tasks - 1) {
                 //the last task has no tail, use the same as seq. exectution
                 assert (temp != NULL);
-                regions[r].end[index] = (header *) temp->free.prev;
+                regions[r].end[index] = CAST_H (temp->free.prev);
             }
         }
     }
@@ -246,9 +249,9 @@ void initialize_group (int group_num) {
 */
 void malloc_promise() {
     header* head;
-    for(head = allocatedList; head != NULL; head = (header*) head->allocated.next)
-        BOP_promise(head, head->allocated.blocksize);//playload matters
-    for(head = freedlist; head != NULL; head = (header*) head->allocated.next)
+    for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
+        BOP_promise(head, head->allocated.blocksize); //playload matters
+    for(head = freedlist; head != NULL; head = CAST_H(head->allocated.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
     memcpy(counts, promise_counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
@@ -277,31 +280,32 @@ static inline void grow (const int tasks) {
         blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
         growth += blocks[class_index] * sizes[class_index];
     }
-#ifndef NDEBUG
-    growth_size+=growth;
-#endif
     char *space_head = sys_calloc (growth, 1);	//system malloc, use byte-sized type
     assert (space_head != NULL);	//ran out of sys memory
-    space_head += HSIZE; //don't use the first HSIZE worth of space. double-ensure wont free whole chunk
     header *head;
     for (class_index = 0; class_index < NUM_CLASSES; class_index++) {
         size = sizes[class_index];
         counts[class_index] += blocks[class_index];
         if (headers[class_index] == NULL) {
             //list was empty
-            headers[class_index] = (header *) space_head;
+            headers[class_index] = CAST_H (space_head);
             space_head += size;
             blocks[class_index]--;
         }
         for (blocks_left = blocks[class_index]; blocks_left; blocks_left--) {
-            ((header *) space_head)->free.next = CASTH (headers[class_index]);
+            CAST_H (space_head)->free.next = CAST_SH (headers[class_index]);
             head = headers[class_index];
-            head->free.prev = CASTH (space_head);
-            head = (header *) space_head;
+            head->free.prev = CAST_SH (space_head); //the header is readable
+            head = CAST_H (space_head);
             space_head += size;
             headers[class_index] = head;
         }
     }
+#ifndef NDEBUG //sanity check, make sure the last byte is allocated
+    header* check = headers[NUM_CLASSES - 1];
+    char* end_byte = ((char*) check) + sizes[NUM_CLASSES - 1];
+    *end_byte = '\0'; //write an arbitary value
+#endif
 }
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
@@ -315,7 +319,7 @@ static inline header * get_header (size_t size, int *which) {
         found = headers[*which];
     }
     //clean up
-    if (found == NULL || (!SEQUENTIAL && CASTH(found) == ends[*which]->free.next))
+    if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
         return NULL;
     return found;
 }
@@ -342,8 +346,6 @@ void *dm_malloc (const size_t size) {
             }
             //don't need to add to free list, just set information
             block->allocated.blocksize = alloc_size;
-            if(!SEQUENTIAL)
-                add_next_list(&allocatedList, block);
             ASSERTBLK(block);
             release_lock();
             return PAYLOAD (block);
@@ -370,7 +372,7 @@ void *dm_malloc (const size_t size) {
     ASSERTBLK(block);
     assert (block != NULL);
     //actually allocate the block
-    headers[which] = (header *) block->free.next;	//remove from free list
+    headers[which] = CAST_H (block->free.next);	//remove from free list
     counts[which]--;
     if(!SEQUENTIAL)
         add_next_list(&allocatedList, block);
@@ -406,15 +408,15 @@ static inline header* dm_split (int which) {
 
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
-    header *split = (header *) (CHARP (block) + sizes[which]);	//cut in half
+    header *split = CAST_H((CHARP (block) + sizes[which]));	//cut in half
     assert (block != split);
     //split-specific info sets
     headers[which] = split;	// was null
-    headers[larger] = (header *) headers[larger]->free.next;
+    headers[larger] = CAST_H (headers[larger]->free.next);
     //remove split up block
     block->allocated.blocksize = sizes[which];
 
-    block->free.next = CASTH (split);
+    block->free.next = CAST_SH (split);
     split->free.next = split->free.prev = NULL;
 
     counts[which] = 2; //for when the count is decremented by dm_malloc
@@ -429,7 +431,7 @@ static inline header* dm_split (int which) {
 #endif
     while (which < larger) {
         //update the headers
-        split = (header *) (CHARP (split) + sizes[which - 1]);
+        split = CAST_H ((CHARP (split) + sizes[which - 1]));
         memset (split, 0, HSIZE);
         CHECK_EMPTY(which);
         headers[which] = split;
@@ -479,6 +481,8 @@ void * dm_realloc (void *ptr, size_t gsize) {
         size_t size_cache = old_head->allocated.blocksize;
         //we're reallocating within managed memory
         payload = dm_malloc (gsize); //use the originally requested size
+        if(payload == NULL) //would happen if reallocating a block > MAX_SIZE in PPR
+            return NULL;
         size_t copySize = MIN(size_cache, new_size) - HSIZE;
         payload = memcpy (payload, PAYLOAD(old_head), copySize);	//copy memory, don't copy the header
         new_head = HEADER(payload);
@@ -500,7 +504,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
-    if(SEQUENTIAL || list_contains(allocatedList, free_header))
+    if(SEQUENTIAL || remove_from_alloc_list (free_header))
         free_now (free_header);
     else
         add_next_list(&freedlist, free_header);
@@ -528,8 +532,8 @@ static inline void free_now (header * head) {
         release_lock();
         return;
     }
-    free_stack->free.prev = CASTH (head);
-    head->free.next = CASTH (free_stack);
+    free_stack->free.prev = CAST_SH (head);
+    head->free.next = CAST_SH (free_stack);
     headers[which] = head;
     counts[which]++;
     release_lock();
@@ -537,14 +541,31 @@ static inline void free_now (header * head) {
 inline size_t dm_malloc_usable_size(void* ptr) {
     header *free_header = HEADER (ptr);
     size_t head_size = free_header->allocated.blocksize;
+    if(head_size > MAX_SIZE)
+        return sys_malloc_usable_size (free_header) - HSIZE; //what the system actually gave
     return head_size - HSIZE; //even for system-allocated chunks.
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
+static inline header* remove_from_alloc_list (header * val) {
+    //remove val from the list
+    if(allocatedList == val) { //was the head of the list
+        allocatedList = NULL;
+        return val;
+    }
+    header* current, * prev = NULL;
+    for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
+        if(current == val) {
+            prev->allocated.next = current->allocated.next;
+            return current;
+        }
+    }
+    return NULL;
+}
 static inline bool list_contains (header * list, header * search_value) {
     if (list == NULL || search_value == NULL)
         return false;
     header *current;
-    for (current = list; current != NULL; current = ((header *) (current->free.next))) {
+    for (current = list; current != NULL; current = CAST_H (current->free.next)) {
         if (current == search_value)
             return true;
     }
@@ -555,7 +576,7 @@ static inline void add_next_list (header** list_head, header * item) {
     if(*list_head == NULL)
         *list_head = item;
     else {
-        item->allocated.next = CASTH(*list_head);
+        item->allocated.next = CAST_SH(*list_head);
         *list_head = item;
     }
 }
