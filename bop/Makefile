@@ -1,23 +1,24 @@
 #NOTE: for malloc_wrapper to build correctly it cannot be compiled with optimizaitons (ie don't specify -O option). All other seperate files can be compiled with optimizations as normal and still build correctly.
 
 CC = gcc
-OBJS = malloc_wrapper.o
-SPECIAL_OBJS = dmmalloc.o
-all: $(OBJS) $(SPECIAL_OBJS)
+OBJS = malloc_wrapper.o dmmalloc.o
+
+all: $(OBJS) wrapper_test
 #
-CFLAGS = -Wall -fPIC -ggdb3 -g3 -I.
+CFLAGS = -Wall -fPIC -ggdb3 -g3 -I. -O3
+OPITIMIZEFLAGS = -O3
 LFLAGS = -ldl
 
-$(SPECIAL_OBJS): EXTRA_FLAGS := -O3
+malloc_wrapper.o: malloc_wrapper.c
+		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS)) 
 
 %.o: %.c
-	$(CC) -c -o $@ $^ $(CFLAGS) $(EXTRA_FLAGS)  
-	
+	$(CC) -c -o $@ $^ $(CFLAGS) $(OPITIMIZEFLAGS)
+
 library: malloc_wrapper.o dmmalloc.o
-	
+
 test: all
-	$(CC) $(CFLAGS) $(EXTRA_FLAGS) $(OBJS) $(SPECIAL_OBJS) $(LFLAGS) -o wrapper wrapper_test.c
-	./wrapper
+	./wrapper_test
 
 clean:
-	rm -f $(SPECIAL_OBJS) $(OBJS) wrapper
+	rm -f $(OBJS) wrapper_test
