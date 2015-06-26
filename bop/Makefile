@@ -5,15 +5,15 @@ OBJS = malloc_wrapper.o dmmalloc.o
 
 all: $(OBJS) wrapper_test
 #
-CFLAGS = -Wall -fPIC -ggdb3 -g3 -I. -O3
+CFLAGS = -Wall -fPIC -ggdb3 -g3 -I. $(OPITIMIZEFLAGS)
 OPITIMIZEFLAGS = -O3
 LFLAGS = -ldl
 
 malloc_wrapper.o: malloc_wrapper.c
-		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS)) 
+		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
 
 %.o: %.c
-	$(CC) -c -o $@ $^ $(CFLAGS) $(OPITIMIZEFLAGS)
+	$(CC) -c -o $@ $^ $(CFLAGS)
 
 library: malloc_wrapper.o dmmalloc.o
 
