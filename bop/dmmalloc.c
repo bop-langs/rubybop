@@ -167,7 +167,8 @@ static inline int llog2(const int x) {
     return y;
 }
 void dm_check(void* payload) {
-    assert (payload != NULL);
+    if(payload == NULL)
+			return;
     header* head = HEADER (payload);
     ASSERTBLK (head);
 }
@@ -339,7 +340,7 @@ void *dm_malloc (const size_t size) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
             //huge block always use system malloc
-            block = sys_calloc (alloc_size, 1);
+            block = sys_malloc (alloc_size);
             if (block == NULL) {
                 release_lock();
                 return NULL;
@@ -369,8 +370,9 @@ void *dm_malloc (const size_t size) {
         }
     } else
         block->allocated.blocksize = sizes[which];
-    ASSERTBLK(block);
-    assert (block != NULL);
+		if(block == NULL)
+			return NULL; //there was no possible way to correcly allocate the block
+		ASSERTBLK(block);
     //actually allocate the block
     headers[which] = CAST_H (block->free.next);	//remove from free list
     counts[which]--;
@@ -444,9 +446,10 @@ static inline header* dm_split (int which) {
 void * dm_calloc (size_t n, size_t size) {
     assert((n * size) >= n && (n * size) >= size); //overflow
     char *allocd = dm_malloc (size * n);
-    if(allocd != NULL)
+    if(allocd != NULL){
         memset (allocd, 0, size * n);
-    ASSERTBLK(HEADER(allocd));
+    		ASSERTBLK(HEADER(allocd));
+		}
     return allocd;
 }
 
@@ -539,6 +542,8 @@ static inline void free_now (header * head) {
     release_lock();
 }
 inline size_t dm_malloc_usable_size(void* ptr) {
+		if(ptr == NULL)
+			return 0;
     header *free_header = HEADER (ptr);
     size_t head_size = free_header->allocated.blocksize;
     if(head_size > MAX_SIZE)

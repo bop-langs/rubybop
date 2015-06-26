@@ -78,9 +78,8 @@ void* malloc(size_t s) {
 #ifdef PTR_CHECK
     mallocs[mc] = p;
     mc++;
-#endif
     dm_check(p);
-    assert (p != NULL);
+#endif
     return p;
 }
 void* realloc(void *p , size_t s) {
@@ -90,9 +89,8 @@ void* realloc(void *p , size_t s) {
 #ifdef PTR_CHECK
     reallocs[rc] = p2;
     rc++;
+    dm_check(p);
 #endif
-    assert (p2!=NULL);
-    dm_check(p2);
     return p2;
 }
 void free(void * p) {
@@ -101,19 +99,20 @@ void free(void * p) {
 #ifdef PTR_CHECK
     frees[fc] = p;
     fc++;
-#endif
     check_pointer(p);
     dm_check(p);
+#endif
     dm_free(p);
 }
 
 size_t malloc_usable_size(void* ptr) {
     VISUALIZE(" ");
     assert(ptr != calloc_hack);
+#ifdef PTR_CHECK
     check_pointer(ptr);
     dm_check(ptr);
+#endif
     size_t size = dm_malloc_usable_size(ptr);
-    assert(size > 0);
     return size;
 }
 
@@ -126,14 +125,13 @@ void * calloc(size_t sz, size_t n) {
     assert( (initializing && calloc_func == tempcalloc) ||
             (!initializing && calloc_func == dm_calloc) );
     void* p = calloc_func(sz, n);
-#ifdef PTR_CHECK
-    callocs[cc] = p;
-    cc++;
-#endif
-    assert (p!=NULL);
     if(calloc_func == dm_calloc) {
-        check_pointer(p);
-        dm_check(p);
+      #ifdef PTR_CHECK
+          callocs[cc] = p;
+          cc++;
+          check_pointer(p);
+      #endif
+      dm_check(p);
     }
     return p;
 }
@@ -172,7 +170,6 @@ inline void * sys_realloc(void * p , size_t size) {
         libc_realloc = dlsym(RTLD_NEXT, "realloc");
     assert(libc_realloc != NULL);
     void* p2 = libc_realloc(p, size);
-    assert(p2 != NULL);
     return p2;
 }
 inline void sys_free(void * p) {
@@ -200,10 +197,11 @@ inline void * sys_calloc(size_t s, size_t n) {
     calloc_init();
     assert(libc_calloc != NULL);
     void* p = libc_calloc(s, n);
-    assert (p!=NULL);
     return p;
 }
 static inline char* check_pointer(void* raw_pointer) {
+    if(raw_pointer == NULL)
+      return "null, always valid\n";
 #ifdef PTR_CHECK
     long long m = 0LL;
     long long c =  0LL;
