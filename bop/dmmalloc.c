@@ -1,7 +1,3 @@
-//#define NDEBUG			//defined: no debug variables or asserts.
-#define CHECK_COUNTS      //defined: enable assert messages related to correct counts for each size class
-//#define VISUALIZE
-
 #ifndef NDEBUG
 #include <locale.h> //commas numbers (debug information)
 #endif

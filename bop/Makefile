@@ -2,13 +2,18 @@
 
 CC = gcc
 OBJS = malloc_wrapper.o dmmalloc.o
+TESTS = wrapper_test malloc_test
+ALL = $(OBJS) $(TESTS)
 
-#
 CFLAGS = -Wall -fPIC -ggdb3 -g3 -I. $(OPITIMIZEFLAGS)
 LDFLAGS = -Wl,--no-as-needed -ldl
-OPITIMIZEFLAGS = -O0
+OPITIMIZEFLAGS = -O3
+DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 
 library: $(OBJS)
+all: $(ALL)
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: $(ALL)
 
 malloc_wrapper.o: malloc_wrapper.c
 		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
@@ -16,7 +21,7 @@ malloc_wrapper.o: malloc_wrapper.c
 %.o: %.c
 	$(CC) -c -o $@ $^ $(CFLAGS)
 
-test: library wrapper_test malloc_test
+test: debug library wrapper_test malloc_test
 	./wrapper_test
 	./malloc_test
 
