@@ -21,7 +21,7 @@ end
 
 task :test do
   cd "bop" do
-  		sh 'make'
+  		sh 'make test'
   	end
   cd "ruby" do
 		sh 'make test' do |ok, res|

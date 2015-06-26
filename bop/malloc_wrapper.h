@@ -5,10 +5,13 @@ void * malloc(size_t);
 void * realloc(void *, size_t);
 void free(void *);
 void * calloc(size_t, size_t);
-int posix_memalign(void**, size_t alignment, size_t size); //0 on success
+int posix_memalign(void**, size_t alignment, size_t size);
 void* aligned_malloc(size_t alignment, size_t size);
 size_t malloc_usable_size(void*);
-void wrapper_debug();
+void* memalign(size_t size, size_t boundary);
+void* aligned_alloc(size_t size, size_t boundary);
+void* valloc(size_t size);
+struct mallinfo mallinfo();
 
 
 inline void * sys_malloc(size_t);

@@ -8,12 +8,10 @@ int main(){
 	int nums = 50;
 	int * ints;
 	for(k = 0; k < 5; k++){
-	//	switch (k % 2){
-		//	case 0:
-				ints = calloc(nums, sizeof(int));
-		//	default:
-			//	ints = malloc(nums * sizeof(int));
-		//}
+		if(k % 2)
+			ints = calloc(nums, sizeof(int));
+		else
+			ints = malloc(nums * sizeof(int));
 		int i;
 		int count = 0;
 		for(i = 0; i < nums; i++)
@@ -23,7 +21,5 @@ int main(){
 		free(ints);
 		printf("sum %d\n", count);
 	}
-	ints = calloc(nums, sizeof(int));
-	
-	return 1;
+	return 0;
 }
