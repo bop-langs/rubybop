@@ -20,13 +20,6 @@ task :bop do
 end
 
 task :test do
-  cd "bop" do
-  		sh 'make test' do |ok, res|
-        if ! ok then
-          fail "BOP tests failed with exit code = #{res.exitstatus}"
-        end
-      end
-  	end
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
@@ -47,6 +40,9 @@ task :clean do
 	end
   cd "bop" do
     sh 'make clean'
+  end
+  cd "test" do
+    sh 'rake clean'
   end
 end
 task :again do
