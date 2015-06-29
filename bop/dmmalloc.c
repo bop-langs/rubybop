@@ -214,7 +214,7 @@ void carve () {
     regions = dm_malloc (tasks * sizeof (ppr_list));
     int index, count, j, r;
     header *current_headers[NUM_CLASSES];
-    header *temp = NULL;
+    header *temp = (header*) -1;
     for (index = 0; index < NUM_CLASSES; index++)
         current_headers[index] = CAST_H (headers[index]);
     //actually split the lists
@@ -228,7 +228,7 @@ void carve () {
             current_headers[index] = temp;
             if (r != tasks - 1) {
                 //the last task has no tail, use the same as seq. exectution
-                assert (temp != NULL);
+                assert (temp != (header*) -1);
                 regions[r].end[index] = CAST_H (temp->free.prev);
             }
         }
