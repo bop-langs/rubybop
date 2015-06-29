@@ -48,9 +48,9 @@ static const MAX_FREE = CHUNKSIZE-16-PSIZE;
 #define NEXT_BLKP(bp) ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
 
-//#define malloc(size) lmalloc(size)
-//#define realloc(ptr, size) lrealloc(ptr, size)
-//#define free(ptr) lfree(ptr)
+#define malloc(size) lmalloc(size)
+#define realloc(ptr, size) lrealloc(ptr, size)
+#define free(ptr) lfree(ptr)
 
 //Heap to be managed on top of dl
 void *lazy_heap;
@@ -230,10 +230,10 @@ void *lmalloc(const size_t size)
 			printf("Ftr: %p\n", bp+GET_SIZE(HDRP(bp)) - DSIZE);
 		}
 		if (blockcheck) blocksize_check();
-		printf("Returned %p |(alloced_by_dm: %d)\n", bp, IS_ALLOCED_BY_DM(bp));
+		//printf("Returned %p |(alloced_by_dm: %d)\n", bp, IS_ALLOCED_BY_DM(bp));
 		if (lastp == bp)
 		{
-		    printf("returned pointer twice\n");
+		    //printf("returned pointer twice\n");
 		    // getchar();
 		}
 		lastp = bp;
@@ -282,7 +282,7 @@ search:
 		  if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
 		  {
 			  //Look from here next time we request a space in this range
-			  seglist[index] = bp;
+			  //seglist[index] = bp;
 			  if(VERBOSE)
 			  	printf("Returned by fit: %x\n", bp);
 			  return bp;
@@ -422,7 +422,7 @@ void *lrealloc(void *bp, size_t size)
 //We need to check if the pointer was allocated by us or not. 
 void lfree(void *bp)
 {
-    if (!VERBOSE)
+    if (VERBOSE)
 	printf("Free request at %p\n", bp);
     if (!IS_ALLOCED_BY_DM(bp))
     {
@@ -434,7 +434,8 @@ void lfree(void *bp)
     size_t size = GET_SIZE(HDRP(bp));
     PUT(HDRP(bp), LPACK(size, 0));
     PUT(FTRP(bp), LPACK(size, 0));
-    seglist[get_index(size)] = coalesce(bp);
+    //seglist[get_index(size)] = coalesce(bp);
+    coalesce(bp);
     if (VERBOSE)
         blocksize_check();
 }
