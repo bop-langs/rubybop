@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+  <head>
+  <style type="text/css">
+  </style>
+	<link type="text/css" rel=stylesheet href="style.css">
+  </head>
+
+<body>
+
+<h1>The BOP Programming Interface</h1>
+
+<p>The basic interface has two hints.   In each case, a hint annotates
+a code block and suggests the presence or absence of parallelism in
+the execution of the code block.</p>
+
+<h2>The Parallelism Hint</h2>
+
+<p>A <b>possibly parallel region (PPR)</b> suggests that the code block may execute in parallel with the subsequent code.  To mark a PPR block, insert <code>BOP_ppr_begin(int id)</code> before the code block and <code>BOP_ppr_end(int id)</code> after the code block.  Choose a unique integer <code>id</code> for each PPR block in the program.</p>
+
+<p>The following is an example of loop parallelism.  The PPR block includes the call <code>do_lots_work</code> to suggest that it may be parallel.  The code outside the PPR block is run sequentially, including the loop control and the calls of <code>has_work</code> and <code>get_work</code>.</p>
+
+<pre class="programlisting">
+/* q is a work queue */
+while ( has_work(q) ) {
+  w = get_work(q);
+  BOP_ppr_begin(0);
+  t = do_lots_work(w);
+  BOP_ppr_end(0);
+}
+</pre>
+
+<p>The next is an example of function parallelism.  The two PPR blocks suggest that the two <code>work</code> calls are likely parallel.</p>
+
+<pre class="programlisting">
+...
+BOP_ppr_begin(1);
+work(x);
+BOP_ppr_end(1);
+...
+BOP_ppr_begin(2);
+work(y);
+BOP_ppr_end(2);
+...
+</pre>
+
+<h2>The Ordering Hint</h2>
+
+<p>An <b>ordered block</b> suggests a likely serial region.  At run-time, the code block should be executed sequentially in program order.  To mark an ordered block, insert <code>BOP_ordered_begin()</code> before the code block and <code>BOP_ordered_end()</code> after the code block.  
+The meaning is similar to the <em>ordered</em> directive in OpenMP except that BOP ordered block is a hint</p>
+
+<p>The following is an example use. The calls to <code>do_lots_work</code> are parallel, and the results are inserted sequentially into a result queue.</p>
+
+<pre class="programlisting">
+/* q is a result queue */
+while (...) {
+  BOP_ppr_begin(0);
+  t = do_lots_work( );
+  BOP_ordered_begin();
+  insert(q, t);
+  BOP_ordered_end();
+  BOP_ppr_end(0);
+}
+</pre>
+
+<h2>Marking the Access to Shared Data</h2>
+
+<p>PPR tasks are isolated from each other in that they compute a separate copy of program data.  By default, modification inside a PPR block (and ordered blocks inside it) has no effect outside the PPR block.  To properly share data between tasks, the access to the shared data must be marked.</p>
+
+<p>To mark read and write access, insert <code>BOP_record_read(void* addr, size_t size)</code> before the read and <code>BOP_record_write(void* addr, size_t size)</code> after the write.  In both calls, <code>addr</code> is the starting address of the access, and <code>size</code> is the size of accessed data <em>measured in bytes</em>.</p>
+
+<p>Only data access inside PPR blocks requires access marking.  These data accesses can be categorized as follows.</p>
+
+<ul>
+<li>A <b>PPR local</b> variable is always assigned before they are first read in a PPR block.</li>
+<li>A <b>PPR live-in</b> variable is read inside a PPR block but whose value was assigned before in an earlier PPR block.  If the value was assigned outside PPR blocks, the variable has a live-in value but it is considered PPR live-in.</li>
+<li>A <b>live-out</b> variable is modified inside a PPR block and the value may be used later by code either inside or outside a PPR block.</li>
+</ul>
+
+<p>The following rules governs access marking:</p>
+<ul>
+<li>The access to PPR local variables should not be marked.  Marking them does not change execution result but may cause parallelization to fail and the program run in sequential rather than parallel speed.</li>
+<li>The first read to a PPR live-in variable should be recorded by inserting <code>BOP_record_read</code> before the read.  The current implementation allows the read to be marked anywhere as long as the read is recorded during the PPR execution.  There is no harm recording the read for the same data multiple times (except for the cost of making additional calls).</li>
+<li>The last write to a PPR live-out variable should be recorded by inserting <code>BOP_record_write</code> after the write.  There is no harm recording the read for the same data multiple times (except for the cost of making additional calls). </li>
+</ul>
+
+<p>The classification of access marking can be explained through the following example.  Four variables are modified in the loop: <code>local_s</code>, <code>s</code>, and the two indices <code>i, ii</code>. The variables <code>local_s, i</code> are <b>PPR local</b> and have an effect only inside the PPR block. Their access should not be marked.  The variable <code>s</code> is passed from task to task.  It is both <b>PPR live-in</b> and <b>PPR live-out</b>.  Its accesses are marked, the read before <code>s += ...</code> and the write after.  The index <code>ii</code> is live-in but not PPR live-in, so it requires no access marking.  Marking its access is harmless but unnecessary.</p>
+
+<pre class="programlisting">
+float A[N];
+double local_s, s = 0.0;
+...
+for (ii = 0; ii < n; ii += B) {
+  BOP_ppr_begin(0);
+  
+  local_s = 0;
+  for ( i = ii; i < min(n, ii+B); i ++) 
+    local_s += foo( A[i] );
+    
+  BOP_ordered_begin();
+  
+  BOP_record_read( &s, sizeof(double) );
+  s += local_s;
+  BOP_record_write( &s, sizeof(double) );
+  
+  BOP_ordered_end();
+  
+  BOP_ppr_end(0);
+}
+</pre>
+
+<h2>Correctness Guarantee</h2>
+
+<p>A BOP execution is correct if the output is the same as sequential execution.  A BOP execution is successful if most PPR tasks are run in parallel (and the result is correct).  The BOP system guarantees correctness if all shared data access is properly marked.  The use of parallelism and ordered hints do not affect correctness.  If the hints are correct, BOP would succeed in executing the program in parallel.</p>
+
+<p>We demonstrate the safety protection in the following example.  If <code>n > 1000</code>, one iteration of the loop will modify <code>s</code> outside the ordered block.  It causes a concurrent access to <code>s</code> and can lead to an incorrect output without safety support.  BOP would detect the concurrent access and ensure that <code>s</code> is modified sequentially.  It may abort a parallel task but other PPR tasks will still run in parallel. </p> 
+
+<pre class="programlisting">
+float A[N];
+double local_s, s = 0.0;
+...
+for (ii = 0; ii < n; ii += B) {
+  BOP_ppr_begin(0);
+  
+  local_s = 0;
+  for ( i = ii; i < min(n, ii+B); i ++) {
+    local_s += foo( A[i] );
+    if ( i == 1000 ) {
+      BOP_record_read( &s, sizeof(double) );
+      s += 1;
+      BOP_record_write( &s, sizeof(double) );
+    }
+  }
+    
+  BOP_ordered_begin();
+  
+  BOP_record_read( &s, sizeof(double) );
+  s += local_s;
+  BOP_record_write( &s, sizeof(double) );
+  
+  BOP_ordered_end();
+  
+  BOP_ppr_end(0);
+}
+</pre>
+
+<h2>PPR Task Granularity</h2>
+
+<p>BOP run-time incurs some overhead.  To amortize the overhead, the PPR tasks should be as large as possible.  On current x86 machines, it seems that 0.5 second per task is large enough to obtain scalable performance for up to 16 concurrent tasks.</p>
+
+
+</body>
+</html>
