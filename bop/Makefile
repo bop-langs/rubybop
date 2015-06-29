@@ -5,7 +5,7 @@ OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tre
 ALL = $(OBJS) $(TESTS)
 
 CFLAGS = -Wall -fPIC -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(CUSTOMDEF)
-CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
+CUSTOMDEF = -DUSE_DL_PREFIX -DBOP -D__LINUX__
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
@@ -22,9 +22,6 @@ malloc_wrapper.o: malloc_wrapper.c
 
 %.o: %.c
 	$(CC) -c -o $@ $^ $(CFLAGS)
-
-wrapper_test: $(OBJS)
-malloc_test: $(OBJS)
 
 clean:
 	rm -f $(OBJS) wrapper_test malloc_test inst.a

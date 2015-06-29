@@ -1,8 +1,0 @@
-load '../bop_test.rake'
-
-$cc = 'gcc'
-$c_flags = '-g3'
-$ldflags = '-lm -Wl,--no-as-needed -ldl'
-
-bop_test 'add', nil, false # Orig version fails
-bop_test 'add_ppr_only'

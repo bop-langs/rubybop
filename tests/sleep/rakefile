@@ -1,3 +1,0 @@
-load '../bop_test.rake'
-
-bop_test 'sleep'
