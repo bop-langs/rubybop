@@ -6,3 +6,6 @@ core.*
 *.a
 *.diff
 gmon.out
+add_bop
+add_ppr_only_bop
+add_ppr_only_orig
