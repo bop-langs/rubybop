@@ -256,6 +256,7 @@ void malloc_promise() {
         BOP_promise(head, HSIZE); //payload doesn't matter
     memcpy(counts, promise_counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
+    //malloc_merge_counts(0);
 }
 void malloc_merge_counts(bool aborted) {
     int index;
