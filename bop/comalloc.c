@@ -14,7 +14,7 @@
 //Pointer Size
 #define PSIZE 8
 
-#define CHUNKSIZE (1<<24)
+#define CHUNKSIZE (1<<17)
 
 #define WSIZE 4
 #define DSIZE 8
@@ -216,6 +216,7 @@ void *lmalloc(const size_t size)
     if (asize > MAX_FREE)
     {
 	//printf("Request (%d bytes) too big for allocation\n", size);
+	//printf("PROBLEMS\n\n\n");
 	//getchar();
 	return dlmalloc(size);
     }
@@ -282,7 +283,7 @@ search:
 		  if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp))))
 		  {
 			  //Look from here next time we request a space in this range
-			  //seglist[index] = bp;
+			  seglist[index] = bp;
 			  if(VERBOSE)
 			  	printf("Returned by fit: %x\n", bp);
 			  return bp;
@@ -422,7 +423,8 @@ void *lrealloc(void *bp, size_t size)
 //We need to check if the pointer was allocated by us or not. 
 void lfree(void *bp)
 {
-    if (VERBOSE)
+    return;
+    if (!VERBOSE)
 	printf("Free request at %p\n", bp);
     if (!IS_ALLOCED_BY_DM(bp))
     {
@@ -444,6 +446,7 @@ static void *coalesce(void *bp)
      size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
      size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
      size_t size = GET_SIZE(HDRP(bp));
+     size_t oldsize = size;
      
      //Both adjacent blocks allocated. No coalescing possible.
       if (prev_alloc && next_alloc)

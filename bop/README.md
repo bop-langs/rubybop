@@ -13,11 +13,18 @@ Divide & Merge Malloc
 =====================
 
 Files
+=====
 * dmmalloc.* -> Divide and Merge Malloc
 * malloc_wrapper.* -> Wraps library (libc) malloc functions for use by dmmalloc
 * wrapper_test.c -> Basic test of using dmmalloc with the wrapper
 
 
+<<<<<<< HEAD
+=======
+
+# Divide & Merge Malloc
+
+>>>>>>> 2e4ebe5a1994a4f4fde771e76e77d10f25b7cbc5
 A dual-stage malloc implementation to support safe PPR forks
 Each stage (sequential/no PPR tasks running) and a PPR tasks’ design is the same, a basic size-class allocator. The complications come when PPR_begin is called:
 Allocating
@@ -32,4 +39,8 @@ when a PPR task frees something from the global heap (something it did not alloc
 Large objects:
 Size classes need to be finite, so there will be some sizes not handled by this method, the work around is:
     allocation: if in PPR task, abort if not use DL malloc.
+<<<<<<< HEAD
     free: when one of these is freed, check the block size. if it’s too large for any size class it was allocated with dl malloc. use dl free OR if sufficiently large divide up for use in our size classes.
+=======
+    free: when one of these is freed, check the block size. if it’s too large for any size class it was allocated with dl malloc. use dl free OR if sufficiently large divide up for use in our size classes.
+>>>>>>> 2e4ebe5a1994a4f4fde771e76e77d10f25b7cbc5

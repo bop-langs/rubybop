@@ -21,12 +21,16 @@ end
 
 task :test do
   cd "bop" do
-  		sh 'make test'
+  		sh 'make test' do |ok, res|
+        if ! ok then
+          fail "BOP tests failed with exit code = #{res.exitstatus}"
+        end
+      end
   	end
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
-				fail "Ruby tests failed with exit code = #{res.exitstatu}"
+				fail "Ruby tests failed with exit code = #{res.exitstatus}"
 			end
 		end
 	end

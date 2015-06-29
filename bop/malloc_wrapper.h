@@ -14,10 +14,10 @@ void* valloc(size_t size);
 struct mallinfo mallinfo();
 
 
-inline void * sys_malloc(size_t);
-inline void * sys_realloc(void *, size_t);
-inline void sys_free(void *);
-inline void * sys_calloc(size_t, size_t);
-inline size_t sys_malloc_usable_size(void*);
-inline int sys_posix_memalign(void**, size_t, size_t);
+void * sys_malloc(size_t);
+void * sys_realloc(void *, size_t);
+void sys_free(void *);
+void * sys_calloc(size_t, size_t);
+size_t sys_malloc_usable_size(void*);
+int sys_posix_memalign(void**, size_t, size_t);
 #endif

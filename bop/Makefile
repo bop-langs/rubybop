@@ -1,23 +1,32 @@
 #NOTE: for malloc_wrapper to build correctly it cannot be compiled with optimizaitons (ie don't specify -O option). All other seperate files can be compiled with optimizations as normal and still build correctly.
 
 CC = gcc
-OBJS = malloc_wrapper.o
-SPECIAL_OBJS = dmmalloc.o
-all: $(OBJS) $(SPECIAL_OBJS)
-#
-CFLAGS = -Wall -fPIC -ggdb3 -g3 -I.
-LFLAGS = -ldl
+OBJS = malloc_wrapper.o dmmalloc.o
+TESTS = wrapper_test malloc_test
+ALL = $(OBJS) $(TESTS)
 
-$(SPECIAL_OBJS): EXTRA_FLAGS := -O3
+CFLAGS = -Wall -fPIC -ggdb3 -g3 -I. $(OPITIMIZEFLAGS)
+LDFLAGS = -Wl,--no-as-needed -ldl
+OPITIMIZEFLAGS = -O3
+DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
+
+library: $(OBJS)
+all: $(ALL)
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: $(ALL)
+
+malloc_wrapper.o: malloc_wrapper.c
+		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
 
 %.o: %.c
-	$(CC) -c -o $@ $^ $(CFLAGS) $(EXTRA_FLAGS)  
-	
-library: malloc_wrapper.o dmmalloc.o
-	
-test: all
-	$(CC) $(CFLAGS) $(EXTRA_FLAGS) $(OBJS) $(SPECIAL_OBJS) $(LFLAGS) -o wrapper wrapper_test.c
-	./wrapper
+	$(CC) -c -o $@ $^ $(CFLAGS)
+
+test: debug library wrapper_test malloc_test
+	./wrapper_test
+	./malloc_test
+
+wrapper_test: $(OBJS)
+malloc_test: $(OBJS)
 
 clean:
-	rm -f $(SPECIAL_OBJS) $(OBJS) wrapper
+	rm -f $(OBJS) wrapper_test malloc_test
