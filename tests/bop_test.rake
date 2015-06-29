@@ -6,7 +6,7 @@ require 'pathname'
 $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
 $ldflags = '-lm -Wall -ldl'
-$incl = "../src/"
+$incl = "../bop/"
 
 # Location of BOP
 $bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?

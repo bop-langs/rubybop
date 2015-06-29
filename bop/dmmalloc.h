@@ -30,8 +30,8 @@ size_t dm_malloc_usable_size(void*);
 void dm_check(void*);
 
 //bop-related functions
-void carve(int); //divide up avaliable memory
-void initialize_group(int); //set end pointers for this ppr task
+void carve(); //divide up avaliable memory
+void initialize_group(); //set end pointers for this ppr task
 
 //data accessors for merge time
 void malloc_merge(void);

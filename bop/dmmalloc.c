@@ -10,6 +10,8 @@
 #include <unistd.h> //get page size
 #include "dmmalloc.h"
 #include "malloc_wrapper.h"
+#include "bop_api.h"
+#include "bop_ports.h"
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
 #define LOG(x) llog2(x)
@@ -99,7 +101,7 @@
 
 //BOP macros & structures
 #define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
-#define BOP_promise(x, s)   //again just for testing. Will be replaced with the actual function once the library is added in
+
 
 typedef struct {
     header *start[NUM_CLASSES];
@@ -201,7 +203,8 @@ static inline void release_lock() {
 
 /** Divide up the currently allocated groups into regions.
 	Insures that each task will have a percentage of a sequential goal*/
-void carve (int tasks) {
+void carve () {
+ 		int tasks = BOP_get_group_size();
     assert (tasks >= 2);
     grow(tasks / 1.5);
     if (regions != NULL) //remove old regions information
@@ -231,7 +234,8 @@ void carve (int tasks) {
 }
 
 /**set the range of values to be used by this PPR task*/
-void initialize_group (int group_num) {
+void initialize_group () {
+	  int group_num = spec_order;
     ppr_list my_list = regions[group_num];
     int ind;
     for (ind = 0; ind < NUM_CLASSES; ind++) {
@@ -604,3 +608,9 @@ void dm_print_info (void) {
     printf("dm malloc not compiled in debug mode. Recompile without NDEBUG defined to keep track of debug information.\n");
 #endif
 }
+
+bop_port_t bop_alloc_port = {
+	.ppr_group_init		= carve,
+	.ppr_task_init		= initialize_group,
+	.task_group_commit	= malloc_promise
+};
