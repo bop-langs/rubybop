@@ -204,7 +204,9 @@ static inline void release_lock() {
 /** Divide up the currently allocated groups into regions.
 	Insures that each task will have a percentage of a sequential goal*/
 void carve () {
+
  		int tasks = BOP_get_group_size();
+		printf("In carve, task %d\n", tasks);
     assert (tasks >= 2);
     grow(tasks / 1.5);
     if (regions != NULL) //remove old regions information
@@ -256,7 +258,7 @@ void malloc_promise() {
         BOP_promise(head, HSIZE); //payload doesn't matter
     memcpy(counts, promise_counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
-    //malloc_merge_counts(0);
+    malloc_merge_counts(0);
 }
 void malloc_merge_counts(bool aborted) {
     int index;
