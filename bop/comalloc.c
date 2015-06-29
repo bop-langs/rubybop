@@ -1,5 +1,4 @@
-//BOP Memory allocator for PPR tasks. Uses dlmalloc by Doug Lea to allocate private heaps
-//Various macro definitions and the find free algorithm come from Computer Systems: A Programmer's Perspective by Bryant and O'Hallaron
+
 
 #include <stdlib.h>
 #include "malloc.c"
@@ -12,7 +11,7 @@
 #define ALIGNMENT 16
 #define ALIGN(size) (((size) + (ALIGNMENT) -1) & ~(ALIGNMENT- 1))
 
-//Pointer Sizex
+//Pointer Size
 #define PSIZE 8
 
 #define CHUNKSIZE (1<<24)
@@ -231,10 +230,10 @@ void *lmalloc(const size_t size)
 			printf("Ftr: %p\n", bp+GET_SIZE(HDRP(bp)) - DSIZE);
 		}
 		if (blockcheck) blocksize_check();
-		printf("Returned %p\n", bp);
+		printf("Returned %p |(alloced_by_dm: %d)\n", bp, IS_ALLOCED_BY_DM(bp));
 		if (lastp == bp)
 		{
-		    //printf("returned pointer twice\n");
+		    printf("returned pointer twice\n");
 		    // getchar();
 		}
 		lastp = bp;
@@ -317,13 +316,15 @@ search:
 
 static void blocksize_check()
 {
-	void *bp = lazy_heap;
-	printf("blocksize_check()\n");
-	int chunkend = 0;
-	while (!chunkend)
-	{
+    void *bp = lazy_heap;
+    printf("blocksize_check()\n");
+    int chunkend = 0;
+    while (!chunkend)
+    {	
 	for(; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
-	    ;//printf("Size of current block (%p:%p||%s): %dB -- HDR:%p|FTR:%p\n", bp, bp+GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)) ? "allocated" : "free", GET_SIZE(HDRP(bp)), HDRP(bp), FTRP(bp));
+	{
+	    printf("Size of current block (%p:%p||%s): %dB -- HDR:%p|FTR:%p|COMD: %d\n", bp, bp+GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)) ? "allocated" : "free", GET_SIZE(HDRP(bp)), HDRP(bp), FTRP(bp), IS_ALLOCED_BY_DM(bp));
+	}
 	bp+=2*WSIZE;
 	if ((*(long int*) bp))
 	{
@@ -336,8 +337,8 @@ static void blocksize_check()
 	    return;
 	}
 	printf("------\n");
-	}
-	return;
+    }
+    return;
 }
 
 static void blocksize_check2(void *chunk)
@@ -425,9 +426,9 @@ void lfree(void *bp)
 	printf("Free request at %p\n", bp);
     if (!IS_ALLOCED_BY_DM(bp))
     {
-	
-	dlfree(bp);
 	printf("Freeing dl pointer\n");
+	getchar();
+	dlfree(bp);
 	return;
     }
     size_t size = GET_SIZE(HDRP(bp));
