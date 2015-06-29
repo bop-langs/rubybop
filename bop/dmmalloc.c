@@ -100,7 +100,7 @@
 				(BLKS_11 * SIZE_C(11)) + (BLKS_12 * SIZE_C(12)) )
 
 //BOP macros & structures
-#define SEQUENTIAL 1		//just for testing, will be replaced with actual macro
+#define SEQUENTIAL (task_status == SEQ) 		//just for testing, will be replaced with actual macro
 
 
 typedef struct {
@@ -206,7 +206,7 @@ static inline void release_lock() {
 void carve () {
 
  		int tasks = BOP_get_group_size();
-		printf("In carve, task %d\n", tasks);
+		//printf("In carve, task %d\n", tasks);
     assert (tasks >= 2);
     grow(tasks / 1.5);
     if (regions != NULL) //remove old regions information
