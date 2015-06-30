@@ -5,7 +5,7 @@ require 'pathname'
 # Compiler config
 $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
-$ldflags = '-lm -Wall -ldl'
+$ldflags = '-lm -Wl,--no-as-needed -ldl'
 $incl = "../bop/"
 
 # Location of BOP

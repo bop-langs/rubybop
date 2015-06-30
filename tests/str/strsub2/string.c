@@ -4,8 +4,6 @@
 
 #include "bop_api.h"
 
-#define malloc(x)	BOP_malloc(x)
-
 #define STEP 8000000
 #define min(a,b)  ((a < b) ? a : b)
 #define read(x) BOP_use(&x, sizeof x)
@@ -146,7 +144,7 @@ BOP_string* BOP_replace(BOP_string* original, char* find, char* replace) {
 				int new_substring_size = new_size/SUBSTRING_SIZE + 1;
 				char* ret = original->string[i];
 				if (new_substring_size > old_substring_size) {
-					ret = BOP_malloc((new_substring_size * SUBSTRING_SIZE + 1) * sizeof(char));
+					ret = malloc((new_substring_size * SUBSTRING_SIZE + 1) * sizeof(char));
 				}
 
 				/* If a match was found between substrings, it gets added to the tail of
