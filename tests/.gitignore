@@ -20,3 +20,6 @@ str/strsub/strsub_bop
 
 wrapper_test
 malloc_test
+
+str/strsub2/string_orig
+str/strsub2/string_bop
