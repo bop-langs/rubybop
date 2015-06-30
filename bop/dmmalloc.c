@@ -100,7 +100,7 @@
 				(BLKS_11 * SIZE_C(11)) + (BLKS_12 * SIZE_C(12)) )
 
 //BOP macros & structures
-#define SEQUENTIAL (task_status == SEQ) 		//just for testing, will be replaced with actual macro
+#define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
 
 typedef struct {
