@@ -1,6 +1,6 @@
 #include <ruby.h>
 #include <ppr.h>
-#include <cbop/src/bop_ports.h>
+#include <../bop/bop_ports.h>
 
 st_table *ppr_pot = NULL;
 

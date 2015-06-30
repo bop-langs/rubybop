@@ -1,4 +1,0 @@
-.*@GLIBC_.*
-^_fp_hw$
-^_IO_std((in)|(err)|(out))_used$
-^__DTOR_END__$

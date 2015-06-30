@@ -1,6 +1,6 @@
 #include <ruby.h>
-#include <../cbop/src/bop_api.h>
-#include <../cbop/src/bop_ports.h>
+#include <bop/bop_api.h>
+#include <bop/bop_ports.h>
 
 #include "st.h"
 extern st_table *ppr_pot;

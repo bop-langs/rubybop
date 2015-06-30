@@ -32,12 +32,12 @@ RDOCTARGET =
 EXTOUT = .ext
 RIDATADIR = $(DESTDIR)$(datadir)/ri/$(MAJOR).$(MINOR)/system
 
-BOPDIR = /home/vax7/u47/slee168/rubybop/mri/..
-BOPLIB = /home/vax7/u47/slee168/rubybop/cbop/src/inst.a
+BOPDIR = /home/vax7/u47/slee168/rubybop
+BOPLIB = /home/vax7/u47/slee168/rubybop/mri/../bop/inst.a
 
 empty =
 OUTFLAG = -o $(empty)
-CFLAGS = -g -O2 ${cflags}  -DRUBY_EXPORT -D_GNU_SOURCE=1 -I/home/vax7/u47/slee168/rubybop/mri/.. -DBOP 
+CFLAGS = -g -O2 ${cflags}  -DRUBY_EXPORT -D_GNU_SOURCE=1 -I/home/vax7/u47/slee168/rubybop -DBOP 
 cflags = ${optflags} ${debugflags}
 optflags = 
 debugflags = 

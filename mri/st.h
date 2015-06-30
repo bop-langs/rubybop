@@ -2,7 +2,7 @@
 
 /* @(#) st.h 5.1 89/12/14 */
 
-#include <../cbop/src/bop_api.h>
+#include <../bop/bop_api.h>
 
 #ifndef ST_INCLUDED
 
