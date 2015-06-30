@@ -1,3 +1,5 @@
 load '../../bop_test.rake'
-$ldflags = '-lm -Wl,--no-as-needed -ldl'
+
 bop_test 'string'
+
+run

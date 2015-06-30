@@ -7,6 +7,7 @@ $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
 $ldflags = '-lm -Wl,--no-as-needed -ldl'
 $incl = "../bop/"
+$params = '' if $params.nil?
 
 # Location of BOP
 $bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?
@@ -110,4 +111,18 @@ bop_o = /^(.*\/)?(bop_)?(.*?)\.o$/
 rule( bop_o => proc {|n| n.sub(bop_o, '\1\3.c')} ) do |t|
   bop_flags = /bop_/ =~ t.name ? '-DBOP' : ''
   sh "#{$cc} #{bop_flags} #{$c_flags} -I#{$bop_dir} -I#{$incl} -c -o #{t.name} #{t.source}"
+end
+
+def run
+=begin FIXME the bop tests are not set up to correcly handle the terminal. Not valid for unit testing
+  puts "$prog = " + $progs.to_s
+  $progs.each do |prog|
+    cmd = "./#{prog} #{$params}"
+    sh cmd do |ok, res|
+      if ! ok then
+        fail "cbop test #{cmd} failed with code #{res.exitstatus}"
+      end
+    end
+  end
+=end
 end
