@@ -14,7 +14,7 @@
 //Pointer Size
 #define PSIZE 8
 
-#define CHUNKSIZE (1<<17)
+#define CHUNKSIZE (1<<24)
 
 #define WSIZE 4
 #define DSIZE 8
@@ -55,6 +55,9 @@ static const MAX_FREE = CHUNKSIZE-16-PSIZE;
 //Heap to be managed on top of dl
 void *lazy_heap;
 
+
+int SEQUENTIAL = 1;
+
 int init = 0;
 int blockcheck = 0;
 int mdriverflag = 0;
@@ -76,9 +79,13 @@ void *dlmalloc(size_t size);
 
 void *calloc(size_t elems, size_t num)
 {
+    if (SEQUENTIAL)
+	return dlcalloc(elems, num);
     printf("warning: calloc\n");
     void *bp = malloc(elems*num);
     memset(bp, 0, elems*num);
+    printf("calloc will return %p\n", bp);
+    getchar();
     return bp;
 }
 
@@ -89,25 +96,36 @@ void *realloc_in_place(void * bp, size_t size)
 
 void *memalign(size_t size, size_t ptr)
 {
+    if (SEQUENTIAL)
+	return dlmemalign(size, ptr);
     printf("warning: memalign\n");
+    //getchar();
     return dlmemalign(size, ptr);
 }
 
 int posix_memalign(void ** bp, size_t a, size_t b)
 {
-    printf("warning\n");
-    return dlposix_memalign(bp, a, b);
+    if (SEQUENTIAL)
+	return dlposix_memalign(bp, a, b);
+    printf("warning: posix memalign\n");
+    int val = dlposix_memalign(bp, a, b);
+    printf("posix_memalign will return %p\n", val);
+    //getchar();
+    return val;
 }
 
 void *valloc(size_t n)
 {
+    if (SEQUENTIAL)
+	return dlvalloc(n);
     printf("warning: valloc\n");
     return dlvalloc(n);
 }
 
 void *mallopt(int a, int b)
 {
-    return dlmallopt(a, b);
+    if (SEQUENTIAL)
+	return dlmallopt(a, b);
 }
 
 void *pvalloc(size_t a)
@@ -202,6 +220,8 @@ void *malloc(const size_t size)
 {
     //if (allocs % 10000 == 0)
     //printf("Mallocs: %d\n", ++allocs);
+    if (SEQUENTIAL)
+	return dlmalloc(size);
     if (!init)
 	lmalloc_init();
     if (VERBOSE)
@@ -380,6 +400,8 @@ static void place(void *bp, size_t asize)
 //Realloc to a size too big may require handling.
 void *realloc(void *bp, size_t size)
 {
+    if (SEQUENTIAL)
+	return dlrealloc(bp, size);
      void *oldptr = bp;
      void *new;
      size_t copySize;
@@ -388,10 +410,6 @@ void *realloc(void *bp, size_t size)
      size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
      size_t total;
      size_t asize;
-     if (!IS_ALLOCED_BY_DM(bp))
-     {
-	 return dlrealloc(bp, size);
-     }
      if (size == 0)
      {
 	  lfree(bp);
@@ -411,6 +429,11 @@ void *realloc(void *bp, size_t size)
      {
 	  place(bp, asize);
 	  return bp;
+     }
+     if (size > MAX_FREE)
+     {
+	 printf("Request for %d too big for reallocation. Aborting..\n");
+	 exit(1);
      }
      if ((!next_alloc) && ((total = nextBlockSize+oldBlockSize) >= asize) && (size>=oldBlockSize))
      {
@@ -434,7 +457,11 @@ void *realloc(void *bp, size_t size)
 //We need to check if the pointer was allocated by us or not. 
 void free(void *bp)
 {
-    return;
+    if (SEQUENTIAL)
+    {
+	dlfree(bp);
+	return;
+    }
     if (VERBOSE)
 	printf("Free request at %p\n", bp);
     if (!IS_ALLOCED_BY_DM(bp))
@@ -446,11 +473,12 @@ void free(void *bp)
     size_t size = GET_SIZE(HDRP(bp));
     PUT(HDRP(bp), LPACK(size, 0));
     PUT(FTRP(bp), LPACK(size, 0));
-    //seglist[get_index(size)] = coalesce(bp);
     return;
-    coalesce(bp);
+    seglist[get_index(size)] = coalesce(bp);
+    //coalesce(bp);
     if (VERBOSE)
         blocksize_check();
+    return;
 }
 static void *coalesce(void *bp)
 {
