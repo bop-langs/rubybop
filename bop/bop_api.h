@@ -113,20 +113,21 @@ void *_BOP_calloc(size_t n_elements, size_t elem_size, char *file, unsigned line
 void _BOP_free(void* mem, char *file, unsigned line);
 void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 
-/*
+
 #include "dmmalloc.h"
 #define BOP_malloc( sz )	dm_malloc( sz )
 #define BOP_alloc( n, s )	dm_calloc( n, s )
 #define BOP_free( m )		dm_free ( m )
 #define BOP_realloc( m, nsz )	dm_realloc( m, nsz )
-*/
 
-// Original Code 
+
+// Original Code
+/*
 #define BOP_malloc( sz )  _BOP_malloc( sz, __FILE__, __LINE__ )
 #define BOP_calloc( n, s ) _BOP_calloc( n, s, __FILE__, __LINE__ )
 #define BOP_free( m ) _BOP_free( m, __FILE__, __LINE__ )
 #define BOP_realloc( m, nsz ) _BOP_realloc( m, nsz, __FILE__, __LINE__ )
-
+*/
 
 /* should be disabled if defining BOP_printf printf
 #define printf BOP_printf
@@ -173,6 +174,6 @@ void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 #define BOP_realloc(p, s) realloc(p, s)
 #define BOP_calloc(c, s) calloc(c, s)
 
-#endif 
+#endif
 
-#endif 
+#endif

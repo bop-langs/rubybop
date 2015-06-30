@@ -21,7 +21,7 @@ volatile ppr_pos_t ppr_pos = GAP;
 bop_mode_t bop_mode = PARALLEL;
 int spec_order = 0;
 int ppr_index = 0;
-static int ppr_static_id; 
+static int ppr_static_id;
 
 stats_t bop_stats = { 0 };
 
@@ -89,14 +89,14 @@ int _BOP_ppr_begin(int id) {
     }
 
     int fid = fork( );
-    
+
     if (fid == -1) {
       bop_msg (2, "OS unable to fork more tasks" );
       if ( task_status == MAIN) {
 	task_status = SEQ;
 	bop_mode = SERIAL;
       }
-      else 
+      else
 	partial_group_set_size( spec_order + 1 );
 
       return 0;
@@ -120,21 +120,21 @@ int _BOP_ppr_begin(int id) {
   default:
     assert(0);
   }
-  return 0; 
+  return 0;
 }
 
 /* Not supported because of too many cases we have to worry depending
    on when this called.  Also there is no need for this call.
    BOP_abort_spec should suffice.  In any case, sending SIGUSR2 will
    break the system unless UNDY is running. */
- 
+
 // void BOP_abort_spec_group( char *msg ) {
 //  bop_msg(2, "Abort all speculation because %s", msg );
 //  kill( 0, SIGUSR2 );
 // }
 
 void BOP_abort_spec( char *msg ) {
-  if (task_status == SEQ 
+  if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;
 
@@ -153,14 +153,14 @@ void BOP_abort_spec( char *msg ) {
 }
 
 void BOP_abort_next_spec( char *msg ) {
-  if (task_status == SEQ 
+  if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;
 
   bop_msg(2, "Abort next speculation because %s", msg);
   if (task_status == MAIN)  /* non-mergeable actions have happened */
     partial_group_set_size( 1 );
-  else 
+  else
     partial_group_set_size( spec_order + 1 );
 }
 
@@ -174,8 +174,8 @@ void post_ppr_undy( void ) {
     return;
   }
 
-  /* Ladies and Gent: This is the finish line.  If understudy lives to block 
-     off SIGUSR2 (without being aborted by it before), then it wins the race 
+  /* Ladies and Gent: This is the finish line.  If understudy lives to block
+     off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
   // indicate the success of the understudy
@@ -208,12 +208,12 @@ int spawn_undy( void ) {
     bop_msg(3,"Understudy starts");
 
     signal_undy_created( fid );
-  
+
     bop_stats.num_by_main += 1;
     undy_ppr_count = 0;
 
     undy_init( );
-  
+
     return TRUE;
   default:
     return FALSE;
@@ -222,7 +222,7 @@ int spawn_undy( void ) {
 
 /* It won't return if not correct. */
 static void _ppr_check_correctness( void ) {
-  if ( task_status != MAIN ) 
+  if ( task_status != MAIN )
     wait_prior_check_done( );
 
   int passed = ppr_check_correctness( );
@@ -230,7 +230,7 @@ static void _ppr_check_correctness( void ) {
 
   signal_check_done( passed );
 
-  if ( !passed ) 
+  if ( !passed )
     BOP_abort_spec( "correctness check failed.");
 }
 
@@ -250,9 +250,9 @@ void _task_group_commit( void ) {
   wait_group_commit_done( );
   task_group_commit( );
   signal_commit_done( );
-  
+
   bop_msg(2,"The task group (0 to %d) has succeeded", spec_order);
-  
+
   if (bop_mode == PARALLEL) {
     wait_undy_created( );
     kill( 0, SIGUSR1 );  /* not just get_undy_pid( ) */
@@ -297,7 +297,7 @@ void ppr_task_commit( void ) {
     _task_group_commit( );
     return;
   }
-  
+
   abort( );
 }
 
@@ -306,7 +306,7 @@ void _BOP_ppr_end(int id) {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
   }
-  
+
   switch (task_status) {
   case SEQ:
     return;
@@ -321,7 +321,7 @@ void _BOP_ppr_end(int id) {
     post_ppr_undy( );
     ppr_pos = GAP;
     return;
-  default: 
+  default:
     assert(0);
   }
 }
@@ -338,7 +338,7 @@ void _BOP_ppr_end(int id) {
 
    All processes have the same SIGUSR1 and SIGUSR2 handlers.
 
-*/ 
+*/
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
 
@@ -349,7 +349,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   }
   if (task_status == SPEC || task_status == MAIN) {
     if ( spec_order == partial_group_get_size() - 1 ) return;
-    bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid); 
+    bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid);
     abort( );
   }
   // assert( 0 );
@@ -421,7 +421,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
     int fd = fork();
-  
+
     switch (fd) {
     case -1:
       perror("fork() for timer process");
@@ -429,7 +429,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
     case 0:
       /* Child process continues after switch */
       break;
-    default: 
+    default:
       wait_process();
       abort(); /* Should never get here */
     }
@@ -457,16 +457,16 @@ void __attribute__ ((constructor)) BOP_init(void) {
     sigaction(SIGUSR1, &action, NULL);
     action.sa_sigaction = (void *) SigUsr2;
     sigaction(SIGUSR2, &action, NULL);
-  
+
     // sigset_t mask;
     // sigemptyset( &mask );
     // sigaddset( &mask, SIGUSR2 );
     // sigprocmask( SIG_BLOCK, &mask, NULL );
   }
-  
+
   task_status = SEQ;
-  
-  /* prepare related signals 
+
+  /* prepare related signals
   signal( SIGINT, SigBopExit );
   signal( SIGQUIT, SigBopExit );
   signal( SIGTERM, SigBopExit ); */
@@ -479,7 +479,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
 }
 
-void BOP_malloc_fini(void); /* From bop_alloc.c */
+//void BOP_malloc_fini(void); /* From bop_alloc.c */
 
 static void BOP_fini(void) {
 
@@ -502,7 +502,7 @@ static void BOP_fini(void) {
     bop_stats.num_by_undy += undy_ppr_count;
     break;
 
-  case MAIN: 
+  case MAIN:
   case SEQ:
     break;
 
@@ -510,13 +510,13 @@ static void BOP_fini(void) {
     assert(0);
   }
 
-  BOP_malloc_fini();
-  
+  //BOP_malloc_fini();
+
   struct timeval tv;
   gettimeofday(&tv, NULL);
   double bop_end_time = tv.tv_sec+(tv.tv_usec/1000000.0);
 
-  fprintf(stderr, "\n***BOP Report***\n The total run time is %.2lf seconds.  There were %d ppr tasks, %d executed speculatively and %d non-speculatively (%d by main and %d by understudy).\n",  
+  fprintf(stderr, "\n***BOP Report***\n The total run time is %.2lf seconds.  There were %d ppr tasks, %d executed speculatively and %d non-speculatively (%d by main and %d by understudy).\n",
 	   bop_end_time - bop_stats.start_time, ppr_index,
 	   bop_stats.num_by_spec, bop_stats.num_by_undy + bop_stats.num_by_main, bop_stats.num_by_main, bop_stats.num_by_undy);
 
@@ -524,4 +524,3 @@ static void BOP_fini(void) {
 	   bop_stats.data_copied, bop_stats.data_posted,
 	   BOP_get_group_size( ));
 }
-
