@@ -516,7 +516,7 @@ static void BOP_fini(void) {
   gettimeofday(&tv, NULL);
   double bop_end_time = tv.tv_sec+(tv.tv_usec/1000000.0);
 
-  fprintf(stderr, "\n***BOP Report***\n The total run time is %.2lf seconds.  There were %d ppr tasks, %d executed speculatively and %d non-speculatively (%d by main and %d by understudy).\n",
+  bop_msg( 1, "\n***BOP Report***\n The total run time is %.2lf seconds.  There were %d ppr tasks, %d executed speculatively and %d non-speculatively (%d by main and %d by understudy).\n",
 	   bop_end_time - bop_stats.start_time, ppr_index,
 	   bop_stats.num_by_spec, bop_stats.num_by_undy + bop_stats.num_by_main, bop_stats.num_by_main, bop_stats.num_by_undy);
 
