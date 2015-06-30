@@ -41,9 +41,12 @@ task :clean do
   cd "bop" do
     sh 'make clean'
   end
-  cd "test" do
+  #Gonna comment out cause error while rake clean
+=begin
+  cd "tests" do
     sh 'rake clean'
   end
+=end
 end
 task :again do
 	Rake::Task[:clean].invoke
