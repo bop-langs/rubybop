@@ -1,3 +1,5 @@
+//Co-malloc implementation for BOP                                                                                                                                                                                                          
+//A portion of the code and algorithms (macros, find-block and coalescing main procedure) is taken from "Computer Systems: A Programmer's Perspective" by Randal E. Bryant and David O'Hallaron 
 
 
 #include <stdlib.h>
