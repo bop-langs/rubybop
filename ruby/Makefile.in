@@ -9,8 +9,7 @@ exec = exec
 NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
-BOPDIR = -I../bop/* ../bop/inst.a
-WRAPPER = ../bop/malloc_wrapper.o ../bop/dmmalloc.o
+BOPDIR = -I../bop/*
 BOPFLAGS = -ldl
 #### Start of system configuration section. ####
 
@@ -71,11 +70,11 @@ cppflags = @cppflags@
 INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir) -I$(srcdir) -I$(BOPDIR)
 XCFLAGS = @XCFLAGS@
 CPPFLAGS = @CPPFLAGS@ $(INCFLAGS)
-LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ $(MALLOC_WRAPPER) -ldl
+LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ -ldl ../bop/inst.a
 EXTLDFLAGS = @EXTLDFLAGS@
 XLDFLAGS = @XLDFLAGS@ $(EXTLDFLAGS)
 EXTLIBS =
-LIBS = @LIBS@ $(EXTLIBS) $(BOPDIR) $(WRAPPER)
+LIBS = @LIBS@ $(EXTLIBS) $(BOPDIR) #$(WRAPPER)
 MISSING = @LIBOBJS@ @ALLOCA@
 LDSHARED = @LIBRUBY_LDSHARED@
 DLDFLAGS = @LIBRUBY_DLDFLAGS@ $(XLDFLAGS) $(ARCH_FLAG)

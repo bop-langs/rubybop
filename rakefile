@@ -1,9 +1,8 @@
 task :default => :ruby
-
+test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
 task :ruby => :bop do
   #build ruby
   cd "ruby" do
-  	sh 'rm -f miniruby core*'
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
       sh './configure'
@@ -18,15 +17,26 @@ task :bop do
     sh 'make'
   end
 end
+task :ruby_test do
+  cd "ruby" do
+    sh 'make test' do |ok, res|
+      if ! ok then
+        fail "Ruby tests failed with exit code = #{res.exitstatus}"
+      end
+    end
+  end
+end
+task :bop_test do
+  test_dir.each do |dir|
+    cd 'tests/' + dir do
+      sh 'rake'
+    end
+  end
+end
 
 task :test do
-  cd "ruby" do
-		sh 'make test' do |ok, res|
-			if ! ok then
-				fail "Ruby tests failed with exit code = #{res.exitstatus}"
-			end
-		end
-	end
+  Rake::Task[:bop_test].invoke
+  Rake::Task[:ruby_test].invoke
 end
 
 task :nuke do
@@ -41,9 +51,12 @@ task :clean do
   cd "bop" do
     sh 'make clean'
   end
-  cd "test" do
+  #Gonna comment out cause error while rake clean
+=begin
+  cd "tests" do
     sh 'rake clean'
   end
+=end
 end
 task :again do
 	Rake::Task[:clean].invoke
