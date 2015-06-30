@@ -52,11 +52,11 @@ task :clean do
     sh 'make clean'
   end
   #Gonna comment out cause error while rake clean
-=begin
-  cd "tests" do
-    sh 'rake clean'
+  test_dir.each do |dir|
+    cd "tests/" + dir do
+      sh 'rake clean'
+    end
   end
-=end
 end
 task :again do
 	Rake::Task[:clean].invoke
