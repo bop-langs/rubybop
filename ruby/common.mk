@@ -101,6 +101,7 @@ COMMONOBJS    = array.$(OBJEXT) \
 		vm_trace.$(OBJEXT) \
 		thread.$(OBJEXT) \
 		cont.$(OBJEXT) \
+		ppr.$(OBJEXT) \
 		$(DTRACE_OBJ) \
 		$(BUILTIN_ENCOBJS) \
 		$(BUILTIN_TRANSOBJS) \
