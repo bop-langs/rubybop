@@ -467,6 +467,8 @@ void free(void *bp)
 	dlfree(bp);
 	return;
     }
+    if (!bp)
+	return;
     if (VERBOSE)
 	printf("Free request at %p\n", bp);
     if (!IS_ALLOCED_BY_DM(bp))
