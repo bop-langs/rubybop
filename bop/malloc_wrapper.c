@@ -8,7 +8,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <malloc.h>
+#include <external/malloc.h>
 #include <stdbool.h>
 
 #ifndef NDEBUG
