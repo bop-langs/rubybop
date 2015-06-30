@@ -1,6 +1,5 @@
-//Co-malloc implementation for BOP                                                                                                                                                                                                          
-//A portion of the code and algorithms (macros, find-block and coalescing main procedure) is taken from "Computer Systems: A Programmer's Perspective" by Randal E. Bryant and David O'Hallaron 
-
+//Co-malloc implementation for BOP
+//A portion of the code and algorithms (macros, find-block and coalescing main procedure) is taken from "Computer Systems: A Programmer's Perspective" by Randal E. Bryant and David O'Hallaron
 
 #include <stdlib.h>
 #include "malloc.c"
@@ -24,6 +23,7 @@
 static const MAX_FREE = CHUNKSIZE-16-PSIZE;
 //#define BIT_IDENTIFIER k uses kth lowest bit
 #define BIT_IDENTIFIER 3
+
 #define HEADER_IDENTIFIER_MASK (1<<(BIT_IDENTIFIER-1))
 
 #define IS_ALLOCED_BY_DM(PAYLOAD_P) ((*(int*)(PAYLOAD_P-4)) & HEADER_IDENTIFIER_MASK)
@@ -50,15 +50,17 @@ static const MAX_FREE = CHUNKSIZE-16-PSIZE;
 #define NEXT_BLKP(bp) ((char*)(bp) + GET_SIZE(((char*)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char*)(bp) - GET_SIZE(((char*)(bp) - DSIZE)))
 
+
+#ifdef MDRIVER
 #define malloc(size) lmalloc(size)
 #define realloc(ptr, size) lrealloc(ptr, size)
 #define free(ptr) lfree(ptr)
-
+#endif
 //Heap to be managed on top of dl
 void *lazy_heap;
 
 
-int SEQUENTIAL = 1;
+int SEQUENTIAL = 0;
 
 int init = 0;
 int blockcheck = 0;
@@ -93,6 +95,7 @@ void *calloc(size_t elems, size_t num)
 
 void *realloc_in_place(void * bp, size_t size)
 {
+    printf("warning\n");
     return dlrealloc_in_place(bp, size);
 }
 
