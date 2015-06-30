@@ -17,7 +17,7 @@ task :bop do
     sh 'make'
   end
 end
-task :ruby_test do
+task :ruby_test => :ruby do
   cd "ruby" do
     sh 'make test' do |ok, res|
       if ! ok then
@@ -26,7 +26,7 @@ task :ruby_test do
     end
   end
 end
-task :bop_test do
+task :bop_test => :bop do
   test_dir.each do |dir|
     cd 'tests/' + dir do
       sh 'rake'
