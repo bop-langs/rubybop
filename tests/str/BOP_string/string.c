@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "bop_api.h"
+#include "../../src/bop_api.h"
 
 #define malloc(x)	BOP_malloc(x)
 #define free(x)		BOP_free(x)

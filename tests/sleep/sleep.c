@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include "bop_api.h"
+#include "../../src/bop_api.h"
 
 int ITERS = 4;
 int *t;

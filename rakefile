@@ -18,16 +18,8 @@ task :bop do
     sh 'make'
   end
 end
-task :boptest => :bop do
-  cd "tests" do
-    sh 'make test'
-  end
-end
 
 task :test do
-  cd "tests" do
-    sh 'make test'
-  end
   cd "ruby" do
 		sh 'make test' do |ok, res|
 			if ! ok then
@@ -49,13 +41,7 @@ task :clean do
   cd "bop" do
     sh 'make clean'
   end
-  cd "tests/add" do
-    sh 'rake clean'
-  end
-  cd "tests/sleep" do
-    sh 'rake clean'
-  end
-  cd "tests/str" do
+  cd "test" do
     sh 'rake clean'
   end
 end

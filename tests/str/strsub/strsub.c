@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "bop_api.h"
+#include "../../src/bop_api.h"
 
 //6/20/2011
 //parallel string subsitution
