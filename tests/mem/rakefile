@@ -1,0 +1,8 @@
+load '../bop_test.rake'
+
+$cc = 'gcc'
+$c_flags = '-g3'
+$ldflags = '-lm'
+
+bop_test 'mem', nil, false # Orig version fails
+
