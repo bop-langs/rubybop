@@ -1,0 +1,73 @@
+# see http://rake.rubyforge.org/
+
+task :default => ["inst.a"]
+
+require 'pathname'
+def hgroot
+  loc = Pathname.new(".")
+  p = loc
+  while true
+    return p.to_s if (p + '.hg').exist?
+    raise "no hg root found containing #{loc}" if p.root?
+    p = p.parent.expand_path
+  end
+end
+
+hgdir = hgroot
+
+c_sources = ["inst.c", "utils.c", "bop_io.c", "simple_alloc.c", "external/malloc.c", "commit.c", "data_store.c", "data_depot.c", "range_tree/dtree.c", "range_tree/shm_map.c", "postwait/local.c", "postwait/switch_board.c", "postwait/exp_board.c", "postwait/ordered.c", "BOP_malloc.c"] #added BOP_malloc
+c_flags = ["-g3", "-DBOPv01", "-I ~/#{hgdir}/../rubybop", "-I ~/#{hgdir}/bop/dev"]
+malloc_extra_flags = ["-DUSE_DL_PREFIX"]
+
+objs = FileList.new(c_sources).ext('.o')
+headers = Dir.glob("*.h")
+
+# dir/file => dir/prefix_file
+require 'pathname'  # Pathname
+def add_prefix(file, prefix)
+  return file if prefix == nil
+  pn = Pathname.new(file)
+  return pn.dirname.to_s+"/"+"#{prefix}_#{pn.basename.to_s}"
+end  
+seq_objs = objs.collect {|n| add_prefix(n, "seq")}
+noprot_objs = objs.collect {|n| add_prefix(n, "noprot")}
+
+if RUBY_PLATFORM.include?("darwin")
+  platform = "-D__MACH__" 
+else
+  platform = "-D__LINUX__"
+end
+
+build_task = file "inst.a" => objs+headers do
+  sh "ar r inst.a #{objs * ' '}"
+  sh "ranlib inst.a"
+  sh "ar r seq_inst.a #{seq_objs * ' '}"
+  sh "ranlib seq_inst.a"
+  sh "ar r noprot_inst.a #{noprot_objs * ' '}"
+  sh "ranlib noprot_inst.a"
+end
+
+rule '.o' => '.c' do |t|
+  sh "gcc #{platform} #{c_flags * " "} -c -o #{t.name} #{t.source}" 
+  sh "gcc -DBOP_SEQ #{platform} #{c_flags * " "} -c -o #{add_prefix(t.name, "seq")} #{t.source}"
+  sh "gcc -DBOP_SEQ -DBOP_NOPROT #{platform} #{c_flags * " "} -c -o #{add_prefix(t.name, "noprot")} #{t.source}"
+end
+
+clean_task = task :clean do
+  [nil, "noprot", "seq"].each do |prefix| 
+    fnm = add_prefix("inst.a", prefix)
+    sh "\\rm #{fnm}" if File.file?(fnm)
+  end
+  (objs + noprot_objs + seq_objs).each {|obj| sh "\\rm #{obj}" if File.file?(obj)}
+end
+
+task :force do
+  clean_task.invoke
+  build_task.invoke
+end
+
+task :overload_malloc do
+  clean_task.invoke
+  c_flags = c_flags + malloc_extra_flags 
+  build_task.invoke
+end

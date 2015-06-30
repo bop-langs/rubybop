@@ -1,0 +1,53 @@
+# see http://rake.rubyforge.org/
+
+bop_lib = "../"
+c_flags = ["-g", "-DBOPv01", "-I#{bop_lib}"]
+
+per_test_flags = Hash.new
+
+per_test_flags["sleep_test.c"] = ["-DBOP"]
+
+# shm_commit_tests
+tests = Dir.entries(".").find_all {|n| n.include?(".c")}
+
+objs = FileList.new(tests).ext('.o')
+
+exes = FileList.new(tests).ext('.run_test')
+
+if RUBY_PLATFORM.include?("darwin")
+  platform = "-D__MACH__" 
+else
+  platform = " "
+end
+
+def build_lib
+  sh "cd ..; rake"
+end
+
+rule '.o' => '.c' do |t|
+  sh "gcc #{platform} #{c_flags * " "} #{per_test_flags[t.source]} -c -o #{t.name} #{t.source}" 
+end
+
+# flag_to_add_stack_size = -Wl,-stack_size -Wl,80000000
+rule '.run_test' => '.o' do |t|
+  build_lib
+  sh "gcc -o #{t.name} #{t.source} ../seq_inst.a"
+end
+
+default_task = task :default => exes
+
+clean_task = task :clean do
+  (objs + exes).each {|obj| sh "\\rm #{obj}" if File.file?(obj)}
+end
+
+task :force do
+  build_lib
+  clean_task.invoke
+  default_task.invoke
+end
+
+task :test => exes do
+  exes.each do |test|
+    sh "#{test}"
+  end
+end

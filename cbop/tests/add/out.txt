@@ -1,0 +1,5 @@
+1612: initializing 10 million numbers
+1612: adding 10 million numbers
+1612: initializing 10 million numbers
+1612: adding 10 million numbers
+1621: The sum is 10 million (10000000) 

@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+  <head>
+  <style type="text/css">
+  </style>
+	<link type="text/css" rel=stylesheet href="style.css">
+  </head>
+
+<body>
+
+<h1>Introduction</h1>
+
+<p>BOP is an annotation interface for parallelizing a sequential program. A user inserts annotations into the sequential program to mark possibly parallel tasks (PPR tasks). The PPR tasks have the sequential semantics, that is, they produce the same results as running sequentially.  By default, they are referred to by their sequential order, e.g. the previous task or a later task.</p>
+
+<p>To ensure correctness, BOP system needs to track all access to data that may carry useful values from one PPR task to the next.  To tracking can be done in two ways:</p>
+
+<ul>
+<li>Allocate data using the BOP interface.  The data will be placed under OS page protection so its access is automatically detected at the page granularity.</li>
+<li>Allocate data normally but use the BOP interface to record the read and write access. </li>
+</ul>
+
+<p>Once the data access is tracked properly, the BOP system guarantees the sequential execution result from a parallel execution.  However, the execution time may not improve because of conflicts between PPR tasks.  The conflicts may be avoided by using the BOP annotations to synchronize PPR tasks. The execution time may not improve if the BOP synchronization is incorrect or incomplete, but the execution result should still be correct.</p>
+
+<p>BOP is an acronym that refers to <em>behavior-oriented parallelization</em>.</p>
+
+<h2>Requirements/Limitations</h2>
+<ul>
+<li>It can be used to parallelize C programs.</li>
+<li>It requires GNU GCC compiler and runs on Linux and Mac OS X.</li>
+<li>Currently it runs on 64-bit platforms only.</li>
+<li>Currently it does not dynamic memory allocation in parallel.  Malloc would cause the allocating task to run sequentially with previous tasks.</li>
+<li>The build commands use Ruby and rake.</li>
+</ul>
+
+<h2>Installation</h2>
+
+BOP annotations are provided in a header file. At run time, the annotations become calls to the BOP run-time library.  You need to install the header file and build the run-time library as follows.
+
+Let <code>bop_dir</code> be the root of the installation (<code>cbop</code> under the cs258 repository).  The header file is <code>bop_dir/include/bop.h</code>.
+
+To compile the BOP code, change directory to <code>bop_dir/INST/</code> and run <code>rake</code>.  The BOP run-time system is a statically linked library, <code>bop_dir/INST/inst.a</code>.
+
+<h2>Build and Run</h2>
+
+<p>Assuming you have a C program, <code>test.c</code>, which is parallelized using the BOP annotations.  To compile a sequential version of the program:</p>
+
+<pre class="programlisting">
+gcc -g3 -I bop_dir/include test.c -o test_orig
+</pre>
+
+<p>To compile the parallel version:</p>
+
+<pre class="programlisting">
+gcc -g3 -I bop_dir/include test.c bop_dir/INST/inst.a -o test_bop
+</pre>
+
+
+<h2>Acknowledgement</h2>
+<p>BOP is supported in part by NSF Grants CNS-0720796 and CCF-0963759. The development is in collaboration with Institute of Computing Technology, Chinese Academy of Sciences.</p>
+
+</body>
+</html>

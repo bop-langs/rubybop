@@ -1,0 +1,35 @@
+have_library: checking for gdbm_open() in -lgdbm... -------------------- yes
+
+"gcc -o conftest -I../.. -I../../. -I../.././ext/gdbm    -g -O2   conftest.c  -L. -L../.. -L.  -rdynamic -Wl,-export-dynamic     -lruby-static -lgdbm  -lrt -ldl -lcrypt -lm   -lc"
+conftest.c: In function ‘t’:
+conftest.c:3:53: error: ‘gdbm_open’ undeclared (first use in this function)
+ int t() { void ((*volatile p)()); p = (void ((*)()))gdbm_open; return 0; }
+                                                     ^
+conftest.c:3:53: note: each undeclared identifier is reported only once for each function it appears in
+checked program was:
+/* begin */
+1: /*top*/
+2: int main() { return 0; }
+3: int t() { void ((*volatile p)()); p = (void ((*)()))gdbm_open; return 0; }
+/* end */
+
+"gcc -o conftest -I../.. -I../../. -I../.././ext/gdbm    -g -O2   conftest.c  -L. -L../.. -L.  -rdynamic -Wl,-export-dynamic     -lruby-static -lgdbm  -lrt -ldl -lcrypt -lm   -lc"
+checked program was:
+/* begin */
+1: /*top*/
+2: int main() { return 0; }
+3: int t() { gdbm_open(); return 0; }
+/* end */
+
+--------------------
+
+have_header: checking for gdbm.h... -------------------- yes
+
+"gcc -E -I../.. -I../../. -I../.././ext/gdbm    -g -O2    conftest.c -o conftest.i"
+checked program was:
+/* begin */
+1: #include <gdbm.h>
+/* end */
+
+--------------------
+
