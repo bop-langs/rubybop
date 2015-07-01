@@ -10,6 +10,7 @@ NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
 BOPDIR = ../bop/
+WRAPPER = ../bop/dmmalloc.o ../bop/malloc_wrapper.o
 BOPFLAGS = -ldl -DBOP
 #### Start of system configuration section. ####
 
@@ -74,7 +75,7 @@ LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ -ldl
 EXTLDFLAGS = @EXTLDFLAGS@
 XLDFLAGS = @XLDFLAGS@ $(EXTLDFLAGS)
 EXTLIBS =
-LIBS = @LIBS@ $(EXTLIBS) ../bop/inst.a #$(WRAPPER)
+LIBS = @LIBS@ $(EXTLIBS) $(WRAPPER) ../bop/inst.a
 MISSING = @LIBOBJS@ @ALLOCA@
 LDSHARED = @LIBRUBY_LDSHARED@
 DLDFLAGS = @LIBRUBY_DLDFLAGS@ $(XLDFLAGS) $(ARCH_FLAG)
