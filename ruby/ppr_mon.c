@@ -1,12 +1,7 @@
-<<<<<<< HEAD
+
 #include <internal.h>
 #include <ppr.h>
 #include <../bop/bop_ports.h>
-=======
-#include <ruby.h>
-#include <ppr.h>
-#include <cbop/src/bop_ports.h>
->>>>>>> 97a3ddee4bddced2ab24cb1c0c6188d8056d5f3a
 
 st_table *ppr_pot = NULL;
 
@@ -33,7 +28,6 @@ static void BOP_both_use_promise( void* addr, size_t size ) {
 }
 
 monitor_t *get_monitor_func( unsigned long bop_flags )	{
-<<<<<<< HEAD
   if ( (bop_flags & (BF_NEW|BF_USE|BF_MOD|BF_SUBOBJ|BF_META)) == 0 )
     return NULL;
   if ( (bop_flags & BF_META) || (bop_flags & BF_SUBOBJ))
@@ -43,17 +37,6 @@ monitor_t *get_monitor_func( unsigned long bop_flags )	{
   if (bop_flags & BF_USE)
     return &BOP_record_read;
   if ( (bop_flags & BF_MOD) || (bop_flags & BF_NEW) )
-=======
-  if ( (bop_flags & (BF_NEW|BF_USE|BF_MOD|BF_SUBOBJ|BF_META)) == 0 ) 
-    return NULL;
-  if ( (bop_flags & BF_META) || (bop_flags & BF_SUBOBJ)) 
-    return NULL;							     
-  if ( (bop_flags & BF_USE) && (bop_flags & BF_MOD) ) 
-    return &BOP_both_use_promise;					     
-  if (bop_flags & BF_USE) 
-    return &BOP_record_read;							
-  if ( (bop_flags & BF_MOD) || (bop_flags & BF_NEW) ) 
->>>>>>> 97a3ddee4bddced2ab24cb1c0c6188d8056d5f3a
     return &BOP_record_write;
   bop_msg( 1, "unknown bop flags %llx", bop_flags);
   assert( 0 );
