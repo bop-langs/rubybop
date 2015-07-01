@@ -14,7 +14,7 @@ before_install:
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' && $CC = 'gcc' ]]; then CC='gcc-4.9'; fi"
 
-install: 
+install:
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq build-dep ruby1.9.1 2>/dev/null; fi"
   - rake #actual build
 
@@ -24,4 +24,4 @@ before_script: #before tests run
 
 #test script
 script:
-  - rake test
+  - rake ; rake test
