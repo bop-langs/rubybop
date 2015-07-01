@@ -1,3 +1,17 @@
+
+PPR Task Memory Allocators
+
+
+Comalloc
+====================
+
+This approach to PPR Memory allocation uses Doug Lea's memory allocator (dlmalloc) to allocate private heaps that are then managed by the separate allocator, comalloc. The allocator identifies the allocations done by itself and dlmalloc by a special bit chosen by the programmer. When not executing a PPR task, the allocator simple forwards allocation calls to dlmalloc.
+
+
+
+Divide & Merge Malloc
+=====================
+
 Files
 =====
 * dmmalloc.* -> Divide and Merge Malloc
@@ -5,8 +19,8 @@ Files
 * wrapper_test.c -> Basic test of using dmmalloc with the wrapper
 
 
-
 # Divide & Merge Malloc
+
 
 A dual-stage malloc implementation to support safe PPR forks
 Each stage (sequential/no PPR tasks running) and a PPR tasks’ design is the same, a basic size-class allocator. The complications come when PPR_begin is called:
@@ -22,4 +36,5 @@ when a PPR task frees something from the global heap (something it did not alloc
 Large objects:
 Size classes need to be finite, so there will be some sizes not handled by this method, the work around is:
     allocation: if in PPR task, abort if not use DL malloc.
+
     free: when one of these is freed, check the block size. if it’s too large for any size class it was allocated with dl malloc. use dl free OR if sufficiently large divide up for use in our size classes.
