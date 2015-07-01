@@ -32,6 +32,8 @@ task :bop_test => :bop do
       sh 'rake; rake run' do |ok, res|
         if ! ok then
           fail "Bop test failure"
+        end
+      end
     end
   end
 end
