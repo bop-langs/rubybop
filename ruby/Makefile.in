@@ -9,7 +9,7 @@ exec = exec
 NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
-BOPDIR = -I../bop/*
+BOPDIR = ../bop/*
 BOPFLAGS = -ldl -DBOP
 #### Start of system configuration section. ####
 
