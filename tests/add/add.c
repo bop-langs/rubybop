@@ -14,7 +14,7 @@ void initialize( int );
 double lots_of_computation_on_block( int start, int end );
 
 int main(int argc, char ** argv)
-{ BOP_set_verbose (1);
+{
   int i, s;
   int data_size, num_blocks;
   int block_size;
@@ -44,7 +44,7 @@ int main(int argc, char ** argv)
 
        double block_sum = lots_of_computation_on_block( block_begin, block_end );
 
-      BOP_ordered_begin( 1 );
+    //  BOP_ordered_begin( 1 );
 
           BOP_use( &sum, sizeof( double) );
 
@@ -52,7 +52,7 @@ int main(int argc, char ** argv)
 
           BOP_promise( &sum, sizeof( double ) );
 
-       BOP_ordered_end( 1 );
+    //   BOP_ordered_end( 1 );
 
     BOP_ppr_end(1);  /* End PPR */
   }

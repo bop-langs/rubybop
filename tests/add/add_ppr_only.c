@@ -17,7 +17,7 @@ void initialize( int );
 double lots_of_computation_on_block( int start, int end );
 
 int main(int argc, char ** argv)
-{ BOP_set_verbose(1);
+{
   int data_size, num_blocks;
   int block_size;
 
@@ -62,6 +62,7 @@ int main(int argc, char ** argv)
     sum += sums[ i ];
 
   printf("%d: The sum is %.0f million (%.0f) \n", getpid(), sum/1000000, sum);
+  exit(0);
 }
 
 
