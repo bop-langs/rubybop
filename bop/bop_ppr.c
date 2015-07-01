@@ -527,6 +527,7 @@ static void BOP_fini(void) {
 
   case UNDY:
     kill(0, SIGUSR2);
+    kill(-monitor_group, SIGUSR1); //main requires a special signal
     undy_succ_fini( );
     bop_stats.num_by_undy += undy_ppr_count;
     break;
