@@ -52,7 +52,7 @@ int BOP_get_verbose( void ) {
 
 extern char in_ordered_region;  // bop_ordered.c
 
-void bop_msg(int level, char * msg, ...) {
+void bop_msg(int level, const char * msg, ...) {
   if(bop_verbose >= level)
   {
     va_list v;

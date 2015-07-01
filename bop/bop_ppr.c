@@ -4,6 +4,9 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
+//#include <sys/siginfo.h>
+#include <ucontext.h>
+#include <execinfo.h>
 
 #include "bop_api.h"
 #include "bop_ports.h"
@@ -133,7 +136,7 @@ int _BOP_ppr_begin(int id) {
 //  kill( 0, SIGUSR2 );
 // }
 
-void BOP_abort_spec( char *msg ) {
+void BOP_abort_spec( const char *msg ) {
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;

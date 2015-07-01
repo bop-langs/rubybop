@@ -77,7 +77,7 @@ void BOP_record_write(void* addr, size_t size);
 typedef void monitor_t (void *, size_t);
 
 /* Called by a speculation process in case of error. */
-void BOP_abort_spec( char* msg );
+void BOP_abort_spec( const char* msg );
 void BOP_abort_next_spec( char* msg );
 
 /* FILE I/O */
@@ -93,7 +93,7 @@ mem_range_t *BOP_check_access(void* addr);
 // %--------------- For Debug ------------- %
 void bop_set_verbose( int );
 int bop_get_verbose( void );
-void bop_msg(int level, char * msg, ...);
+void bop_msg(int level, const char * msg, ...);
 
 /* For collecting statistics */
 typedef struct {

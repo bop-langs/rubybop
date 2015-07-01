@@ -9,7 +9,7 @@ exec = exec
 NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
-BOPDIR = ../bop/*
+BOPDIR = ../bop/
 BOPFLAGS = -ldl -DBOP
 #### Start of system configuration section. ####
 
@@ -65,7 +65,7 @@ CFLAGS = $(CFLAGS_NO_ARCH) $(ARCH_FLAG) -fPIC -ggdb -g $(BOPFLAGS)
 cflags = @cflags@
 optflags = @optflags@
 debugflags = @debugflags@
-warnflags = @warnflags@ @strict_warnflags@
+warnflags = @warnflags@ #@strict_warnflags@
 cppflags = @cppflags@
 INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir) -I$(srcdir) -I$(BOPDIR)
 XCFLAGS = @XCFLAGS@

@@ -1,6 +1,6 @@
-#include <internal.h>
-#include <../bop/bop_api.h>
-#include <../bop/bop_ports.h>
+#include "internal.h"
+#include "../bop/bop_api.h"
+#include "../bop/bop_ports.h"
 
 extern st_table *ppr_pot;
 extern char in_ordered_region;

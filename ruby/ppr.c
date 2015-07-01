@@ -1,9 +1,9 @@
-#include <internal.h>
+#include "internal.h"
 #include <stdio.h>
-#include <ppr.h>
-#include <../bop/bop_api.h>
+#include "ppr.h"
+#include "../bop/bop_api.h"
+#include "../bop/bop_ports.h"
 
-#include <../bop/bop_ports.h>
 extern bop_port_t ruby_monitor;
 
 VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
