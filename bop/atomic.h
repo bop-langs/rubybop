@@ -12,11 +12,11 @@ typedef pthread_mutex_t bop_lock_t;
 typedef char bop_lock_t;
 #endif
 
-/* nop, backoff, and slowpath locking code based on RSTM 
+/* nop, backoff, and slowpath locking code based on RSTM
 http://www.cs.rochester.edu/~sandhya/csc258/assignments/ass2/atomic_ops.h*/
 
 static inline void nop( ) {
-  asm volatile("nop");
+  __asm__ volatile("nop");
 }
 
 static inline void backoff( int *b ) {
@@ -54,7 +54,7 @@ static inline void bop_lock_acquire( bop_lock_t *lock ) {
 
 static inline void bop_wait_flag( bop_lock_t *flag ) {
   int b = 64;
-  while ( ! *flag ) 
+  while ( ! *flag )
     backoff( &b );
 }
 

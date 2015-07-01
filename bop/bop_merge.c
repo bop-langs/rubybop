@@ -97,7 +97,7 @@ static addr_t check_for_overlap( map_t *my_access, char is_write_map ) {
 
   mem_range_t *my_ranges; unsigned num;
   map_to_array( my_access, &my_ranges, &num );
-  
+
   for (i = 0; i < num; i ++) {
     mem_range_t *mseg = &my_ranges[ i ];
     mem_range_t access_overlap, recv_overlap;
@@ -107,7 +107,7 @@ static addr_t check_for_overlap( map_t *my_access, char is_write_map ) {
 
     mem_range_t tseg = *mseg;
     char still_conf_free = 1;
-    
+
     // do {
     same_access = map_overlaps(write_union, &tseg, &access_overlap);
 
@@ -130,26 +130,26 @@ static addr_t check_for_overlap( map_t *my_access, char is_write_map ) {
 	      if (recv_range->task == acc_range->task ) {
 		bop_msg(2, "The overlap is not a conflict as the data was received from the last writer %d", recv_range->task);
 		/* save it to check for modify-after-post conflicts */
-		map_add_range_from_task( & received_n_used, 
-					 acc_range->base, acc_range->size, 
+		map_add_range_from_task( & received_n_used,
+					 acc_range->base, acc_range->size,
 					 recv_range->rec, acc_range->task );
 		still_conf_free = 1;
 	      }
-	      else 
+	      else
 		bop_msg(2, "The overlap is a post-wait ordering conflict since the page was received from %d but last written by %d", recv_range->task, acc_range->task );
 	     }
 	  }
-	  else 
+	  else
 	    bop_msg( 1, "Read or write conflict with a prior task" );
 	}
 	else {
 	  bop_msg( 2, "The range in write_union, %p for %zu bytes, does not equal to the overlap.  Treat it as a conflict", acc_range->base, acc_range->size);
 	}
       }
-      else 
+      else
 	bop_msg( 2, "The range in %s, %p for %zu bytes, does not equal to the overlap.  Treat it as a conflict", my_access->name, mseg->base, mseg->size );
 
-      if ( !still_conf_free) 
+      if ( !still_conf_free)
 	return access_overlap.base;
 
     }
@@ -199,7 +199,7 @@ static void add_range_block( void *_sum, mem_range_t *range ) {
   sum->total += range->size;
 }
 
-/* If col is NULL, create a new collection.  Otherwise, augment. */ 
+/* If col is NULL, create a new collection.  Otherwise, augment. */
 void create_patch( map_t *patch, map_t *change_set, mspace space ) {
   init_empty_map( patch, space, "patch" );
 
@@ -211,7 +211,7 @@ void create_patch( map_t *patch, map_t *change_set, mspace space ) {
   map_inject( change_set, &sum, add_range_block );
 
   bop_stats.data_copied += sum.total;
-  bop_msg(4, "Created a patch with %d range(s) for a total of %d bytes.", patch->size, sum.total); 
+  bop_msg(4, "Created a patch with %d range(s) for a total of %d bytes.", patch->size, sum.total);
 }
 
 static void apply_range_block( void *_sum, mem_range_t *range ) {
@@ -234,7 +234,7 @@ static void free_range_data( void *space, mem_range_t *range ) {
 
 void clear_patch( map_t *patch ) {
   map_inject( patch, (void*) patch->residence, free_range_data );
-  map_clear( patch );           
+  map_clear( patch );
 }
 
 static void ppr_commit( void ) {

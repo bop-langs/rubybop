@@ -35,7 +35,7 @@ bop_mode_t BOP_mode( void ) {
 
 unsigned long long read_tsc(void) {
   unsigned long long tsc;
-  asm ("rdtsc":"=A" (tsc):);
+  __asm__ ("rdtsc":"=A" (tsc):);
   return tsc;
 }
 
@@ -114,6 +114,6 @@ int get_int_from_env(const char* env, int min, int max, int def)
   if ( ival < min ) ival = min;
   if ( ival > max ) ival = max;
   bop_msg( 2, "Variable %s is set as %d based on env ([%d, %d]).", env, ival, min, max);
-  
+
   return ival;
 }

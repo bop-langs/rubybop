@@ -1,8 +1,8 @@
- 
+
 #include <string.h>
-#include <external/malloc.h>
-#include <bop_api.h>
-#include <ary_bitmap.h>
+#include "external/malloc.h"
+#include "bop_api.h"
+#include "ary_bitmap.h"
 
 /* each entry an unsigned number, 32 bits */
 uint32_t ary_map_entries( uint32_t ary_size ) {
@@ -41,19 +41,19 @@ static void mark_bit( uint32_t *map, uint32_t idx ) {
   map[ word_idx ] |= 0x1 << offset;
 }
 
-void ary_use_elem( void *base, uint32_t length, 
+void ary_use_elem( void *base, uint32_t length,
 		   uint32_t elem_size, uint32_t idx ) {
   uint32_t *use_map = get_ary_use_map( base, length, elem_size );
   mark_bit( use_map, idx );
 }
 
-void ary_promise_elem( void *base, uint32_t length, 
+void ary_promise_elem( void *base, uint32_t length,
 		       uint32_t elem_size, uint32_t idx ) {
   uint32_t *mod_map = get_ary_mod_map( base, length, elem_size );
   mark_bit( mod_map, idx );
 }
 
-static void scan_one_map( void *base, uint32_t length, uint32_t elem_size, 
+static void scan_one_map( void *base, uint32_t length, uint32_t elem_size,
 			  uint32_t *map, monitor_t *bop_mon ) {
     uint32_t num = ary_map_entries( length );
     int i, j;
@@ -67,7 +67,7 @@ static void scan_one_map( void *base, uint32_t length, uint32_t elem_size,
 }
 
 void scan_ary_maps( void *base, uint32_t length, uint32_t elem_size ) {
-  scan_one_map( base, length, elem_size, 
+  scan_one_map( base, length, elem_size,
 		get_ary_use_map(base, length, elem_size), & BOP_record_read );
   scan_one_map( base, length, elem_size,
 		get_ary_mod_map(base, length, elem_size), & BOP_record_write );

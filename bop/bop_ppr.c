@@ -5,10 +5,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <bop_api.h>
-#include <bop_ports.h>
-#include <bop_ppr_sync.h>
-#include <utils.h>
+#include "bop_api.h"
+#include "bop_ports.h"
+#include "bop_ppr_sync.h"
+#include "utils.h"
 
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
