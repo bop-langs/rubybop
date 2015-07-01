@@ -14,7 +14,7 @@ VALUE ppr, obj;
 {
 
     VALUE str = rb_obj_as_string(obj);
-    BOP_printf("%s\n", RSTRING(str)->ptr);
+    BOP_printf("%s\n", RSTRING_PTR(str));
 
     return Qnil;
 }
@@ -25,7 +25,7 @@ VALUE ppr, msg;
 {
 
     VALUE str = rb_obj_as_string(msg);
-    BOP_abort_spec(RSTRING(str)->ptr);
+    BOP_abort_spec(RSTRING_PTR(str));
 
     return Qnil;
 }
@@ -36,7 +36,7 @@ VALUE ppr, msg;
 {
 
     VALUE str = rb_obj_as_string(msg);
-    BOP_abort_next_spec(RSTRING(str)->ptr);
+    BOP_abort_next_spec(RSTRING_PTR(str));
 
     return Qnil;
 }
@@ -97,7 +97,7 @@ static int add_i( VALUE key, VALUE obj, VALUE ary ) {
     return ST_CONTINUE;
   }
   
-  RARRAY(ary)->ptr[ RARRAY(ary)->len ++ ] = key;
+  RARRAY_PTR(ary)[ RARRAY_LEN(ary) ++ ] = key;
 
   return ST_CONTINUE;
 }

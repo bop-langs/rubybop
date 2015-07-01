@@ -10,7 +10,7 @@ NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
 BOPDIR = -I../bop/*
-BOPFLAGS = -ldl
+BOPFLAGS = -ldl -DBOP
 #### Start of system configuration section. ####
 
 srcdir = @srcdir@
@@ -61,7 +61,7 @@ OUTFLAG = @OUTFLAG@$(empty)
 COUTFLAG = @COUTFLAG@$(empty)
 ARCH_FLAG = @ARCH_FLAG@
 CFLAGS_NO_ARCH = @CFLAGS@
-CFLAGS = $(CFLAGS_NO_ARCH) $(ARCH_FLAG) -fPIC -ggdb -g
+CFLAGS = $(CFLAGS_NO_ARCH) $(ARCH_FLAG) -fPIC -ggdb -g $(BOPFLAGS)
 cflags = @cflags@
 optflags = @optflags@
 debugflags = @debugflags@
