@@ -101,7 +101,13 @@ task :all => [:orig, :bop] # :clean
 task :default => :all
 
 desc "Force a rebuild"
-task :force => [:clean, :all]
+task :force do 
+  cd '../../bop' do
+    sh 'make -B'
+  end
+  Rake::Task[:clean].invoke
+  Rake::Task[:all].invoke
+end
 
 # Teach rake to compile both bop_*.o and *.o from a *.c
 bop_o = /^(.*\/)?(bop_)?(.*?)\.o$/
