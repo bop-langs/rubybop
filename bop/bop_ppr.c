@@ -10,6 +10,10 @@
 #include <bop_ppr_sync.h>
 #include <utils.h>
 
+#define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
+#define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
+#define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
+
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
 extern bop_port_t postwait_port;
@@ -26,13 +30,14 @@ static int ppr_static_id;
 stats_t bop_stats = { 0 };
 
 static int bopgroup;
+static int monitor_group = 0; //the process group that PPR tasks are using
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
 
   /* setup bop group id.*/
   bopgroup = getpid();
-  assert( setpgid(0, bopgroup) == 0 );
+  assert( getpgrp() == -monitor_group );
   spec_order = 0;
   ppr_sync_data_reset( );
   ppr_group_init( );
@@ -54,10 +59,10 @@ static void _ppr_task_init( void ) {
     assert(0);
   }
 
-  bop_msg( 2, "ppr task %d (%d total) starts", spec_order, BOP_get_group_size() );
+  bop_msg( 2, "ppr task %d (%d total) starts. pgrp = %d", spec_order, BOP_get_group_size(), getpgrp() );
 
-  assert( setpgid(0, bopgroup)==0 );
-
+  //assert( setpgid(0, bopgroup)==0 );
+  assert (getpgrp() == -monitor_group);
   ppr_task_init( );
 }
 
@@ -93,11 +98,11 @@ int _BOP_ppr_begin(int id) {
     if (fid == -1) {
       bop_msg (2, "OS unable to fork more tasks" );
       if ( task_status == MAIN) {
-	task_status = SEQ;
-	bop_mode = SERIAL;
+      	task_status = SEQ;
+      	bop_mode = SERIAL;
       }
       else
-	partial_group_set_size( spec_order + 1 );
+	     partial_group_set_size( spec_order + 1 );
 
       return 0;
     }
@@ -204,7 +209,8 @@ int spawn_undy( void ) {
     task_status = UNDY;
     ppr_pos = GAP;
     spec_order = -1;
-    assert( setpgid(0, bopgroup) == 0 );
+    //assert( setpgid(0, bopgroup) == 0 );
+    assert (getpgrp() == -monitor_group);
     bop_msg(3,"Understudy starts");
 
     signal_undy_created( fid );
@@ -352,7 +358,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid);
     abort( );
   }
-  // assert( 0 );
+  // assert ( 0 );
 }
 
 /* Used to remove all SPEC tasks and MAIN when UNDY wins, when a spec group
@@ -370,19 +376,24 @@ void SigBopExit( int signo ){
   bop_msg( 3,"Program exits (%d).  Cleanse remaining processes. ", signo );
   exit(0);
 }
-
 /* Initial process heads into this code before forking.
  *
  * Waits until all children have exited before exiting itself.
  */
+
 static void wait_process() {
   int status;
   pid_t child;
-
-  while ((child = wait(&status)) != -1) {
+  bop_msg(1, "Monitoring waiting to receive pgid");
+  while(monitor_group == 0){
+    nop();
+  }
+  bop_msg(1, "Monitoring pg %d from pg %d", monitor_group, getpgrp());
+  while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
     if (WIFSIGNALED(status)) {
       bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
     }
+    sleep(3); //FIXME this is a dirty hack that should be avoided
   }
 
   /* We expect to get ECHILD, others are an error */
@@ -390,7 +401,7 @@ static void wait_process() {
     perror("wait in initial process");
     exit(-1);
   }
-
+  bop_msg(1, "Monitoring process ending");
   /* TODO: exit with something based on the children. */
   exit(0);
 }
@@ -420,6 +431,8 @@ void __attribute__ ((constructor)) BOP_init(void) {
   /* setting up the timing process and initialize the SEQ task */
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
+    int pipe_fd[2]; //r/w file discribtors
+    PIPE(pipe_fd);
     int fd = fork();
 
     switch (fd) {
@@ -428,8 +441,21 @@ void __attribute__ ((constructor)) BOP_init(void) {
       exit(-1);
     case 0:
       /* Child process continues after switch */
+      //We must first set up process group
+      close(pipe_fd[0]); //close read end
+      //set up a new group
+      if (setpgid(0, 0) != 0) {
+        perror("setpgid");
+        exit(-1);
+      }
+      monitor_group = -getpid(); //negative-> work on process group
+      WRITE(pipe_fd[1], &monitor_group, sizeof(monitor_group));
+      close(pipe_fd[1]);
       break;
     default:
+      close(pipe_fd[1]);   //close write end
+      READ(pipe_fd[0], &monitor_group, sizeof(monitor_group));
+      close(pipe_fd[0]);
       wait_process();
       abort(); /* Should never get here */
     }
@@ -437,10 +463,10 @@ void __attribute__ ((constructor)) BOP_init(void) {
     /* the child process continues */
 
     /* Ensure we are always in our own process group. */
-    if (setpgid(0, 0) != 0) {
+    /*if (setpgid(0, 0) != 0) {
       perror("setpgid");
       exit(-1);
-    }
+    } */
 
     /* register BOP_End at exit */
     if (atexit(BOP_fini)) {
@@ -458,18 +484,20 @@ void __attribute__ ((constructor)) BOP_init(void) {
     action.sa_sigaction = (void *) SigUsr2;
     sigaction(SIGUSR2, &action, NULL);
 
-    // sigset_t mask;
-    // sigemptyset( &mask );
-    // sigaddset( &mask, SIGUSR2 );
-    // sigprocmask( SIG_BLOCK, &mask, NULL );
+    ///*
+    sigset_t mask;
+    sigemptyset( &mask );
+    sigaddset( &mask, SIGUSR2 );
+    sigprocmask( SIG_BLOCK, &mask, NULL );
+    //*/
   }
-
+  assert(getpgrp() == -monitor_group);
   task_status = SEQ;
 
-  /* prepare related signals
+  /* prepare related signals */
   signal( SIGINT, SigBopExit );
   signal( SIGQUIT, SigBopExit );
-  signal( SIGTERM, SigBopExit ); */
+  signal( SIGTERM, SigBopExit );
 
   /* Load ports */
   register_port(&bop_merge_port, "Copy-n-merge Port");

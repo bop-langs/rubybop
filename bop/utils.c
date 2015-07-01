@@ -114,6 +114,10 @@ int get_int_from_env(const char* env, int min, int max, int def)
   if ( ival < min ) ival = min;
   if ( ival > max ) ival = max;
   bop_msg( 2, "Variable %s is set as %d based on env ([%d, %d]).", env, ival, min, max);
-  
+
   return ival;
+}
+
+void nop(){
+  asm volatile("nop");
 }
