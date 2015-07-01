@@ -3,8 +3,7 @@ load '../bop_test.rake'
 $cc = 'gcc'
 $c_flags = '-g3'
 
-$params = '20 4'
+$params = '100000 4'
 
 bop_test 'mem', nil, false # Orig version fails
 
-run
