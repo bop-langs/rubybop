@@ -2,8 +2,13 @@
 //A portion of the code and algorithms (macros, find-block and coalescing main procedure) is taken from "Computer Systems: A Programmer's Perspective" by Randal E. Bryant and David O'Hallaron
 
 #include <stdlib.h>
+<<<<<<< HEAD
 #include "external/malloc.c"
 #include <pthread.h>
+=======
+#include "malloc.c"
+
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 #include <stdio.h>
 
 
@@ -15,7 +20,11 @@
 //Pointer Size
 #define PSIZE 8
 
+<<<<<<< HEAD
 #define CHUNKSIZE (1<<28)
+=======
+#define CHUNKSIZE (1<<24)
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 
 #define WSIZE 4
 #define DSIZE 8
@@ -56,14 +65,21 @@ static const MAX_FREE = CHUNKSIZE-16-PSIZE;
 #define realloc(ptr, size) lrealloc(ptr, size)
 #define free(ptr) lfree(ptr)
 #endif
+<<<<<<< HEAD
 
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 //Heap to be managed on top of dl
 void *lazy_heap;
 
 
+<<<<<<< HEAD
 int SEQUENTIAL = 1;
 
 static pthread_mutex_t lock;
+=======
+int SEQUENTIAL = 0;
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 
 int init = 0;
 int blockcheck = 0;
@@ -74,8 +90,11 @@ int allocs = 0;
 void *malloc(size_t size);
 void free(void *bp);
 void *realloc(void *bp, size_t size);
+<<<<<<< HEAD
 size_t malloc_usable_size(void *ptr);
 
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 static void *find_fit(size_t asize);
 static void *coalesce(void *bp);
 static void place(void *bp, size_t asize);
@@ -86,6 +105,7 @@ void init_chunk(void*);
 void dlfree(void *bp);
 void *dlmalloc(size_t size);
 
+<<<<<<< HEAD
 
 size_t malloc_usable_size(void *ptr)
 {
@@ -94,10 +114,13 @@ size_t malloc_usable_size(void *ptr)
     return GET_SIZE(HDRP(ptr))-8;
 }
 
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 void *calloc(size_t elems, size_t num)
 {
     if (SEQUENTIAL)
 	return dlcalloc(elems, num);
+<<<<<<< HEAD
     // printf("warning: calloc\n");
     void *bp = malloc(elems*num);
     memset(bp, 0, elems*num);
@@ -116,6 +139,16 @@ int mutex_unlock()
     return pthread_mutex_unlock(&lock);
 }
 
+=======
+    printf("warning: calloc\n");
+    void *bp = malloc(elems*num);
+    memset(bp, 0, elems*num);
+    printf("calloc will return %p\n", bp);
+    getchar();
+    return bp;
+}
+
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 void *realloc_in_place(void * bp, size_t size)
 {
     printf("warning\n");
@@ -244,14 +277,20 @@ void init_chunk(void *chunk_ptr)
 }
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 void *malloc(const size_t size)
 {
     //if (allocs % 10000 == 0)
     //printf("Mallocs: %d\n", ++allocs);
     if (SEQUENTIAL)
 	return dlmalloc(size);
+<<<<<<< HEAD
     mutex_lock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
     if (!init)
 	lmalloc_init();
     if (VERBOSE)
@@ -259,6 +298,7 @@ void *malloc(const size_t size)
     size_t asize;
     size_t extendsize;
     char *bp;
+<<<<<<< HEAD
     allocs++;
     if(allocs % 1000 == 0)
     printf("Allocs: %d\n", allocs);
@@ -268,6 +308,11 @@ void *malloc(const size_t size)
 	mutex_unlock(&lock);
 	return NULL;
     }
+=======
+    //Size is 0. No memory required.
+    if (size == 0)
+	  return NULL;
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
     //Size below minimum requirement. Adjust to minimum. 
     if (size<= DSIZE)
 	asize = 2*DSIZE;
@@ -301,7 +346,10 @@ void *malloc(const size_t size)
 		    // getchar();
 		}
 		lastp = bp;
+<<<<<<< HEAD
 		mutex_unlock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
         return bp;
     }
     return NULL;
@@ -388,7 +436,11 @@ static void blocksize_check()
     {	
 	for(; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp))
 	{
+<<<<<<< HEAD
 	    printf("Size of current block (%p:%p||%s): %dB -- HDR:%p|FTR:%p|COMD: %d\n", bp, bp+GET_SIZE(HDRP(bp))-8, GET_ALLOC(HDRP(bp)) ? "allocated" : "free", GET_SIZE(HDRP(bp)), HDRP(bp), FTRP(bp), IS_ALLOCED_BY_DM(bp));
+=======
+	    printf("Size of current block (%p:%p||%s): %dB -- HDR:%p|FTR:%p|COMD: %d\n", bp, bp+GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)) ? "allocated" : "free", GET_SIZE(HDRP(bp)), HDRP(bp), FTRP(bp), IS_ALLOCED_BY_DM(bp));
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 	}
 	bp+=2*WSIZE;
 	if ((*(long int*) bp))
@@ -424,11 +476,14 @@ static void place(void *bp, size_t asize)
 	  PUT(FTRP(bp), LPACK(asize, 1));
 	  bp = NEXT_BLKP(bp);
 	  PUT(HDRP(bp), LPACK((csize-asize), 0));
+<<<<<<< HEAD
 	  if (GET_SIZE(HDRP(bp)) > MAX_FREE)
 	  {
 	      printf("Assertion failed, corrupted end of heap\n");
 	      getchar();
 	  }
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 	  PUT(FTRP(bp), LPACK((csize-asize), 0));
      }
      //Not enough remainder for a free block. Use up entire block.
@@ -444,7 +499,10 @@ void *realloc(void *bp, size_t size)
 {
     if (SEQUENTIAL)
 	return dlrealloc(bp, size);
+<<<<<<< HEAD
     mutex_lock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
      void *oldptr = bp;
      void *new;
      size_t copySize;
@@ -456,11 +514,15 @@ void *realloc(void *bp, size_t size)
      if (size == 0)
      {
 	  lfree(bp);
+<<<<<<< HEAD
 	  mutex_unlock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 	  return NULL;
      }
      if (!bp)
      {
+<<<<<<< HEAD
 	 mutex_unlock(&lock);
 	 return malloc(size);
      }
@@ -469,26 +531,45 @@ void *realloc(void *bp, size_t size)
 	 mutex_unlock(&lock);
 	  return bp;
      }
+=======
+	  return NULL;
+     }
+     if (size == oldBlockSize)
+	  return bp;
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
      if (size <= DSIZE)
 	  asize = 2*DSIZE;
      else
 	  asize = ALIGN(size)+16;
+<<<<<<< HEAD
      /*if (oldBlockSize>=asize)
      {
 	  place(bp, asize);
 	  mutex_unlock(&lock);
 	  return bp;
 	  }*/
+=======
+     if (oldBlockSize>=asize)
+     {
+	  place(bp, asize);
+	  return bp;
+     }
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
      if (size > MAX_FREE)
      {
 	 printf("Request for %d too big for reallocation. Aborting..\n");
 	 exit(1);
      }
+<<<<<<< HEAD
      /*if ((!next_alloc) && ((total = nextBlockSize+oldBlockSize) > asize) && (size>=oldBlockSize))
+=======
+     if ((!next_alloc) && ((total = nextBlockSize+oldBlockSize) >= asize) && (size>=oldBlockSize))
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
      {
 	  PUT(HDRP(bp), LPACK(total, 1));
 	  PUT(FTRP(bp), LPACK(total, 1));
 	  place(bp, asize);
+<<<<<<< HEAD
 	  mutex_unlock(&lock);
 	  return bp;
      }*/
@@ -498,12 +579,22 @@ void *realloc(void *bp, size_t size)
 	 mutex_unlock(&lock);
 	  return NULL;
      }
+=======
+	  return bp;
+     }
+     new = malloc(size);
+     if (!new)
+	  return NULL;
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
      copySize = GET_SIZE(HDRP(bp)) - 8;
      if (size < copySize)
 	  copySize = size;
      memcpy(new, oldptr, copySize);
      free(oldptr);
+<<<<<<< HEAD
      mutex_unlock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
      return new;
 }
 
@@ -516,25 +607,36 @@ void free(void *bp)
 	dlfree(bp);
 	return;
     }
+<<<<<<< HEAD
     mutex_lock(&lock);
     if (!bp)
     {
 	mutex_unlock(&lock);
 	return;
     }
+=======
+    if (!bp)
+	return;
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
     if (VERBOSE)
 	printf("Free request at %p\n", bp);
     if (!IS_ALLOCED_BY_DM(bp))
     {
 	printf("Freeing dl pointer: %p\n", bp);
 	dlfree(bp);
+<<<<<<< HEAD
 	mutex_unlock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
 	return;
     }
     size_t size = GET_SIZE(HDRP(bp));
     PUT(HDRP(bp), LPACK(size, 0));
     PUT(FTRP(bp), LPACK(size, 0));
+<<<<<<< HEAD
     mutex_unlock(&lock);
+=======
+>>>>>>> a69a5bdf41d20bc67e2b1b0520d77ad641414781
     return;
     seglist[get_index(size)] = coalesce(bp);
     //coalesce(bp);
