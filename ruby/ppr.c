@@ -92,12 +92,12 @@ static int add_i( VALUE key, VALUE obj, VALUE ary ) {
   }
 
   if ( (void*) obj == bop_scan_table ) {
-    bop_msg( 5, "pot st_table %llx has %d entries", 
+    bop_msg( 5, "pot st_table %llx has %d entries",
 	     key, ((st_table*)key)->num_entries );
     return ST_CONTINUE;
   }
-  
-  RARRAY_PTR(ary)[ RARRAY_LEN(ary) ++ ] = key;
+
+  RARRAY_PTR(ary)[ RARRAY(ary)->as.heap.len ++ ] = key;
 
   return ST_CONTINUE;
 }
@@ -154,7 +154,7 @@ VALUE ppr, size;
 }
 
 static VALUE
-get_group_size(ppr) 
+get_group_size(ppr)
 VALUE ppr;
 {
    int ret = INT2FIX(  BOP_get_group_size() );
