@@ -53,7 +53,7 @@ VALUE ppr, args; /* OK */
 {
   BOP_ppr_begin(1);
 
-    VALUE ret = proc_invoke(ppr, args, Qundef, 0);
+    VALUE ret = proc_call(ppr, args, Qundef, 0);
 
     // if (!NIL_P(ret))
     //  BOP_abort_spec("PPR returns a non-nil value");
@@ -130,7 +130,7 @@ VALUE ordered, args;
 {
     BOP_ordered_begin( 1 );
 
-    VALUE ret = proc_invoke(ordered, args, Qundef, 0);
+    VALUE ret = proc_call(ordered, args, Qundef, 0);
 
     BOP_ordered_end( 1 );
 
