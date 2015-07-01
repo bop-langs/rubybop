@@ -13,11 +13,11 @@
 #include "dmmalloc.h"
 #include "malloc_wrapper.h"
 
-#ifndef NDEBUG
-#define VISUALIZE(s)
-#else
+//#ifndef NDEBUG
+//#define VISUALIZE(s)
+//#else
 #define VISUALIZE(s) printf(s); fflush(stdout);
-#endif
+//#endif
 
 
 #define TABLESIZE 100000
