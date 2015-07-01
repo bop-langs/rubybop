@@ -53,12 +53,12 @@ VALUE ppr, args; /* OK */
 {
   BOP_ppr_begin(1);
 
-    VALUE ret = proc_call(ppr, args, Qundef, 0);
+    VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
 
     // if (!NIL_P(ret))
     //  BOP_abort_spec("PPR returns a non-nil value");
 
-    if (task_parallel_p) ppr_pot_upload( );
+    // if (task_parallel_p) ppr_pot_upload( );
 
   BOP_ppr_end(1);
 
@@ -130,7 +130,7 @@ VALUE ordered, args;
 {
     BOP_ordered_begin( 1 );
 
-    VALUE ret = proc_call(ordered, args, Qundef, 0);
+    VALUE ret = rb_proc_call_with_block(ordered, args, Qundef, 0);
 
     BOP_ordered_end( 1 );
 
