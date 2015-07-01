@@ -122,7 +122,7 @@ task :run do
 
 end
 def run
-#=begin FIXME the bop tests are not set up to correcly handle the terminal. Not valid for unit testing
+=begin FIXME the bop tests are not set up to correcly handle the terminal. Not valid for unit testing
   puts "$prog = " + $progs.to_s
   ENV["BOP_Verbose"]=1.to_s
   $progs.each do |prog|
@@ -135,5 +135,5 @@ def run
       end
     end
   end
-#=end
+=end
 end
