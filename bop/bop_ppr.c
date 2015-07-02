@@ -403,7 +403,6 @@ static void wait_process() {
     exit(-1);
   }
   bop_msg(1, "Monitoring process ending");
-  /* TODO: exit with something based on the children. */
   exit(0);
 }
 
@@ -517,6 +516,8 @@ static void BOP_fini(void) {
   switch (task_status) {
   case SPEC:
     BOP_abort_spec( "SPEC reached an exit" );  /* will abort */
+    kill(0, SIGUSR2);
+    kill(-monitor_group, SIGUSR2);
     if (bop_mode == SERIAL) {
       data_commit( );
       partial_group_set_size( 1 );
@@ -537,7 +538,7 @@ static void BOP_fini(void) {
     break;
 
   default:
-    assert(0);
+    assert(0); //should never get here
   }
 
   //BOP_malloc_fini();

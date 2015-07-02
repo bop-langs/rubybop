@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "bop_api.h"
 
@@ -11,10 +12,6 @@
 int avg_subs = 3;
 int blocks = 2;
 int step_size = 10000000;
-
-#define bool int
-#define true 1
-#define false 0
 
 #define read(x) BOP_use(&x, sizeof x)
 #define write(x) BOP_promise(&x, sizeof x)
