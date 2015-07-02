@@ -185,7 +185,7 @@ void post_ppr_undy( void ) {
   bop_msg(3,"Understudy finishes and wins the race");
   // indicate the success of the understudy
   kill(0, SIGUSR2);
-  kill(-monitor_group, SIGUSR1); //main requires a special signal
+  kill(-monitor_group, SIGUSR1); //main requires a special signal?
 
   undy_succ_fini( );
 
@@ -484,12 +484,12 @@ void __attribute__ ((constructor)) BOP_init(void) {
     action.sa_sigaction = (void *) SigUsr2;
     sigaction(SIGUSR2, &action, NULL);
 
-    ///*
+    /*
     sigset_t mask;
     sigemptyset( &mask );
     sigaddset( &mask, SIGUSR2 );
     sigprocmask( SIG_BLOCK, &mask, NULL );
-    //*/
+    */
   }
   assert(getpgrp() == -monitor_group);
   task_status = SEQ;
@@ -515,9 +515,9 @@ static void BOP_fini(void) {
 
   switch (task_status) {
   case SPEC:
-    BOP_abort_spec( "SPEC reached an exit" );  /* will abort */
-    kill(0, SIGUSR2);
-    kill(-monitor_group, SIGUSR2);
+    BOP_abort_spec( "SPEC reached an exit");  /* will abort */
+    kill(0, SIGUSR2); //send SIGUSR to spec group -> own group
+
     if (bop_mode == SERIAL) {
       data_commit( );
       partial_group_set_size( 1 );
