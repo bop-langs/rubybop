@@ -421,9 +421,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
 
-  /* malloc init must come before anything that requires mspace allocation */
-  // bop_malloc_init( 2 );
-
   /* start the time */
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -508,8 +505,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
 }
 
-//void BOP_malloc_fini(void); /* From bop_alloc.c */
-
 static void BOP_fini(void) {
 
   bop_msg(3, "An exit is reached");
@@ -539,8 +534,6 @@ static void BOP_fini(void) {
   default:
     assert(0);
   }
-
-  //BOP_malloc_fini();
 
   struct timeval tv;
   gettimeofday(&tv, NULL);
