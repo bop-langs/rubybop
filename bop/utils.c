@@ -3,7 +3,8 @@
 #include <stdlib.h>  /* getenv */
 #include <sys/time.h>
 #include <unistd.h>
-
+#include <semaphore.h>
+#include <fcntl.h>
 #include "bop_api.h"
 
 extern task_status_t task_status;
@@ -11,6 +12,8 @@ extern ppr_pos_t ppr_pos;
 extern int ppr_index;
 extern int spec_order;
 extern bop_mode_t bop_mode;
+
+sem_t *bopmsg_sem = NULL;
 
 task_status_t BOP_task_status(void) {
   return task_status;
@@ -53,12 +56,17 @@ int BOP_get_verbose( void ) {
 extern char in_ordered_region;  // bop_ordered.c
 
 void bop_msg(int level, char * msg, ...) {
-  if(bop_verbose >= level)
+    if (!bopmsg_sem)
+    {
+	bopmsg_sem = sem_open("bopmsg", O_CREAT);
+	sem_post(bopmsg_sem);
+    }
+ if(bop_verbose >= level)
   {
+    sem_wait(bopmsg_sem);
     va_list v;
     va_start(v,msg);
     fprintf(stderr, "%d-", getpid());
-
     char *pos;
     switch (ppr_pos) {
     case PPR:
@@ -73,8 +81,7 @@ void bop_msg(int level, char * msg, ...) {
     if (in_ordered_region) {
       assert( ppr_pos == PPR );
       pos = "od";
-    }
-
+   }
     unsigned pidx = BOP_ppr_index( );
     switch(task_status) {
     case UNDY: fprintf(stderr, "Undy-(idx %d%s): ", pidx, pos); break;
@@ -82,7 +89,6 @@ void bop_msg(int level, char * msg, ...) {
     case SEQ: fprintf(stderr, "Seq-(idx %d%s): ", pidx, pos); break;
     case SPEC: fprintf(stderr, "Spec-%d(idx %d%s): ", spec_order, pidx, pos); break;
     }
-
     struct timeval tv;
     gettimeofday(&tv, NULL);
     double curr_time = tv.tv_sec + (tv.tv_usec/1000000.0);
@@ -92,6 +98,7 @@ void bop_msg(int level, char * msg, ...) {
     vfprintf(stderr,msg,v);
     fprintf(stderr,"\n");
     fflush(stderr);
+    sem_post(bopmsg_sem);
   }
 }
 

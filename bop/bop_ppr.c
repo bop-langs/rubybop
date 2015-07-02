@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+
+#include <semaphore.h> //BOP_msg locking
+#include <fcntl.h>
+
 #include <unistd.h>
 
 #include <bop_api.h>
@@ -31,6 +35,8 @@ stats_t bop_stats = { 0 };
 
 static int bopgroup;
 static int monitor_group = 0; //the process group that PPR tasks are using
+
+extern sem_t *bopmsg_sem;
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -417,10 +423,15 @@ void __attribute__ ((constructor)) BOP_init(void) {
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
 
+  
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
-
+  if (!bopmsg_sem)
+  {
+      bopmsg_sem = sem_open("bopmsg", O_CREAT);
+      sem_post(bopmsg_sem);
+  }
   /* malloc init must come before anything that requires mspace allocation */
   // bop_malloc_init( 2 );
 
@@ -429,6 +440,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   gettimeofday(&tv, NULL);
   bop_stats.start_time = tv.tv_sec + (tv.tv_usec/1000000.0);
 
+  
   /* setting up the timing process and initialize the SEQ task */
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */

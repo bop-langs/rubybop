@@ -4,7 +4,7 @@ require 'pathname'
 # Compiler config
 $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
-$ldflags = '-lm -Wl,--no-as-needed -ldl'
+$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
 $incl = "../bop/"
 $params = '' if $params.nil?
 
