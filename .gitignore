@@ -10,3 +10,9 @@ add_bop
 add_ppr_only_bop
 add_ppr_only_orig
 core*
+tests/*/_bop
+tests/*/_orig
+tests/mem/mem_bop
+tests/mem/mem_noprot
+tests/mem/mem_orig
+tests/mem/mem_seq
