@@ -115,10 +115,11 @@ void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 
 
 #include "dmmalloc.h"
-#define BOP_malloc( sz )	dm_malloc( sz )
-#define BOP_alloc( n, s )	dm_calloc( n, s )
-#define BOP_free( m )		dm_free ( m )
-#define BOP_realloc( m, nsz )	dm_realloc( m, nsz )
+#include "malloc_wrapper.h"
+#define BOP_malloc( sz )	malloc( sz )
+#define BOP_alloc( n, s )	calloc( n, s )
+#define BOP_free( m )		free ( m )
+#define BOP_realloc( m, nsz )	realloc( m, nsz )
 
 
 // Original Code
