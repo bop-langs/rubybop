@@ -29,7 +29,11 @@ end
 task :bop_test => :bop do
   test_dir.each do |dir|
     cd 'tests/' + dir do
-      sh 'rake'
+      sh 'rake; rake run' do |ok, res|
+        if ! ok then
+          fail "Bop test failure"
+        end
+      end
     end
   end
 end

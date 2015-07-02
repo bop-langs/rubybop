@@ -185,6 +185,7 @@ void post_ppr_undy( void ) {
   bop_msg(3,"Understudy finishes and wins the race");
   // indicate the success of the understudy
   kill(0, SIGUSR2);
+  kill(-monitor_group, SIGUSR1); //main requires a special signal
 
   undy_succ_fini( );
 
@@ -211,7 +212,7 @@ int spawn_undy( void ) {
     spec_order = -1;
     //assert( setpgid(0, bopgroup) == 0 );
     assert (getpgrp() == -monitor_group);
-    bop_msg(3,"Understudy starts");
+    bop_msg(3,"Understudy starts pid %d pgrp %d", getpid(), getpgrp());
 
     signal_undy_created( fid );
 
@@ -384,16 +385,16 @@ void SigBopExit( int signo ){
 static void wait_process() {
   int status;
   pid_t child;
-  bop_msg(1, "Monitoring waiting to receive pgid");
+  bop_msg(3, "Monitoring waiting to receive pgid");
   while(monitor_group == 0){
     nop();
   }
-  bop_msg(1, "Monitoring pg %d from pg %d", monitor_group, getpgrp());
+  bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
     if (WIFSIGNALED(status)) {
       bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
     }
-    sleep(3); //FIXME this is a dirty hack that should be avoided
+    sleep(10); //FIXME this is a dirty hack that should be avoided
   }
 
   /* We expect to get ECHILD, others are an error */
@@ -419,9 +420,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
-
-  /* malloc init must come before anything that requires mspace allocation */
-  // bop_malloc_init( 2 );
 
   /* start the time */
   struct timeval tv;
@@ -507,8 +505,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
 }
 
-//void BOP_malloc_fini(void); /* From bop_alloc.c */
-
 static void BOP_fini(void) {
 
   bop_msg(3, "An exit is reached");
@@ -526,6 +522,7 @@ static void BOP_fini(void) {
 
   case UNDY:
     kill(0, SIGUSR2);
+    kill(-monitor_group, SIGUSR1); //main requires a special signal
     undy_succ_fini( );
     bop_stats.num_by_undy += undy_ppr_count;
     break;
@@ -537,8 +534,6 @@ static void BOP_fini(void) {
   default:
     assert(0);
   }
-
-  //BOP_malloc_fini();
 
   struct timeval tv;
   gettimeofday(&tv, NULL);
