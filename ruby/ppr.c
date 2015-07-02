@@ -63,7 +63,7 @@ VALUE ppr, args; /* OK */
     //  BOP_abort_spec("PPR returns a non-nil value");
 
     //TODO get this fixed
-    // if (task_parallel_p) ppr_pot_upload( );
+    if (task_parallel_p) ppr_pot_upload( );
 
   BOP_ppr_end(1);
 
@@ -84,7 +84,7 @@ VALUE ppr, obj;
 
     return Qnil;
 }
-/* TODO get these to work
+//TODO get these to work
 extern st_table *ppr_pot;
 void bop_scan_table( st_table* );
 
@@ -106,9 +106,9 @@ static int add_i( VALUE key, VALUE obj, VALUE ary ) {
 
   return ST_CONTINUE;
 }
-*/
 
-/* TODO get these to work
+
+//TODO get these to work
 static VALUE
 get_pot(void)
 {
@@ -116,7 +116,7 @@ get_pot(void)
   st_foreach( ppr_pot, add_i, ary );
   return ary;
 }
-*/
+
 static VALUE
 ppr_ppr_index(ppr)
 VALUE ppr;
@@ -137,7 +137,7 @@ VALUE ordered, args;
 {
     BOP_ordered_begin( 1 );
 
-    VALUE ret = rb_proc_call_with_block(ordered, args, Qundef, 0);
+    VALUE ret = proc_call(ordered, args);
 
     BOP_ordered_end( 1 );
 
@@ -191,7 +191,7 @@ Init_PPR() {
     rb_define_method(rb_cPPR, "call", ppr_call, -2);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
-    //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
+    rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
     rb_define_singleton_method(rb_cPPR, "abort_spec", ppr_abort_spec, 1);
     rb_define_singleton_method(rb_cPPR, "abort_next_spec", ppr_abort_next_spec, 1);
 
@@ -203,7 +203,7 @@ Init_PPR() {
     rb_define_method(rb_mKernel, "PPR", kernel_ppr, 0);
 
     //TODO get this uncommented
-    //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
+    register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
 }
 

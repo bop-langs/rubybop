@@ -13,6 +13,12 @@
 #include "bop_ppr_sync.h"
 #include "utils.h"
 
+#ifndef NDEBUG
+#define VISUALIZE(s)
+#else
+#define VISUALIZE(s) bop_msg(1,s);
+#endif
+
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
 extern bop_port_t postwait_port;
@@ -68,7 +74,7 @@ int _BOP_ppr_begin(int id) {
   ppr_pos_t old_pos = ppr_pos;
   ppr_pos = PPR;
   ppr_index ++;
-  printf("In BOP_ppr_begin!!!!!");
+  VISUALIZE("!");
 
   switch (task_status) {
   case UNDY:
@@ -306,6 +312,7 @@ void ppr_task_commit( void ) {
 }
 
 void _BOP_ppr_end(int id) {
+  VISUALIZE("?");
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;

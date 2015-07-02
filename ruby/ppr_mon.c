@@ -4,7 +4,8 @@
 
 #include <internal.h>
 #include <ppr.h>
-#include <../bop/bop_ports.h>
+#include "../bop/bop_api.h"
+#include "../bop/bop_ports.h"
 
 st_table *ppr_pot = NULL;
 
@@ -14,7 +15,7 @@ st_table *ppr_pot = NULL;
 static void ppr_pot_init( void ) {
   if ( spec_order <= 1 ) {  // MAIN and first SPEC
     assert(ppr_pot == NULL);
-    ppr_pot = meta_st_init_numtable_with_size( 100 );
+    ppr_pot = st_init_numtable_with_size( 100 );
   }
   else
     assert( ppr_pot->num_entries == 0 );
