@@ -1,5 +1,4 @@
 require 'pathname'
-
 #### Global variables
 
 # Compiler config
@@ -101,7 +100,7 @@ task :all => [:orig, :bop] # :clean
 task :default => :all
 
 desc "Force a rebuild"
-task :force do 
+task :force do
   cd '../../bop' do
     sh 'make -B'
   end
@@ -118,15 +117,21 @@ rule( bop_o => proc {|n| n.sub(bop_o, '\1\3.c')} ) do |t|
   bop_flags = /bop_/ =~ t.name ? '-DBOP' : ''
   sh "#{$cc} #{bop_flags} #{$c_flags} -I#{$bop_dir} -I#{$incl} -c -o #{t.name} #{t.source}"
 end
+task :run do
+  run()
 
+end
 def run
 =begin FIXME the bop tests are not set up to correcly handle the terminal. Not valid for unit testing
   puts "$prog = " + $progs.to_s
+  ENV["BOP_Verbose"]=1.to_s
   $progs.each do |prog|
     cmd = "./#{prog} #{$params}"
     sh cmd do |ok, res|
-      if ! ok then
+      if ! ok  && res.exitstatus != 40 then
         fail "cbop test #{cmd} failed with code #{res.exitstatus}"
+      else
+        puts "\ncbop test #{cmd} successful" #new line
       end
     end
   end
