@@ -25,6 +25,18 @@
 //http://stackoverflow.com/questions/262439/create-a-wrapper-function-for-malloc-and-free-in-c
 
 //prototypes for the dlsym using calloc workaround
+
+
+//Macros for the custom allocator
+#define u_malloc dm_malloc
+#define u_realloc dm_realloc
+#define u_free dm_free
+#define u_calloc dm_calloc
+#define u_malloc_usable_size dm_malloc_usable_size
+
+
+
+
 void* tempcalloc(size_t, size_t);
 static inline void calloc_init();
 static inline char* check_pointer(void*);
@@ -74,7 +86,7 @@ struct mallinfo mallinfo() {
 
 void* malloc(size_t s) {
     VISUALIZE("+");
-    void* p = dm_malloc(s);
+    void* p = u_malloc(s);
 #ifdef PTR_CHECK
     mallocs[mc] = p;
     mc++;
@@ -85,7 +97,7 @@ void* malloc(size_t s) {
 void* realloc(void *p , size_t s) {
     VISUALIZE(".");
     assert (p != calloc_hack);
-    void* p2 = dm_realloc(p, s);
+    void* p2 = u_realloc(p, s);
 #ifdef PTR_CHECK
     reallocs[rc] = p2;
     rc++;
@@ -102,7 +114,7 @@ void free(void * p) {
     check_pointer(p);
     dm_check(p);
 #endif
-    dm_free(p);
+    u_free(p);
 }
 
 size_t malloc_usable_size(void* ptr) {
@@ -112,7 +124,7 @@ size_t malloc_usable_size(void* ptr) {
     check_pointer(ptr);
     dm_check(ptr);
 #endif
-    size_t size = dm_malloc_usable_size(ptr);
+    size_t size = u_malloc_usable_size(ptr);
     return size;
 }
 
@@ -125,7 +137,7 @@ void * calloc(size_t sz, size_t n) {
     assert( (initializing && calloc_func == tempcalloc) ||
             (!initializing && calloc_func == dm_calloc) );
     void* p = calloc_func(sz, n);
-    if(calloc_func == dm_calloc) {
+    if(calloc_func == u_calloc) {
       #ifdef PTR_CHECK
           callocs[cc] = p;
           cc++;
@@ -144,7 +156,7 @@ static inline void calloc_init() {
         libc_calloc = dlsym(RTLD_NEXT, "calloc");
         initializing = 0;
         assert(libc_calloc != NULL);
-        calloc_func = dm_calloc;
+        calloc_func = u_calloc;
     }
 }
 void* tempcalloc(size_t s, size_t n) {

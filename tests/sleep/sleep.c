@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include "bop_api.h"
 
@@ -19,7 +20,7 @@ int main(int argc, char ** argv) {
     assert(ITERS > 0);
   }
 
-  t = (int *) BOP_malloc(ITERS * sizeof(int));
+  t = (int *) malloc(ITERS * sizeof(int));
 
   printf("%d naps:", ITERS);
   for(i=0;i<ITERS;i++) {

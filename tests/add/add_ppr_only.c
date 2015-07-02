@@ -7,9 +7,6 @@
 
 #include "../../bop/bop_api.h"
 
-#define malloc(x)	BOP_malloc(x)
-#define free(x)		BOP_free(x)
-
 double * data;
 double sum;
 
@@ -17,7 +14,7 @@ void initialize( int );
 double lots_of_computation_on_block( int start, int end );
 
 int main(int argc, char ** argv)
-{
+{ BOP_set_verbose(1);
   int data_size, num_blocks;
   int block_size;
 
