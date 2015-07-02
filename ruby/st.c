@@ -15,6 +15,9 @@
 #endif
 #include <string.h>
 
+#include "bop_api.h"
+#include "bop_ports.h"
+
 typedef struct st_table_entry st_table_entry;
 
 struct st_table_entry {
@@ -613,6 +616,9 @@ rehash(register st_table *table)
 {
     register st_table_entry *ptr, **new_bins;
     st_index_t new_num_bins, hash_val;
+    //TODO See if this is necissary and sufficient
+    if (table != ppr_pot)
+      BOP_use( table->bins, sizeof( st_table_entry *)*table->num_bins );
 
     new_num_bins = new_size(table->num_bins+1);
     new_bins = st_realloc_bins(table->bins, new_num_bins, table->num_bins);
