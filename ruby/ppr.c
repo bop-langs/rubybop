@@ -6,7 +6,7 @@
 
 //TODO get get ppr_mon to work
 
-
+//SEARCH BRIAN in the repo to see which files were edited in MRI
 //TODO get this to work
 extern bop_port_t ruby_monitor;
 
@@ -63,7 +63,7 @@ VALUE ppr, args; /* OK */
     //  BOP_abort_spec("PPR returns a non-nil value");
 
     //TODO get this fixed
-    if (task_parallel_p) ppr_pot_upload( );
+    //if (task_parallel_p) ppr_pot_upload( );
 
   BOP_ppr_end(1);
 
@@ -85,6 +85,7 @@ VALUE ppr, obj;
     return Qnil;
 }
 //TODO get these to work
+/*
 extern st_table *ppr_pot;
 void bop_scan_table( st_table* );
 
@@ -116,6 +117,7 @@ get_pot(void)
   st_foreach( ppr_pot, add_i, ary );
   return ary;
 }
+*/
 
 static VALUE
 ppr_ppr_index(ppr)
@@ -137,7 +139,7 @@ VALUE ordered, args;
 {
     BOP_ordered_begin( 1 );
 
-    VALUE ret = proc_call(ordered, args);
+    VALUE ret = rb_proc_call(ordered, args);
 
     BOP_ordered_end( 1 );
 
@@ -191,7 +193,7 @@ Init_PPR() {
     rb_define_method(rb_cPPR, "call", ppr_call, -2);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
-    rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
+    //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
     rb_define_singleton_method(rb_cPPR, "abort_spec", ppr_abort_spec, 1);
     rb_define_singleton_method(rb_cPPR, "abort_next_spec", ppr_abort_next_spec, 1);
 
