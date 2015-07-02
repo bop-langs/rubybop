@@ -1,6 +1,6 @@
-#include "internal.h"
 #include <stdio.h>
 #include "ppr.h"
+#include "internal.h"
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
 
@@ -54,11 +54,11 @@ ppr_meaning() {
 static VALUE
 ppr_call(ppr, args)
 VALUE ppr, args; /* OK */
-{
+{ printf("IN PPR CALL\n");
   BOP_ppr_begin(1);
 
-    VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
-
+    //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
+    VALUE ret = rb_proc_call(ppr, args);
     // if (!NIL_P(ret))
     //  BOP_abort_spec("PPR returns a non-nil value");
 

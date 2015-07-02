@@ -68,6 +68,7 @@ int _BOP_ppr_begin(int id) {
   ppr_pos_t old_pos = ppr_pos;
   ppr_pos = PPR;
   ppr_index ++;
+  printf("In BOP_ppr_begin!!!!!");
 
   switch (task_status) {
   case UNDY:
