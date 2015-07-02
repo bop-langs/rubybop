@@ -24,4 +24,4 @@ before_script: #before tests run
 
 #test script
 script:
-  - rake ; rake test
+  - rake test
