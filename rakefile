@@ -1,5 +1,5 @@
 task :default => :ruby
-test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
+test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2', 'mem']
 task :ruby => :bop do
   #build ruby
   cd "ruby" do
