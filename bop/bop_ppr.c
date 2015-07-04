@@ -150,12 +150,12 @@ void BOP_abort_spec( const char *msg ) {
 
   if (task_status == MAIN)  { /* non-mergeable actions have happened */
     if ( partial_group_get_size() > 1 ) {
-      bop_msg(2, "Abort speculation because %s", msg);
+      bop_msg(2, "Abort main speculation because %s", msg);
       partial_group_set_size( 1 );
     }
   }
   else {
-    bop_msg(2, "Abort speculation because %s", msg);
+    bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
     signal_commit_done( );
     abort( );  /* die silently */

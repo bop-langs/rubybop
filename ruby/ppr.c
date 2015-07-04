@@ -8,9 +8,10 @@
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
 //TODO get this to work
-extern bop_port_t ruby_monitor;
-
-VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
+//extern bop_port_t ruby_monitor;
+extern int _BOP_ppr_begin();
+extern int _BOP_ppr_end();
+//VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
 static VALUE
 ppr_puts(ppr, obj)
@@ -54,13 +55,13 @@ ppr_meaning() {
 static VALUE
 ppr_call(ppr, args)
 VALUE ppr, args; /* OK */
-{ printf("IN PPR CALL\n");
+{
   BOP_ppr_begin(1);
 
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
     VALUE ret = rb_proc_call(ppr, args);
-    // if (!NIL_P(ret))
-    //  BOP_abort_spec("PPR returns a non-nil value");
+    if (!NIL_P(ret))
+      BOP_abort_spec("PPR returns a non-nil value");
 
     //TODO get this fixed
     //if (task_parallel_p) ppr_pot_upload( );
@@ -205,7 +206,7 @@ Init_PPR() {
     rb_define_method(rb_mKernel, "PPR", kernel_ppr, 0);
 
     //TODO get this uncommented
-    register_port(&ruby_monitor, "Ruby Object Monitoring Port");
+    //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
 }
 
