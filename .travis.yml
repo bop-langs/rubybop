@@ -4,7 +4,7 @@ compiler:
   - clang
 os:
   - linux
-  - osx
+#  - osx Disable OSX buids on master until the issues are resolved
 #dependencies for the ruby language
 before_install:
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq update; fi"
