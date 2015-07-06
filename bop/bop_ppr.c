@@ -440,7 +440,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   bop_mode = g<2? SERIAL: PARALLEL;
   if (!bopmsg_sem)
   {
-      bopmsg_sem = sem_open("/bopmsg.sem", (O_CREAT), S_IRWXO|S_IRWXU|S_IRWXG, 1);
+      bopmsg_sem = sem_open("/bopmsg.sem", (O_CREAT), S_IRWXO|S_IRWXU|S_IRWXG, 0);
       if(bopmsg_sem == SEM_FAILED){
           printf("Error in BOP_Init: %s\n", strerror(errno));
       }

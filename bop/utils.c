@@ -62,7 +62,7 @@ void bop_msg(int level, const char * msg, ...) {
   {
     if (!bopmsg_sem)
     {
-  bopmsg_sem = sem_open("/bopmsg.sem", O_CREAT, S_IRWXO|S_IRWXU|S_IRWXG, 1);
+  bopmsg_sem = sem_open("/bopmsg.sem", O_CREAT, S_IRWXO|S_IRWXU|S_IRWXG, 0);
   if(bopmsg_sem == SEM_FAILED){
       printf("Error in bop_msg, errno: %s", strerror(errno));
   }
