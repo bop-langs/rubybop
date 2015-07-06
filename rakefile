@@ -5,7 +5,7 @@ task :ruby => :bop do
   cd "ruby" do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
-      sh './configure'
+      sh './configure --disable-install-doc'
     end
     sh 'make'
   end

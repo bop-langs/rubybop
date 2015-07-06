@@ -4,6 +4,9 @@
 
 //TODO this will need revisiting...
 
+#include "../bop/external/malloc.h"
+#undef _GNU_SOURCE
+
 #ifdef NOT_RUBY
 #include "regint.h"
 #include "st.h"
@@ -20,7 +23,7 @@
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
 #include "ppr.h"
-#include "../bop/external/malloc.h"
+
 
 typedef struct st_table_entry st_table_entry;
 
@@ -611,8 +614,10 @@ st_insert(register st_table *table, register st_data_t key, st_data_t value)
 	st_index_t i = find_packed_index(table, hash_val, key);
 	if (i < table->real_entries) {
 	    PVAL_SET(table, i, value);
-      table_promise_entry( table, ptr, sizeof( st_table_entry ) );
-	    return 1;
+      //TODO may need this..
+      //table_promise_entry( table, ptr, sizeof( st_table_entry ) );
+	    table_promise_all( table );
+      return 1;
         }
 	add_packed_direct(table, key, value, hash_val);
   table_promise_all( table );
@@ -649,8 +654,10 @@ st_insert2(register st_table *table, register st_data_t key, st_data_t value,
 	st_index_t i = find_packed_index(table, hash_val, key);
 	if (i < table->real_entries) {
 	    PVAL_SET(table, i, value);
-      table_promise_entry( table, ptr, sizeof( st_table_entry ) );
-	    return 1;
+      //TODO same as above
+      //table_promise_entry( table, ptr, sizeof( st_table_entry ) );
+	    table_promise_all( table );
+      return 1;
 	}
 	key = (*func)(key);
 	add_packed_direct(table, key, value, hash_val);
@@ -1872,10 +1879,11 @@ bop_scan_table( table )
 {
     st_table_entry *ptr, *next;
     int i;
+    monitor_t *bop_mon;
 
     bop_msg(5, "bop_scan_table %llx, flags %llx", table, table->bop_flags);
 
-    monitor_t *bop_mon =  get_monitor_func( table->bop_flags );
+    bop_mon =  get_monitor_func( table->bop_flags );
     table_clear_bf( table );
 
     for(i = 0; i < table->num_bins; i++) {

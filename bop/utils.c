@@ -56,13 +56,15 @@ int BOP_get_verbose( void ) {
 extern char in_ordered_region;  // bop_ordered.c
 
 void bop_msg(int level, const char * msg, ...) {
-    if (!bopmsg_sem)
-    {
-	bopmsg_sem = sem_open("bopmsg", O_CREAT);
-	sem_post(bopmsg_sem);
-    }
  if(bop_verbose >= level)
   {
+    if (!bopmsg_sem)
+    {
+  bopmsg_sem = sem_open("/bopmsg", O_CREAT, 0600, 1);
+  assert(bopmsg_sem != SEM_FAILED);
+  assert(bopmsg_sem != NULL);
+  sem_post(bopmsg_sem);
+    }
     sem_wait(bopmsg_sem);
     va_list v;
     va_start(v,msg);
