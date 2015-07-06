@@ -45,8 +45,6 @@ stats_t bop_stats = { 0 };
 static int bopgroup;
 static int monitor_group = 0; //the process group that PPR tasks are using
 
-extern sem_t *bopmsg_sem;
-
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
 
@@ -420,6 +418,7 @@ static void wait_process() {
     exit(-1);
   }
   bop_msg(1, "Monitoring process ending");
+  msg_destroy();
   exit(0);
 }
 
@@ -438,16 +437,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
-  if (!bopmsg_sem)
-  {
-      bopmsg_sem = sem_open("/bopmsg.sem", (O_CREAT), S_IRWXO|S_IRWXU|S_IRWXG, 0);
-      if(bopmsg_sem == SEM_FAILED){
-          printf("Error in BOP_Init: %s\n", strerror(errno));
-      }
-      assert(bopmsg_sem != NULL);
-      assert(bopmsg_sem != SEM_FAILED);
-      sem_post(bopmsg_sem);
-  }
+  msg_init();
   /* malloc init must come before anything that requires mspace allocation */
   // bop_malloc_init( 2 );
 
