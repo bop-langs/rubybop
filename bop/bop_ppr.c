@@ -409,7 +409,7 @@ static void wait_process() {
     if (WIFSIGNALED(status)) {
       bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
     }
-    sleep(10); //FIXME this is a dirty hack that should be avoided
+    sleep(3); //FIXME this is a dirty hack that should be avoided
   }
 
   /* We expect to get ECHILD, others are an error */
