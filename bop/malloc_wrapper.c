@@ -1,6 +1,5 @@
 //NOTE: do not compile with optimizations on. The hack to get calloc working (used in glibc/dlsym) is relies on undefined behavior, but has been tested to work correctly on redhat, fedora and ubuntu using GCC, and ubuntu with CLANG as well
-#include "dmmalloc.h"
-#include "malloc_wrapper.h"
+
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
@@ -8,8 +7,11 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <external/malloc.h>
 #include <stdbool.h>
+
+#include "external/malloc.h"
+#include "dmmalloc.h"
+#include "malloc_wrapper.h"
 
 #ifndef NDEBUG
 #define VISUALIZE(s)

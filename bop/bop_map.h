@@ -1,8 +1,8 @@
 #ifndef _BOP_MAP_H_
 #define _BOP_MAP_H_
 
-#include <bop_api.h>
-#include <external/malloc.h>
+#include "bop_api.h"
+#include "external/malloc.h"
 
 typedef struct _range_node_t {
   struct _range_node_t *lc, *rc;

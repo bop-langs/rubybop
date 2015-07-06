@@ -10,7 +10,7 @@ class TestMkmf
         self.class::CONFIG['warnflags'] = %w"-Wextra
         -Wno-unused-parameter -Wno-parentheses -Wno-long-long
         -Wno-missing-field-initializers -Werror=pointer-arith
-        -Werror=write-strings -Werror=declaration-after-statement
+        -Werror=write-strings 
         -Werror=shorten-64-to-32
         -Werror-implicit-function-declaration
         ".join(' ')

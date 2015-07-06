@@ -55,7 +55,6 @@ task :clean do
   cd "bop" do
     sh 'make clean'
   end
-  #Gonna comment out cause error while rake clean
   test_dir.each do |dir|
     cd "tests/" + dir do
       sh 'rake clean'

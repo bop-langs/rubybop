@@ -8,11 +8,20 @@
 #include <fcntl.h>
 
 #include <unistd.h>
+//#include <sys/siginfo.h>
+#include <ucontext.h>
+#include <execinfo.h>
 
-#include <bop_api.h>
-#include <bop_ports.h>
-#include <bop_ppr_sync.h>
-#include <utils.h>
+#include "bop_api.h"
+#include "bop_ports.h"
+#include "bop_ppr_sync.h"
+#include "utils.h"
+
+#ifndef NDEBUG
+#define VISUALIZE(s)
+#else
+#define VISUALIZE(s) bop_msg(1,s);
+#endif
 
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
@@ -76,6 +85,7 @@ int _BOP_ppr_begin(int id) {
   ppr_pos_t old_pos = ppr_pos;
   ppr_pos = PPR;
   ppr_index ++;
+  VISUALIZE("!");
 
   switch (task_status) {
   case UNDY:
@@ -144,19 +154,19 @@ int _BOP_ppr_begin(int id) {
 //  kill( 0, SIGUSR2 );
 // }
 
-void BOP_abort_spec( char *msg ) {
+void BOP_abort_spec( const char *msg ) {
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;
 
   if (task_status == MAIN)  { /* non-mergeable actions have happened */
     if ( partial_group_get_size() > 1 ) {
-      bop_msg(2, "Abort speculation because %s", msg);
+      bop_msg(2, "Abort main speculation because %s", msg);
       partial_group_set_size( 1 );
     }
   }
   else {
-    bop_msg(2, "Abort speculation because %s", msg);
+    bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
     signal_commit_done( );
     abort( );  /* die silently */
@@ -315,6 +325,7 @@ void ppr_task_commit( void ) {
 }
 
 void _BOP_ppr_end(int id) {
+  VISUALIZE("?");
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
