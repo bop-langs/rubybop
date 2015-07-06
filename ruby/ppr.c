@@ -54,8 +54,10 @@ ppr_meaning() {
 static VALUE
 ppr_call(ppr, args)
 VALUE ppr, args; /* OK */
-{ printf("IN PPR CALL\n");
-  BOP_ppr_begin(1);
+{
+    printf("IN PPR CALL\n");
+    rb_disable_gc();
+    BOP_ppr_begin(1);
 
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
     VALUE ret = rb_proc_call(ppr, args);
@@ -66,7 +68,7 @@ VALUE ppr, args; /* OK */
     if (task_parallel_p) ppr_pot_upload( );
 
   BOP_ppr_end(1);
-
+  rb_enable_gc();
     return Qnil;
 }
 
