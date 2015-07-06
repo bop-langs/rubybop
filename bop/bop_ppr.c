@@ -426,8 +426,9 @@ static void wait_process() {
 static void BOP_fini(void);
 
 extern int bop_verbose;
-
-/* Initialize allocation map.  Installs the timer process. */
+extern int errno;
+char *strerror(int errnum);
+/* Initialize allocation map.  Insta4lls the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
 
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
@@ -439,8 +440,11 @@ void __attribute__ ((constructor)) BOP_init(void) {
   bop_mode = g<2? SERIAL: PARALLEL;
   if (!bopmsg_sem)
   {
-      bopmsg_sem = sem_open("/bopmsg", O_CREAT|O_EXCL, 0600, 1);
-      assert(bopmsg_sem != SEM_FAILED);
+      bopmsg_sem = sem_open("/bopmsg.sem", (O_CREAT), S_IRWXO|S_IRWXU|S_IRWXG, 1);
+      if(bopmsg_sem == SEM_FAILED){
+          printf("Error in BOP_Init: %s\n", strerror(errno));
+      }
+      assert(bopmsg_sem != NULL);
       assert(bopmsg_sem != SEM_FAILED);
       sem_post(bopmsg_sem);
   }

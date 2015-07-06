@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>  /* for bop_msg */
 #include <stdlib.h>  /* getenv */
 #include <sys/time.h>
@@ -54,15 +55,19 @@ int BOP_get_verbose( void ) {
 }
 
 extern char in_ordered_region;  // bop_ordered.c
-
+extern int errno;
+char *strerror(int errnum);
 void bop_msg(int level, const char * msg, ...) {
  if(bop_verbose >= level)
   {
     if (!bopmsg_sem)
     {
-  bopmsg_sem = sem_open("/bopmsg", O_CREAT, 0600, 1);
-  assert(bopmsg_sem != SEM_FAILED);
+  bopmsg_sem = sem_open("/bopmsg.sem", O_CREAT, S_IRWXO|S_IRWXU|S_IRWXG, 1);
+  if(bopmsg_sem == SEM_FAILED){
+      printf("Error in bop_msg, errno: %s", strerror(errno));
+  }
   assert(bopmsg_sem != NULL);
+  assert(bopmsg_sem != SEM_FAILED);
   sem_post(bopmsg_sem);
     }
     sem_wait(bopmsg_sem);

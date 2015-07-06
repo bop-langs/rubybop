@@ -11,7 +11,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
 BOPDIR = ../bop/
 WRAPPER = ../bop/dmmalloc.o ../bop/malloc_wrapper.o
-BOPFLAGS = -ldl -DBOP
+BOPFLAGS = -ldl -DBOP -pthread -g3
 #### Start of system configuration section. ####
 
 srcdir = @srcdir@
