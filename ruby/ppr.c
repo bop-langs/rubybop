@@ -11,9 +11,8 @@
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
-
-extern VALUE rb_gc_enable();
-extern VALUE rb_gc_disable();
+VALUE rb_gc_enable();
+VALUE rb_gc_disable();
 
 static VALUE
 ppr_puts(ppr, obj)
@@ -59,7 +58,7 @@ ppr_call(ppr, args)
 VALUE ppr, args; /* OK */
 {
     printf("IN PPR CALL\n");
-    rb_disable_gc();
+    rb_gc_disable();
     BOP_ppr_begin(1);
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
     VALUE ret = rb_proc_call(ppr, args);
@@ -70,7 +69,7 @@ VALUE ppr, args; /* OK */
     //if (task_parallel_p) ppr_pot_upload( );
 
   BOP_ppr_end(1);
-  rb_enable_gc();
+  rb_gc_enable();
     return Qnil;
 }
 
