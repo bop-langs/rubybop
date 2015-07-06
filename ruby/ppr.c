@@ -3,7 +3,7 @@
 #include "internal.h"
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
-
+#include 
 //TODO get get ppr_mon to work
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
@@ -12,6 +12,9 @@
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
+
+extern VALUE rb_gc_enable();
+extern VALUE rb_gc_disable();
 
 static VALUE
 ppr_puts(ppr, obj)
