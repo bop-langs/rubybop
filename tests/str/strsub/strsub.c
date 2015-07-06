@@ -187,7 +187,7 @@ char* BOP_strsub(char* orig_begin, char* sub_begin, char* replace_begin) {
 					read(itr_final);
 					write(itr_final);
 					int orig_temp_len = orig_len + replace_len - sub_len;
-					char* orig_temp = BOP_malloc( (orig_temp_len + 1) * sizeof *orig_temp);
+					char* orig_temp = malloc( (orig_temp_len + 1) * sizeof *orig_temp);
 					int itr_start = i - sub_len + 1;
 					int itr_end = itr_start + replace_len;
 					for (j=0;j<itr_start;j++) {
@@ -201,7 +201,7 @@ char* BOP_strsub(char* orig_begin, char* sub_begin, char* replace_begin) {
 					for (j=itr_end;j<orig_temp_len+1;j++) {
 						orig_temp[j] = orig[j - replace_len + sub_len];
 					}
-					BOP_free(orig);
+					free(orig);
 					orig = orig_temp;
 					orig_len = orig_temp_len;
 					i = itr_start-1;
