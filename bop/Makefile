@@ -4,10 +4,10 @@ CC = gcc
 OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 ALL = $(OBJS) $(TESTS)
 
-CFLAGS = -Wall -fPIC -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(CUSTOMDEF)
+CFLAGS = -Wall -fPIC -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(CUSTOMDEF) $(DEBUG_FLAGS)
 CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
 LDFLAGS = -Wl,--no-as-needed -ldl
-OPITIMIZEFLAGS = -O2
+OPITIMIZEFLAGS = #-O2
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 
 library: $(OBJS)
