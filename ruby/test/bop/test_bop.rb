@@ -1,17 +1,15 @@
-print("In test_bop\n");
-PPR.verbose(3)
-PPR.set_group_size(4)
-def calc(n)
-  sum = 0
-  for i in 0..n
-    sum +=i
-  end
-  return sum
-end
+PPR.verbose(3);
 
+t1 = Time.now.to_f
 
-print(PPR.to_s)
-for i in 0..3
-  print(PPR.new{calc(i*100000)}.call)
-end
-print("Finished test_bop\n");
+puts "start"
+$a = 0
+
+PPR.new{ sleep(1); $a = 1 }.call
+PPR.new{ sleep(1); $b = 2 }.call
+
+PPR.puts "a is #{$a}\nb is #{$b}"
+
+t2 = Time.now.to_f
+
+PPR.puts((((t2 - t1)*10).truncate/10.0).to_s + " second(s)")

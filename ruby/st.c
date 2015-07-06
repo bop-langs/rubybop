@@ -15,8 +15,10 @@
 #endif
 #include <string.h>
 
-#include "bop_api.h"
-#include "bop_ports.h"
+#include "../bop/bop_api.h"
+#include "../bop/bop_ports.h"
+#include "ppr.h"
+#include "../bop/external/malloc.h"
 
 typedef struct st_table_entry st_table_entry;
 
@@ -76,6 +78,35 @@ static const struct st_hash_type type_strcasehash = {
 };
 
 static void rehash(st_table *);
+
+extern mspace metacow_space;
+extern char in_ordered_region;
+/* begin generated. generator code in ppr.h */
+//LIES THIS IS COPIED FROM THE HG REPO
+#define table_clear_bf(table)  (table->bop_flags)&=~(BF_NEW|BF_USE|BF_MOD|BF_BOREC|BF_SUBOBJ|BF_META)
+#define table_ppr_new_p(table) (table->bop_flags&BF_NEW)
+#define table_use_p(table) (table->bop_flags&BF_USE)
+#define table_promise_p(table) (table->bop_flags&BF_MOD)
+#define table_meta_p(table) (table->bop_flags&BF_META)
+#define table_meta(table) table->bop_flags|=BF_META
+void bop_scan_table(st_table *);
+/*
+#define pot_add_table(table) if (!(table->bop_flags&BF_BOREC) && !(table->bop_flags&BF_META)) {st_insert(ppr_pot, (st_data_t) table, (st_data_t) &bop_scan_table); table->bop_flags|=BF_BOREC;}
+#define table_ppr_new(table) table_clear_bf(table); if (task_parallel_p && !(table->bop_flags&BF_META)) {pot_add_table(table); bop_msg(5,"table_ppr_new %llx -- %s:%d",table,__FILE__,__LINE__); (table->bop_flags)|=BF_NEW;}
+#define table_use_all(table) if (task_parallel_p && !(table->bop_flags&BF_META)) {pot_add_table(table); table->bop_flags&=~BF_SUBOBJ; bop_msg(5,"table_use_all %llx -- %s:%d",table,__FILE__,__LINE__); table->bop_flags|=BF_USE;}
+#define table_promise_all(table) if (task_parallel_p && !(table->bop_flags&BF_META)) {pot_add_table(table); table->bop_flags&=(~BF_SUBOBJ); bop_msg(5,"table_promise_all %llx %llx -- %s:%d",table, table->bop_flags, __FILE__,__LINE__); table->bop_flags|=BF_MOD;}
+#define table_clobber_all(table) table_use_all(table); table_promise_all(table)
+#define table_use_entry(table,base,len) if (task_parallel_p && !(table->bop_flags&BF_META)) if (table->bop_flags|BF_SUBOBJ) {BOP_use(table, sizeof(st_table)); BOP_use(base,len); bop_msg(5,"table_use_entry %llx, %llx, %lld bytes -- %s:%d",table, base, len, __FILE__,__LINE__);} else table_use_all(table)
+#define table_promise_entry(table,base,len) if (task_parallel_p && !(table->bop_flags&BF_META)) if (table->bop_flags|BF_SUBOBJ) {BOP_promise(table, sizeof(st_table)); BOP_promise(base,len); bop_msg(5,"table_promise_entry %llx, %llx, %lld bytes -- %s:%d",table, base, len, __FILE__,__LINE__);} else table_promise_all(table)
+*/
+#define pot_add_table(table) {if (!(table->bop_flags&BF_BOREC) && table!=ppr_pot) {st_insert(ppr_pot, (st_data_t) table, (st_data_t) &bop_scan_table); table->bop_flags|=BF_BOREC;}}
+#define table_ppr_new(table) {table_clear_bf(table); if (task_parallel_p && table!=ppr_pot) {pot_add_table(table); bop_msg(5,"table_ppr_new %llx -- %s:%d",table,__FILE__,__LINE__); (table->bop_flags)|=BF_NEW; if (in_ordered_region) bop_scan_table(table);}}
+#define table_use_all(table) {if (task_parallel_p && table!=ppr_pot) {pot_add_table(table); table->bop_flags&=~BF_SUBOBJ; bop_msg(5,"table_use_all %llx -- %s:%d",table,__FILE__,__LINE__); table->bop_flags|=BF_USE; if (in_ordered_region) bop_scan_table(table);}}
+#define table_promise_all(table) {if (task_parallel_p && table!=ppr_pot) {pot_add_table(table); table->bop_flags&=(~BF_SUBOBJ); bop_msg(5,"table_promise_all %llx %llx -- %s:%d",table, table->bop_flags, __FILE__,__LINE__); table->bop_flags|=BF_MOD; if (in_ordered_region) bop_scan_table(table);}}
+#define table_clobber_all(table) {table_use_all(table); table_promise_all(table);}
+#define table_use_entry(table,base,len) {if (task_parallel_p && table!=ppr_pot) if (table->bop_flags|BF_SUBOBJ) {BOP_use(table, sizeof(st_table)); BOP_use(base,len); bop_msg(5,"table_use_entry %llx, %llx, %lld bytes -- %s:%d",table, base, len, __FILE__,__LINE__);} else table_use_all(table);}
+#define table_promise_entry(table,base,len) {if (task_parallel_p && table!=ppr_pot) if (table->bop_flags|BF_SUBOBJ) {BOP_promise(table, sizeof(st_table)); BOP_promise(base,len); bop_msg(5,"table_promise_entry %llx, %llx, %lld bytes -- %s:%d",table, base, len, __FILE__,__LINE__);} else table_promise_all(table);}
+/* end generated */
 
 #ifdef RUBY
 #undef malloc
@@ -200,6 +231,19 @@ stat_col(void)
 st_table*
 st_init_table_with_size(const struct st_hash_type *type, st_index_t size)
 {
+  return internal_st_init_table_with_size(0,type,size);
+}
+
+st_table*
+meta_st_init_numtable_with_size(size)
+    int size;
+{
+  return internal_st_init_table_with_size(1, &type_numhash, size);
+}
+
+st_table*
+internal_st_init_table_with_size(char is_meta, const struct st_hash_type *type, st_index_t size)
+{
     st_table *tbl;
 
 #ifdef HASH_LOG
@@ -216,7 +260,17 @@ st_init_table_with_size(const struct st_hash_type *type, st_index_t size)
 #endif
 
 
-    tbl = st_alloc_table();
+    tbl = is_meta?
+    (st_table*) mspace_malloc(metacow_space, sizeof(st_table)):
+    st_alloc_table();
+
+    if ( is_meta ) {
+      table_clear_bf(tbl);
+      table_meta( tbl );
+    }
+    else
+      table_ppr_new( tbl );
+
     tbl->type = type;
     tbl->num_entries = 0;
     tbl->entries_packed = size <= MAX_PACKED_HASH;
@@ -281,6 +335,11 @@ st_clear(st_table *table)
 {
     register st_table_entry *ptr, *next;
     st_index_t i;
+
+    if ( ppr_pot != NULL && table != ppr_pot ) {
+      BOP_promise( table, sizeof( st_table ) );
+      st_delete( ppr_pot, (st_data_t *) &table, NULL );
+    }
 
     if (table->entries_packed) {
         table->num_entries = 0;
@@ -406,6 +465,7 @@ st_lookup(st_table *table, register st_data_t key, st_data_t *value)
     }
     else {
 	if (value != 0) *value = ptr->record;
+  table_use_entry( table, ptr, sizeof( st_table_entry ) );
 	return 1;
     }
 }
@@ -539,15 +599,19 @@ st_insert(register st_table *table, register st_data_t key, st_data_t value)
     register st_index_t bin_pos;
     register st_table_entry *ptr;
 
+    table_use_all( table );
+
     hash_val = do_hash(key, table);
 
     if (table->entries_packed) {
 	st_index_t i = find_packed_index(table, hash_val, key);
 	if (i < table->real_entries) {
 	    PVAL_SET(table, i, value);
+      table_promise_entry( table, ptr, sizeof( st_table_entry ) );
 	    return 1;
         }
 	add_packed_direct(table, key, value, hash_val);
+  table_promise_all( table );
 	return 0;
     }
 
@@ -555,10 +619,12 @@ st_insert(register st_table *table, register st_data_t key, st_data_t value)
 
     if (ptr == 0) {
 	add_direct(table, key, value, hash_val, bin_pos);
+  table_promise_all( table );
 	return 0;
     }
     else {
 	ptr->record = value;
+  table_promise_entry( table, ptr, sizeof( st_table_entry ) );
 	return 1;
     }
 }
@@ -571,16 +637,20 @@ st_insert2(register st_table *table, register st_data_t key, st_data_t value,
     register st_index_t bin_pos;
     register st_table_entry *ptr;
 
+    table_use_all( table );
+
     hash_val = do_hash(key, table);
 
     if (table->entries_packed) {
 	st_index_t i = find_packed_index(table, hash_val, key);
 	if (i < table->real_entries) {
 	    PVAL_SET(table, i, value);
+      table_promise_entry( table, ptr, sizeof( st_table_entry ) );
 	    return 1;
 	}
 	key = (*func)(key);
 	add_packed_direct(table, key, value, hash_val);
+  table_promise_all( table );
 	return 0;
     }
 
@@ -589,10 +659,12 @@ st_insert2(register st_table *table, register st_data_t key, st_data_t value,
     if (ptr == 0) {
 	key = (*func)(key);
 	add_direct(table, key, value, hash_val, bin_pos);
+  table_promise_all( table );
 	return 0;
     }
     else {
 	ptr->record = value;
+  table_promise_entry( table, ptr, sizeof( st_table_entry ) );
 	return 1;
     }
 }
@@ -601,7 +673,7 @@ void
 st_add_direct(st_table *table, st_data_t key, st_data_t value)
 {
     st_index_t hash_val;
-
+    table_clobber_all( table );
     hash_val = do_hash(key, table);
     if (table->entries_packed) {
 	add_packed_direct(table, key, value, hash_val);
@@ -617,10 +689,11 @@ rehash(register st_table *table)
     register st_table_entry *ptr, **new_bins;
     st_index_t new_num_bins, hash_val;
     //probably do not need to implement this
-    //if (table != ppr_pot)
-    //  BOP_use( table->bins, sizeof( st_table_entry *)*table->num_bins );
+    if (table != ppr_pot)
+      BOP_use( table->bins, sizeof( st_table_entry *)*table->num_bins );
 
     new_num_bins = new_size(table->num_bins+1);
+    //TODO might need to change this
     new_bins = st_realloc_bins(table->bins, new_num_bins, table->num_bins);
     table->num_bins = new_num_bins;
     table->bins = new_bins;
@@ -707,6 +780,8 @@ st_delete(register st_table *table, register st_data_t *key, st_data_t *value)
     st_table_entry **prev;
     register st_table_entry *ptr;
 
+    table_use_all( table );
+
     hash_val = do_hash(*key, table);
 
     if (table->entries_packed) {
@@ -729,6 +804,7 @@ st_delete(register st_table *table, register st_data_t *key, st_data_t *value)
 	    if (value != 0) *value = ptr->record;
 	    *key = ptr->key;
 	    st_free_entry(ptr);
+      table_promise_all( table );
 	    return 1;
 	}
     }
@@ -743,6 +819,8 @@ st_delete_safe(register st_table *table, register st_data_t *key, st_data_t *val
     st_index_t hash_val;
     register st_table_entry *ptr;
 
+    table_use_all( table );
+
     hash_val = do_hash(*key, table);
 
     if (table->entries_packed) {
@@ -751,6 +829,7 @@ st_delete_safe(register st_table *table, register st_data_t *key, st_data_t *val
 	    if (value != 0) *value = PVAL(table, i);
 	    *key = PKEY(table, i);
 	    remove_safe_packed_entry(table, i, never);
+      table_promise_all( table );
 	    return 1;
 	}
 	if (value != 0) *value = 0;
@@ -765,6 +844,7 @@ st_delete_safe(register st_table *table, register st_data_t *key, st_data_t *val
 	    *key = ptr->key;
 	    if (value != 0) *value = ptr->record;
 	    ptr->key = ptr->record = never;
+      table_promise_all( table );
 	    return 1;
 	}
     }
@@ -779,6 +859,7 @@ st_shift(register st_table *table, register st_data_t *key, st_data_t *value)
     st_table_entry **prev;
     register st_table_entry *ptr;
 
+    table_use_all( table );
     if (table->num_entries == 0) {
         if (value != 0) *value = 0;
         return 0;
@@ -788,6 +869,7 @@ st_shift(register st_table *table, register st_data_t *key, st_data_t *value)
         if (value != 0) *value = PVAL(table, 0);
         *key = PKEY(table, 0);
         remove_packed_entry(table, 0);
+        table_promise_all( table );
         return 1;
     }
 
@@ -798,6 +880,7 @@ st_shift(register st_table *table, register st_data_t *key, st_data_t *value)
     *key = ptr->key;
     remove_entry(table, ptr);
     st_free_entry(ptr);
+    table_promise_all( table );
     return 1;
 }
 
@@ -806,6 +889,8 @@ st_cleanup_safe(st_table *table, st_data_t never)
 {
     st_table_entry *ptr, **last, *tmp;
     st_index_t i;
+
+    table_use_all( table );
 
     if (table->entries_packed) {
 	st_index_t i = 0, j = 0;
@@ -820,6 +905,7 @@ st_cleanup_safe(st_table *table, st_data_t never)
 	table->real_entries = j;
 	/* table->num_entries really should be equal j at this moment, but let set it anyway */
 	table->num_entries = j;
+  table_promise_all( table );
 	return;
     }
 
@@ -836,6 +922,7 @@ st_cleanup_safe(st_table *table, st_data_t never)
 	    }
 	}
     }
+    table_promise_all( table );
 }
 
 int
@@ -845,6 +932,8 @@ st_update(st_table *table, st_data_t key, st_update_callback_func *func, st_data
     register st_table_entry *ptr, **last, *tmp;
     st_data_t value = 0, old_key;
     int retval, existing = 0;
+
+    table_use_all( table );
 
     hash_val = do_hash(key, table);
 
@@ -878,6 +967,7 @@ st_update(st_table *table, st_data_t key, st_update_callback_func *func, st_data
 		remove_packed_entry(table, i);
 	    }
 	}
+  table_promise_all( table );
 	return existing;
     }
 
@@ -916,6 +1006,7 @@ st_update(st_table *table, st_data_t key, st_update_callback_func *func, st_data
 	    }
 	    break;
 	}
+  table_promise_all( table );
 	return existing;
     }
 }
@@ -926,6 +1017,8 @@ st_foreach_check(st_table *table, int (*func)(ANYARGS), st_data_t arg, st_data_t
     st_table_entry *ptr, **last, *tmp;
     enum st_retval retval;
     st_index_t i;
+
+    table_use_all( table );
 
     if (table->entries_packed) {
 	for (i = 0; i < table->real_entries; i++) {
@@ -964,6 +1057,7 @@ st_foreach_check(st_table *table, int (*func)(ANYARGS), st_data_t arg, st_data_t
 		break;
 	    }
 	}
+  table_promise_all( table );
 	return 0;
     }
     else {
@@ -1009,6 +1103,7 @@ st_foreach_check(st_table *table, int (*func)(ANYARGS), st_data_t arg, st_data_t
 	    }
 	} while (ptr && table->head);
     }
+    table_promise_all( table );
     return 0;
 }
 
@@ -1018,6 +1113,8 @@ st_foreach(st_table *table, int (*func)(ANYARGS), st_data_t arg)
     st_table_entry *ptr, **last, *tmp;
     enum st_retval retval;
     st_index_t i;
+
+    table_use_all( table );
 
     if (table->entries_packed) {
 	for (i = 0; i < table->real_entries; i++) {
@@ -1029,7 +1126,7 @@ st_foreach(st_table *table, int (*func)(ANYARGS), st_data_t arg)
 	    retval = (*func)(key, val, arg, 0);
 	    if (!table->entries_packed) {
 		FIND_ENTRY(table, ptr, hash, i);
-		if (!ptr) return 0;
+		if (!ptr){table_promise_all( table ); return 0;}
 		goto unpacked;
 	    }
 	    switch (retval) {
@@ -1037,6 +1134,7 @@ st_foreach(st_table *table, int (*func)(ANYARGS), st_data_t arg)
 		break;
 	      case ST_CHECK:
 	      case ST_STOP:
+        table_promise_all( table );
 		return 0;
 	      case ST_DELETE:
 		remove_packed_entry(table, i);
@@ -1044,6 +1142,7 @@ st_foreach(st_table *table, int (*func)(ANYARGS), st_data_t arg)
 		break;
 	    }
 	}
+  table_promise_all( table );
 	return 0;
     }
     else {
@@ -1077,6 +1176,7 @@ st_foreach(st_table *table, int (*func)(ANYARGS), st_data_t arg)
 	    }
 	} while (ptr && table->head);
     }
+    table_promise_all( table );
     return 0;
 }
 
@@ -1085,7 +1185,7 @@ get_keys(st_table *table, st_data_t *keys, st_index_t size, int check, st_data_t
 {
     st_data_t key;
     st_data_t *keys_start = keys;
-
+    table_use_all( table );
     if (table->entries_packed) {
 	st_index_t i;
 
@@ -1126,6 +1226,8 @@ get_values(st_table *table, st_data_t *values, st_index_t size, int check, st_da
 {
     st_data_t key;
     st_data_t *values_start = values;
+
+    table_use_all( table );
 
     if (table->entries_packed) {
 	st_index_t i;
@@ -1758,4 +1860,28 @@ st_numhash(st_data_t n)
 {
     enum {s1 = 11, s2 = 3};
     return (st_index_t)((n>>s1|(n<<s2)) ^ (n>>s2));
+}
+
+void
+bop_scan_table( table )
+     st_table *table;
+{
+    st_table_entry *ptr, *next;
+    int i;
+
+    bop_msg(5, "bop_scan_table %llx, flags %llx", table, table->bop_flags);
+
+    monitor_t *bop_mon =  get_monitor_func( table->bop_flags );
+    table_clear_bf( table );
+
+    for(i = 0; i < table->num_bins; i++) {
+	ptr = table->bins[i];
+	while (ptr != 0) {
+	    next = ptr->next;
+	    (*bop_mon)( ptr, sizeof( st_table_entry ) );
+	    ptr = next;
+	}
+    }
+    (*bop_mon)( table->bins, table->num_bins * sizeof( st_table_entry *) );
+    (*bop_mon)( table, sizeof( st_table ) );
 }
