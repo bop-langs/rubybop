@@ -55,7 +55,7 @@ int BOP_get_verbose( void ) {
 
 extern char in_ordered_region;  // bop_ordered.c
 
-void bop_msg(int level, char * msg, ...) {
+void bop_msg(int level, const char * msg, ...) {
     if (!bopmsg_sem)
     {
 	bopmsg_sem = sem_open("bopmsg", O_CREAT);

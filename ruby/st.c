@@ -2,6 +2,8 @@
 
 /* static	char	sccsid[] = "@(#) st.c 5.1 89/12/14 Crucible"; */
 
+//TODO this will need revisiting...
+
 #ifdef NOT_RUBY
 #include "regint.h"
 #include "st.h"
