@@ -93,6 +93,7 @@ struct st_table {
 	    st_index_t real_entries;
 	} packed;
     } as;
+    unsigned long bop_flags;
 };
 
 #define st_is_member(table,key) st_lookup((table),(key),(st_data_t *)0)
@@ -103,6 +104,7 @@ st_table *st_init_table(const struct st_hash_type *);
 st_table *st_init_table_with_size(const struct st_hash_type *, st_index_t);
 st_table *st_init_numtable(void);
 st_table *st_init_numtable_with_size(st_index_t);
+st_table* meta_st_init_numtable_with_size(int);
 st_table *st_init_strtable(void);
 st_table *st_init_strtable_with_size(st_index_t);
 st_table *st_init_strcasetable(void);

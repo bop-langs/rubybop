@@ -229,19 +229,6 @@ stat_col(void)
 #endif
 
 st_table*
-st_init_table_with_size(const struct st_hash_type *type, st_index_t size)
-{
-  return internal_st_init_table_with_size(0,type,size);
-}
-
-st_table*
-meta_st_init_numtable_with_size(size)
-    int size;
-{
-  return internal_st_init_table_with_size(1, &type_numhash, size);
-}
-
-st_table*
 internal_st_init_table_with_size(char is_meta, const struct st_hash_type *type, st_index_t size)
 {
     st_table *tbl;
@@ -287,6 +274,21 @@ internal_st_init_table_with_size(char is_meta, const struct st_hash_type *type, 
 
     return tbl;
 }
+
+st_table*
+st_init_table_with_size(const struct st_hash_type *type, st_index_t size)
+{
+  return internal_st_init_table_with_size(0,type,size);
+}
+
+st_table*
+meta_st_init_numtable_with_size(size)
+    int size;
+{
+  return internal_st_init_table_with_size(1, &type_numhash, size);
+}
+
+
 
 st_table*
 st_init_table(const struct st_hash_type *type)
