@@ -353,7 +353,7 @@ void *dm_malloc (const size_t size) {
             ASSERTBLK(block);
             release_lock();
             return PAYLOAD (block);
-        } else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+        } else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
             splits++;
 #endif
