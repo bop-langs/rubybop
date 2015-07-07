@@ -5,11 +5,11 @@ require 'pathname'
 $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
 $ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
-$incl = "../bop/"
+$incl = "../build/bop/"
 $params = '' if $params.nil?
 
 # Location of BOP
-$bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?
+$bop_dir = (Pathname.new(__FILE__).dirname + '../build/bop/').cleanpath if $bop_dir.nil?
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
 # Objects and programs for clean and realclean
