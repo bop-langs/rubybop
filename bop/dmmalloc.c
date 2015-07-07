@@ -81,18 +81,18 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 //grow macros
-#define BLKS_1 50
-#define BLKS_2 50
-#define BLKS_3 50
-#define BLKS_4 50
-#define BLKS_5 50
-#define BLKS_6 50
-#define BLKS_7 50
-#define BLKS_8 50
-#define BLKS_9 50
-#define BLKS_10 50
-#define BLKS_11 50
-#define BLKS_12 50
+#define BLKS_1 200
+#define BLKS_2 200
+#define BLKS_3 200
+#define BLKS_4 200
+#define BLKS_5 200
+#define BLKS_6 200
+#define BLKS_7 200
+#define BLKS_8 200
+#define BLKS_9 200
+#define BLKS_10 200
+#define BLKS_11 200
+#define BLKS_12 200
 #define GROW_S ((BLKS_1 * SIZE_C(1)) + (BLKS_2 * SIZE_C(2)) + \
 				(BLKS_3 * SIZE_C(3)) + (BLKS_4 * SIZE_C(4)) + \
 				(BLKS_5 * SIZE_C(5)) + (BLKS_6 * SIZE_C(6)) + \
@@ -208,11 +208,12 @@ void carve () {
 
  		int tasks = BOP_get_group_size();
 		//printf("In carve, task %d\n", tasks);
+		regions = dm_malloc (tasks * sizeof (ppr_list));
     assert (tasks >= 2);
     grow(tasks / 1.5);
-    if (regions != NULL) //remove old regions information
-        dm_free (regions);		//don't need old bounds anymore
-    regions = dm_malloc (tasks * sizeof (ppr_list));
+    //if (regions != NULL) //remove old regions information
+    //    dm_free (regions);		//don't need old bounds anymore
+
     int index, count, j, r;
     header *current_headers[NUM_CLASSES];
     header *temp = (header*) -1;
@@ -238,10 +239,12 @@ void carve () {
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
+					bop_msg(1,"Initializing group...");
 	  int group_num = spec_order;
     ppr_list my_list = regions[group_num];
     int ind;
     for (ind = 0; ind < NUM_CLASSES; ind++) {
+
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
     }
@@ -259,7 +262,7 @@ void malloc_promise() {
         BOP_promise(head, HSIZE); //payload doesn't matter
     memcpy(counts, promise_counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
-    malloc_merge_counts(0);
+    //malloc_merge_counts(0);
 }
 void malloc_merge_counts(bool aborted) {
     int index;
@@ -324,8 +327,8 @@ static inline header * get_header (size_t size, int *which) {
         found = headers[*which];
     }
     //clean up
-    if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
-        return NULL;
+    //if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
+    //    return NULL;
     return found;
 }
 
@@ -339,7 +342,7 @@ void *dm_malloc (const size_t size) {
     int which = -2;
     header *block = get_header (alloc_size, &which);
     assert (which != -2);
-    ASSERT_VALID_COUNT(which);
+    //ASSERT_VALID_COUNT(which);
     if (block == NULL) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
@@ -370,6 +373,7 @@ void *dm_malloc (const size_t size) {
             block->allocated.blocksize = sizes[which];
             assert (block != NULL);
         } else {
+						//abort();
             //bop_abort
         }
     } else
@@ -425,6 +429,7 @@ static inline header* dm_split (int which) {
     block->free.next = CAST_SH (split);
     split->free.next = split->free.prev = NULL;
 
+		assert(counts[which]==0);
     counts[which] = 2; //for when the count is decremented by dm_malloc
     counts[larger]--;
 
