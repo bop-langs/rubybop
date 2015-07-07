@@ -406,7 +406,7 @@ static void wait_process() {
   int status;
   pid_t child;
   assert (monitor_group != 0); //was actually written by the PIPE before this call
-  assert (monitoring_process_id != 0); //was set up in BOP_init correctly
+  assert (monitor_process_id != 0); //was set up in BOP_init correctly
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   while (monitor_process_id) {
     if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
