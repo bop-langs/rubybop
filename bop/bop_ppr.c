@@ -405,10 +405,8 @@ void SigBopExit( int signo ){
 static void wait_process() {
   int status;
   pid_t child;
-  bop_msg(3, "Monitoring waiting to receive pgid");
-  while(monitor_group == 0){
-    nop();
-  }
+  assert (monitor_group != 0); //was actually written by the PIPE before this call
+  assert (monitoring_process_id != 0); //was set up in BOP_init correctly
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   while (monitor_process_id) {
     if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
@@ -424,7 +422,6 @@ static void wait_process() {
     exit(-1);
   }
   bop_msg(1, "Monitoring process ending");
-  msg_destroy();
   exit(0);
 }
 
@@ -448,7 +445,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   action.sa_sigaction = (void *) SigUsr2;
   sigaction(SIGUSR2, &action, NULL);
 
-  
+
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
 
