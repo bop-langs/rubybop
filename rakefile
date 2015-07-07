@@ -31,6 +31,7 @@ task :bop do
     sh 'make'
   end
 end
+
 task :ruby_test => :ruby do
   cd ruby_cp_dir do
     sh 'make test' do |ok, res|
