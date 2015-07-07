@@ -4,7 +4,12 @@ require 'pathname'
 # Compiler config
 $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
-$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
+#This is a horrible hack...maybe change this? 
+if RUBY_PLATFORM =~ /darwin/ then 
+	$ldflags = '-lm -Wl --no-as-needed -ldl -pthread'
+else 
+	$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
+end 
 $incl = "../bop/"
 $params = '' if $params.nil?
 
