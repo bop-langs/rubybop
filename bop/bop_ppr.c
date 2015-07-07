@@ -27,8 +27,6 @@
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
 #define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
 
-int monitor_process_id;
-
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
 extern bop_port_t postwait_port;
@@ -376,9 +374,6 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid);
     abort( );
   }
-  if (getpid() == monitor_process_id){
-    monitor_process_id = 0;
-  }
   // assert ( 0 );
 }
 
@@ -405,15 +400,16 @@ void SigBopExit( int signo ){
 static void wait_process() {
   int status;
   pid_t child;
-  assert (monitor_group != 0); //was actually written by the PIPE before this call
-  assert (monitor_process_id != 0); //was set up in BOP_init correctly
+  bop_msg(3, "Monitoring waiting to receive pgid");
+  while(monitor_group == 0){
+    nop();
+  }
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
-  while (monitor_process_id) {
-    if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
-      if (WIFSIGNALED(status)) {
-        bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
-      }
+  while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
+    if (WIFSIGNALED(status)) {
+      bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
     }
+    //sleep(3); //FIXME this is a dirty hack that should be avoided
   }
 
   /* We expect to get ECHILD, others are an error */
@@ -422,6 +418,7 @@ static void wait_process() {
     exit(-1);
   }
   bop_msg(1, "Monitoring process ending");
+  msg_destroy();
   exit(0);
 }
 
@@ -432,19 +429,6 @@ extern int errno;
 char *strerror(int errnum);
 /* Initialize allocation map.  Insta4lls the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
-  monitor_process_id = getpid();
-  //install signal handlers
-  /* two user signals for sequential-parallel race arbitration, block
-   for SIGUSR2 initially */
-  struct sigaction action;
-  sigaction(SIGUSR1, NULL, &action);
-  sigemptyset(&action.sa_mask);
-  action.sa_flags = SA_SIGINFO;
-  action.sa_sigaction = (void *) SigUsr1;
-  sigaction(SIGUSR1, &action, NULL);
-  action.sa_sigaction = (void *) SigUsr2;
-  sigaction(SIGUSR2, &action, NULL);
-
 
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
@@ -507,6 +491,17 @@ void __attribute__ ((constructor)) BOP_init(void) {
     if (atexit(BOP_fini)) {
       perror("Failed to register exit-time BOP_end call");
     }
+
+    /* two user signals for sequential-parallel race arbitration, block
+     for SIGUSR2 initially */
+    struct sigaction action;
+    sigaction(SIGUSR1, NULL, &action);
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = SA_SIGINFO;
+    action.sa_sigaction = (void *) SigUsr1;
+    sigaction(SIGUSR1, &action, NULL);
+    action.sa_sigaction = (void *) SigUsr2;
+    sigaction(SIGUSR2, &action, NULL);
 
     /*
     sigset_t mask;
@@ -574,6 +569,4 @@ static void BOP_fini(void) {
   bop_msg( 3, "A total of %d bytes are copied during the commit and %d bytes are posted during parallel execution. The speculation group size is %d.\n\n",
 	   bop_stats.data_copied, bop_stats.data_posted,
 	   BOP_get_group_size( ));
-  msg_destroy();
-  kill(monitor_process_id, SIGUSR1);
 }
