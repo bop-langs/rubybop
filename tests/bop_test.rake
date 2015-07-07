@@ -101,7 +101,7 @@ task :default => :all
 
 desc "Force a rebuild"
 task :force do
-  cd '../../bop' do
+  cd '../bop' do
     sh 'make -B'
   end
   Rake::Task[:clean].invoke
