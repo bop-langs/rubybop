@@ -26,9 +26,12 @@ task :ruby_test => :ruby do
     end
   end
 end
+#Use begin,rescue, end to run all tests (Use ensure too!)
 task :bop_test => :bop do
   test_dir.each do |dir|
     cd 'tests/' + dir do
+	  begin
+		sh 'rake; rake run' do |ok, res|
       sh 'rake; rake run' do |ok, res|
         if ! ok then
           fail "Bop test failure"
