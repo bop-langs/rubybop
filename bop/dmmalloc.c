@@ -87,8 +87,8 @@
  *Don't try to use this in compiling a bop program, it will not work
  *I examined getting this to work like BOP_Verbose and Group_Size, but it would likely cause more of a slowdown
  *then it is worth*/
-#ifndef DM_BLOCKSIZE
-#define DM_BLOCKSIZE 200
+#ifndef DM_BLOCK_SIZE
+#define DM_BLOCK_SIZE 200
 #endif
 #define BLKS_1 DM_BLOCK_SIZE
 #define BLKS_2 DM_BLOCK_SIZE
