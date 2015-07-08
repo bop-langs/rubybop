@@ -87,7 +87,9 @@
  *Don't try to use this in compiling a bop program, it will not work
  *I examined getting this to work like BOP_Verbose and Group_Size, but it would likely cause more of a slowdown
  *then it is worth*/
-#ifdef DM_BLOCK_SIZE
+#ifndef DM_BLOCKSIZE
+#define DM_BLOCKSIZE 200
+#endif
 #define BLKS_1 DM_BLOCK_SIZE
 #define BLKS_2 DM_BLOCK_SIZE
 #define BLKS_3 DM_BLOCK_SIZE
@@ -100,20 +102,7 @@
 #define BLKS_10 DM_BLOCK_SIZE
 #define BLKS_11 DM_BLOCK_SIZE
 #define BLKS_12 DM_BLOCK_SIZE
-#else
-#define BLKS_1 200
-#define BLKS_2 200
-#define BLKS_3 200
-#define BLKS_4 200
-#define BLKS_5 200
-#define BLKS_6 200
-#define BLKS_7 200
-#define BLKS_8 200
-#define BLKS_9 200
-#define BLKS_10 200
-#define BLKS_11 200
-#define BLKS_12 200
-#endif
+
 #define GROW_S ((BLKS_1 * SIZE_C(1)) + (BLKS_2 * SIZE_C(2)) + \
 				(BLKS_3 * SIZE_C(3)) + (BLKS_4 * SIZE_C(4)) + \
 				(BLKS_5 * SIZE_C(5)) + (BLKS_6 * SIZE_C(6)) + \
