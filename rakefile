@@ -26,21 +26,17 @@ task :ruby_test => :ruby do
     end
   end
 end
-#Use begin,rescue to run all tests
+
+#Took out some parts to make sh ignore unsuccessful commands
 task :bop_test => :bop do
   test_dir.each do |dir|
-    cd 'tests/' + dir do
-	  sh 'rake; rake run' do |ok, res|
-		begin
-		  Rake::Task[dir].invoke
-		rescue Exception => e
-		  puts "Test #{dir} failed"
-		  puts "#{e.class}: #{e.message}"
-		end
-	  end
+		cd 'tests/' + dir do
+			sh 'rake; rake run' do |ok, res|
+				#Ignore Errors
+	  	end
     end
-	puts "Finished running all tests"
   end
+  puts "Finished running all tests"
 end
 
 task :test do
