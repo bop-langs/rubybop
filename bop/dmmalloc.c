@@ -81,6 +81,21 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 //grow macros
+
+#ifdef DM_BLOCK_SIZE
+#define BLKS_1 DM_BLOCK_SIZE
+#define BLKS_2 DM_BLOCK_SIZE
+#define BLKS_3 DM_BLOCK_SIZE
+#define BLKS_4 DM_BLOCK_SIZE
+#define BLKS_5 DM_BLOCK_SIZE
+#define BLKS_6 DM_BLOCK_SIZE
+#define BLKS_7 DM_BLOCK_SIZE
+#define BLKS_8 DM_BLOCK_SIZE
+#define BLKS_9 DM_BLOCK_SIZE
+#define BLKS_10 DM_BLOCK_SIZE
+#define BLKS_11 DM_BLOCK_SIZE
+#define BLKS_12 DM_BLOCK_SIZE
+#else
 #define BLKS_1 200
 #define BLKS_2 200
 #define BLKS_3 200
@@ -93,6 +108,7 @@
 #define BLKS_10 200
 #define BLKS_11 200
 #define BLKS_12 200
+#endif
 #define GROW_S ((BLKS_1 * SIZE_C(1)) + (BLKS_2 * SIZE_C(2)) + \
 				(BLKS_3 * SIZE_C(3)) + (BLKS_4 * SIZE_C(4)) + \
 				(BLKS_5 * SIZE_C(5)) + (BLKS_6 * SIZE_C(6)) + \
@@ -239,7 +255,7 @@ void carve () {
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
-					bop_msg(1,"Initializing group...");
+		bop_msg(1,"Initializing group...");
 	  int group_num = spec_order;
     ppr_list my_list = regions[group_num];
     int ind;
@@ -327,6 +343,9 @@ static inline header * get_header (size_t size, int *which) {
         found = headers[*which];
     }
     //clean up
+		if(!SEQUENTIAL){
+			bop_msg(1, "Area where get_header needs ends defined");
+		}
     //if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
     //    return NULL;
     return found;
