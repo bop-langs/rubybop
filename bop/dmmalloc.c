@@ -82,6 +82,11 @@
 
 //grow macros
 
+
+/*NOTE DM_BLOCK_SIZE is only assessed at library compile time, so this is not visible for the user to change
+ *Don't try to use this in compiling a bop program, it will not work
+ *I examined getting this to work like BOP_Verbose and Group_Size, but it would likely cause more of a slowdown
+ *then it is worth*/
 #ifdef DM_BLOCK_SIZE
 #define BLKS_1 DM_BLOCK_SIZE
 #define BLKS_2 DM_BLOCK_SIZE
