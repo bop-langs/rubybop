@@ -16,3 +16,4 @@ tests/mem/mem_bop
 tests/mem/mem_noprot
 tests/mem/mem_orig
 tests/mem/mem_seq
+tests/add/core

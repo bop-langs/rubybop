@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>  /* for bop_msg */
 #include <stdlib.h>  /* getenv */
 #include <sys/time.h>
@@ -6,6 +7,7 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include "bop_api.h"
+#include "utils.h"
 
 extern task_status_t task_status;
 extern ppr_pos_t ppr_pos;
@@ -54,15 +56,13 @@ int BOP_get_verbose( void ) {
 }
 
 extern char in_ordered_region;  // bop_ordered.c
+extern int errno;
+char *strerror(int errnum);
 
-void bop_msg(int level, char * msg, ...) {
-    if (!bopmsg_sem)
-    {
-	bopmsg_sem = sem_open("bopmsg", O_CREAT);
-	sem_post(bopmsg_sem);
-    }
+void bop_msg(int level, const char * msg, ...) {
  if(bop_verbose >= level)
   {
+    msg_init();
     sem_wait(bopmsg_sem);
     va_list v;
     va_start(v,msg);
@@ -100,6 +100,21 @@ void bop_msg(int level, char * msg, ...) {
     fflush(stderr);
     sem_post(bopmsg_sem);
   }
+}
+
+void msg_init(){
+  if (!bopmsg_sem){
+      bopmsg_sem = sem_open("/bopmsg.sem", (O_CREAT), S_IRWXO|S_IRWXU|S_IRWXG, 0);
+      if(bopmsg_sem == SEM_FAILED){
+          printf("Error in BOP_Init: %s\n", strerror(errno));
+      }
+      assert(bopmsg_sem != NULL);
+      assert(bopmsg_sem != SEM_FAILED);
+      sem_post(bopmsg_sem);
+  }
+}
+void msg_destroy(){
+  sem_close(bopmsg_sem);
 }
 
 /* read the environment variable env, and returns it's integer value.

@@ -1,8 +1,8 @@
-#include <string.h>
-#include <external/malloc.h>
-#include <bop_api.h>
-#include <ary_bitmap.h>
 #include <stdlib.h>
+#include <string.h>
+#include "external/malloc.h"
+#include "bop_api.h"
+#include "ary_bitmap.h"
 
 /* each entry an unsigned number, 32 bits */
 uint32_t ary_map_entries( uint32_t ary_size ) {

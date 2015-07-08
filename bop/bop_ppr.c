@@ -8,11 +8,25 @@
 #include <fcntl.h>
 
 #include <unistd.h>
+//#include <sys/siginfo.h>
+#include <ucontext.h>
+#include <execinfo.h>
 
-#include <bop_api.h>
-#include <bop_ports.h>
-#include <bop_ppr_sync.h>
-#include <utils.h>
+#include "bop_api.h"
+#include "bop_ports.h"
+#include "bop_ppr_sync.h"
+#include "utils.h"
+
+
+#define UNDY_SLEEP(s) sleep(s) //NOTE remember to get rid of this
+
+#ifndef NDEBUG
+#define VISUALIZE(s)
+//#define UNDY_SLEEP(s)
+#else
+#define VISUALIZE(s) bop_msg(1,s);
+
+#endif
 
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
@@ -35,8 +49,6 @@ stats_t bop_stats = { 0 };
 
 static int bopgroup;
 static int monitor_group = 0; //the process group that PPR tasks are using
-
-extern sem_t *bopmsg_sem;
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -76,6 +88,7 @@ int _BOP_ppr_begin(int id) {
   ppr_pos_t old_pos = ppr_pos;
   ppr_pos = PPR;
   ppr_index ++;
+  VISUALIZE("!");
 
   switch (task_status) {
   case UNDY:
@@ -144,19 +157,19 @@ int _BOP_ppr_begin(int id) {
 //  kill( 0, SIGUSR2 );
 // }
 
-void BOP_abort_spec( char *msg ) {
+void BOP_abort_spec( const char *msg ) {
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;
 
   if (task_status == MAIN)  { /* non-mergeable actions have happened */
     if ( partial_group_get_size() > 1 ) {
-      bop_msg(2, "Abort speculation because %s", msg);
+      bop_msg(2, "Abort main speculation because %s", msg);
       partial_group_set_size( 1 );
     }
   }
   else {
-    bop_msg(2, "Abort speculation because %s", msg);
+    bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
     signal_commit_done( );
     abort( );  /* die silently */
@@ -189,9 +202,10 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
+  UNDY_SLEEP(10);
   // indicate the success of the understudy
   kill(0, SIGUSR2);
-  kill(-monitor_group, SIGUSR1); //main requires a special signal
+  kill(-monitor_group, SIGUSR1); //main requires a special signal?
 
   undy_succ_fini( );
 
@@ -315,6 +329,7 @@ void ppr_task_commit( void ) {
 }
 
 void _BOP_ppr_end(int id) {
+  VISUALIZE("?");
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
@@ -400,7 +415,7 @@ static void wait_process() {
     if (WIFSIGNALED(status)) {
       bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
     }
-    sleep(10); //FIXME this is a dirty hack that should be avoided
+    //sleep(3); //FIXME this is a dirty hack that should be avoided
   }
 
   /* We expect to get ECHILD, others are an error */
@@ -409,29 +424,26 @@ static void wait_process() {
     exit(-1);
   }
   bop_msg(1, "Monitoring process ending");
-  /* TODO: exit with something based on the children. */
+  msg_destroy();
   exit(0);
 }
 
 static void BOP_fini(void);
 
 extern int bop_verbose;
-
-/* Initialize allocation map.  Installs the timer process. */
+extern int errno;
+char *strerror(int errnum);
+/* Initialize allocation map.  Insta4lls the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
 
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
 
-  
+
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
-  if (!bopmsg_sem)
-  {
-      bopmsg_sem = sem_open("bopmsg", O_CREAT);
-      sem_post(bopmsg_sem);
-  }
+  msg_init();
   /* malloc init must come before anything that requires mspace allocation */
   // bop_malloc_init( 2 );
 
@@ -440,7 +452,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   gettimeofday(&tv, NULL);
   bop_stats.start_time = tv.tv_sec + (tv.tv_usec/1000000.0);
 
-  
+
   /* setting up the timing process and initialize the SEQ task */
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
@@ -497,12 +509,12 @@ void __attribute__ ((constructor)) BOP_init(void) {
     action.sa_sigaction = (void *) SigUsr2;
     sigaction(SIGUSR2, &action, NULL);
 
-    ///*
+    /*
     sigset_t mask;
     sigemptyset( &mask );
     sigaddset( &mask, SIGUSR2 );
     sigprocmask( SIG_BLOCK, &mask, NULL );
-    //*/
+    */
   }
   assert(getpgrp() == -monitor_group);
   task_status = SEQ;
@@ -526,7 +538,9 @@ static void BOP_fini(void) {
 
   switch (task_status) {
   case SPEC:
-    BOP_abort_spec( "SPEC reached an exit" );  /* will abort */
+    BOP_abort_spec( "SPEC reached an exit");  /* will abort */
+    kill(0, SIGUSR2); //send SIGUSR to spec group -> own group
+
     if (bop_mode == SERIAL) {
       data_commit( );
       partial_group_set_size( 1 );
@@ -547,7 +561,7 @@ static void BOP_fini(void) {
     break;
 
   default:
-    assert(0);
+    assert(0); //should never get here
   }
 
   struct timeval tv;

@@ -5,7 +5,7 @@ task :ruby => :bop do
   cd "ruby" do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
-      sh './configure'
+      sh './configure --disable-install-doc'
     end
     sh 'make'
   end
@@ -56,7 +56,6 @@ task :clean do
   cd "bop" do
     sh 'make clean'
   end
-  #Gonna comment out cause error while rake clean
   test_dir.each do |dir|
     cd "tests/" + dir do
       sh 'rake clean'

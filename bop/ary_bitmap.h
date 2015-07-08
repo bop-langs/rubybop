@@ -1,5 +1,6 @@
 #ifndef _ARY_BITMAP_H_
 #define _ARY_BITMAP_H_
+#include <stdint.h>
 
 void *ary_malloc_with_map( uint32_t length, uint32_t elem_size );
 void *ary_realloc_with_map( void *var, uint32_t length, uint32_t elem_size );

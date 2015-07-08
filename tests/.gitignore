@@ -3,6 +3,9 @@ add/add_orig
 add/add_ppr_only_bop
 add/add_ppr_only_orig
 
+mem/add_mem_test_bop
+mem/add_mem_test_orig
+
 sleep/sleep_orig
 sleep/sleep_bop
 

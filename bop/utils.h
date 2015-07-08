@@ -4,8 +4,11 @@
 #include <signal.h>
 #include "bop_api.h"
 
-void bop_msg(int level, char * msg, ...);
+void bop_msg(int level, const char * msg, ...);
 int get_int_from_env(const char* env, int min, int max, int def);
+
+void msg_init(void);
+void msg_destroy(void);
 
 void report_conflict( int verbose, mem_range_t *c1, char *n1,
 		      mem_range_t *c2, char *n2 );

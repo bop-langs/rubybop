@@ -12,6 +12,7 @@
 #include "malloc_wrapper.h"
 #include "bop_api.h"
 #include "bop_ports.h"
+//#include "../mri/ppr.h"
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
 #define LOG(x) llog2(x)
@@ -80,18 +81,28 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 //grow macros
-#define BLKS_1 50
-#define BLKS_2 50
-#define BLKS_3 50
-#define BLKS_4 50
-#define BLKS_5 50
-#define BLKS_6 50
-#define BLKS_7 50
-#define BLKS_8 50
-#define BLKS_9 50
-#define BLKS_10 50
-#define BLKS_11 50
-#define BLKS_12 50
+
+
+/*NOTE DM_BLOCK_SIZE is only assessed at library compile time, so this is not visible for the user to change
+ *Don't try to use this in compiling a bop program, it will not work
+ *I examined getting this to work like BOP_Verbose and Group_Size, but it would likely cause more of a slowdown
+ *then it is worth*/
+#ifndef DM_BLOCK_SIZE
+#define DM_BLOCK_SIZE 200
+#endif
+#define BLKS_1 DM_BLOCK_SIZE
+#define BLKS_2 DM_BLOCK_SIZE
+#define BLKS_3 DM_BLOCK_SIZE
+#define BLKS_4 DM_BLOCK_SIZE
+#define BLKS_5 DM_BLOCK_SIZE
+#define BLKS_6 DM_BLOCK_SIZE
+#define BLKS_7 DM_BLOCK_SIZE
+#define BLKS_8 DM_BLOCK_SIZE
+#define BLKS_9 DM_BLOCK_SIZE
+#define BLKS_10 DM_BLOCK_SIZE
+#define BLKS_11 DM_BLOCK_SIZE
+#define BLKS_12 DM_BLOCK_SIZE
+
 #define GROW_S ((BLKS_1 * SIZE_C(1)) + (BLKS_2 * SIZE_C(2)) + \
 				(BLKS_3 * SIZE_C(3)) + (BLKS_4 * SIZE_C(4)) + \
 				(BLKS_5 * SIZE_C(5)) + (BLKS_6 * SIZE_C(6)) + \
@@ -207,11 +218,12 @@ void carve () {
 
  		int tasks = BOP_get_group_size();
 		//printf("In carve, task %d\n", tasks);
+		regions = dm_malloc (tasks * sizeof (ppr_list));
     assert (tasks >= 2);
     grow(tasks / 1.5);
-    if (regions != NULL) //remove old regions information
-        dm_free (regions);		//don't need old bounds anymore
-    regions = dm_malloc (tasks * sizeof (ppr_list));
+    //if (regions != NULL) //remove old regions information
+    //    dm_free (regions);		//don't need old bounds anymore
+
     int index, count, j, r;
     header *current_headers[NUM_CLASSES];
     header *temp = (header*) -1;
@@ -230,6 +242,7 @@ void carve () {
                 //the last task has no tail, use the same as seq. exectution
                 assert (temp != (header*) -1);
                 regions[r].end[index] = CAST_H (temp->free.prev);
+								//FIXME last task gets null ends...
             }
         }
     }
@@ -237,10 +250,12 @@ void carve () {
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
+		bop_msg(2,"Initializing task...");
 	  int group_num = spec_order;
     ppr_list my_list = regions[group_num];
     int ind;
     for (ind = 0; ind < NUM_CLASSES; ind++) {
+
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
     }
@@ -258,7 +273,7 @@ void malloc_promise() {
         BOP_promise(head, HSIZE); //payload doesn't matter
     memcpy(counts, promise_counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
-    malloc_merge_counts(0);
+    //malloc_merge_counts(0);
 }
 void malloc_merge_counts(bool aborted) {
     int index;
@@ -323,8 +338,22 @@ static inline header * get_header (size_t size, int *which) {
         found = headers[*which];
     }
     //clean up
-    if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
-        return NULL;
+		//if(found == NULL || (!SEQUENTIAL && (CAST_SH(found) == -1 || CAST_SH(found) == ends[*which]->free.next))){
+		//	bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+		//	return NULL;
+		//}
+    //if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
+    //    return NULL;
+		if(ends[*which]==NULL){
+			//NOTE this should automatically return null if it goes out of its memory range
+			//TODO make sure this is the case
+		}
+		else{
+			if(!SEQUENTIAL && (CAST_SH(found) == ends[*which]->free.next)){
+				bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+				return NULL;
+		}
+	}
     return found;
 }
 
@@ -338,7 +367,7 @@ void *dm_malloc (const size_t size) {
     int which = -2;
     header *block = get_header (alloc_size, &which);
     assert (which != -2);
-    ASSERT_VALID_COUNT(which);
+    //ASSERT_VALID_COUNT(which);
     if (block == NULL) {
         //no item in list. Either correct list is empty OR huge block
         if (SEQUENTIAL && alloc_size > MAX_SIZE) {
@@ -353,7 +382,7 @@ void *dm_malloc (const size_t size) {
             ASSERTBLK(block);
             release_lock();
             return PAYLOAD (block);
-        } else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+        } else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
             splits++;
 #endif
@@ -369,6 +398,7 @@ void *dm_malloc (const size_t size) {
             block->allocated.blocksize = sizes[which];
             assert (block != NULL);
         } else {
+						BOP_abort_spec("NOT ENOUGH MEMORY");
             //bop_abort
         }
     } else
@@ -424,6 +454,7 @@ static inline header* dm_split (int which) {
     block->free.next = CAST_SH (split);
     split->free.next = split->free.prev = NULL;
 
+		assert(counts[which]==0);
     counts[which] = 2; //for when the count is decremented by dm_malloc
     counts[larger]--;
 

@@ -14,7 +14,7 @@ void initialize( int );
 double lots_of_computation_on_block( int start, int end );
 
 int main(int argc, char ** argv)
-{ BOP_set_verbose(1);
+{ 
   int data_size, num_blocks;
   int block_size;
 

@@ -77,7 +77,7 @@ void BOP_record_write(void* addr, size_t size);
 typedef void monitor_t (void *, size_t);
 
 /* Called by a speculation process in case of error. */
-void BOP_abort_spec( char* msg );
+void BOP_abort_spec( const char* msg );
 void BOP_abort_next_spec( char* msg );
 
 /* FILE I/O */
@@ -93,7 +93,7 @@ mem_range_t *BOP_check_access(void* addr);
 // %--------------- For Debug ------------- %
 void bop_set_verbose( int );
 int bop_get_verbose( void );
-void bop_msg(int level, char * msg, ...);
+void bop_msg(int level, const char * msg, ...);
 
 /* For collecting statistics */
 typedef struct {
@@ -106,6 +106,40 @@ typedef struct {
 } stats_t;
 
 extern stats_t bop_stats;
+
+/* For BOP_malloc */
+void *_BOP_malloc(size_t sz, char *file, unsigned line);
+void *_BOP_calloc(size_t n_elements, size_t elem_size, char *file, unsigned line);
+void _BOP_free(void* mem, char *file, unsigned line);
+void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
+
+#include "dmmalloc.h"
+#include "malloc_wrapper.h"
+#define BOP_malloc( sz )	malloc( sz )
+#define BOP_alloc( n, s )	calloc( n, s )
+#define BOP_free( m )		free ( m )
+#define BOP_realloc( m, nsz )	realloc( m, nsz )
+
+
+// Original Code
+/*
+#define BOP_malloc( sz )  _BOP_malloc( sz, __FILE__, __LINE__ )
+#define BOP_calloc( n, s ) _BOP_calloc( n, s, __FILE__, __LINE__ )
+#define BOP_free( m ) _BOP_free( m, __FILE__, __LINE__ )
+#define BOP_realloc( m, nsz ) _BOP_realloc( m, nsz, __FILE__, __LINE__ )
+*/
+
+/* should be disabled if defining BOP_printf printf
+#define printf BOP_printf
+#define fprintf BOP_fprintf
+#define scanf BOP_abort_spec_group(); scanf
+#define fscanf BOP_abort_spec_group(); fscanf
+*/
+
+//#define BOP_malloc(s) malloc(s)
+//#define BOP_free(s) free(s)
+//#define BOP_realloc(p, s) realloc(p, s)
+//#define BOP_calloc(c, s) calloc(c, s)
 
 #define PAGESIZEX 12
 

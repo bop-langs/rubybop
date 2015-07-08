@@ -196,7 +196,7 @@ BOP_string* BOP_replace(BOP_string* original, char* find, char* replace) {
 						}
 					}
 					if (new_substring_size > old_substring_size) {
-						BOP_free(original->string[i]);
+						free(original->string[i]);
 						original->string[i] = ret;
 					}
 				} else if (jump_size < 0 && num_matches != 0) {
