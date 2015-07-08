@@ -253,6 +253,7 @@ void carve () {
                 //the last task has no tail, use the same as seq. exectution
                 assert (temp != (header*) -1);
                 regions[r].end[index] = CAST_H (temp->free.prev);
+								//FIXME last task gets null ends...
             }
         }
     }
@@ -260,7 +261,7 @@ void carve () {
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
-		bop_msg(1,"Initializing group...");
+		bop_msg(2,"Initializing task...");
 	  int group_num = spec_order;
     ppr_list my_list = regions[group_num];
     int ind;
@@ -348,11 +349,22 @@ static inline header * get_header (size_t size, int *which) {
         found = headers[*which];
     }
     //clean up
-		if(!SEQUENTIAL){
-			bop_msg(1, "Area where get_header needs ends defined");
-		}
+		//if(found == NULL || (!SEQUENTIAL && (CAST_SH(found) == -1 || CAST_SH(found) == ends[*which]->free.next))){
+		//	bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+		//	return NULL;
+		//}
     //if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
     //    return NULL;
+		if(ends[*which]==NULL){
+			//NOTE this should automatically return null if it goes out of its memory range
+			//TODO make sure this is the case
+		}
+		else{
+			if(!SEQUENTIAL && (CAST_SH(found) == ends[*which]->free.next)){
+				bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+				return NULL;
+		}
+	}
     return found;
 }
 
@@ -397,7 +409,7 @@ void *dm_malloc (const size_t size) {
             block->allocated.blocksize = sizes[which];
             assert (block != NULL);
         } else {
-						//abort();
+						BOP_abort_spec("NOT ENOUGH MEMORY");
             //bop_abort
         }
     } else
