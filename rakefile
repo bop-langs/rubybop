@@ -16,6 +16,8 @@ task :ruby => :bop do
       FileUtils.cp_r file, cp, :remove_destination => true
     end
   end
+  change = "./search.rb #{ruby_cp_dir}"
+  sh change
   cd ruby_cp_dir do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
