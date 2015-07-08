@@ -1,22 +1,8 @@
-
-ruby_dir = 'ruby'
-ruby_cp_dir = 'build/ruby'
-bop_dir = 'bop'
-bop_build_dir = 'build/bop'
-
 task :default => :ruby
 test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
 task :ruby => :bop do
   #build ruby
-  FileUtils.cp_r ruby_dir, ruby_cp_dir, :remove_destination => true #only copy if needed
-  dirs = Dir["#{bop_dir}/**/*.h"]
-  dirs.each do |file|
-    cp = file.to_s.sub bop_dir, bop_build_dir
-    if uptodate?  file, [cp] then
-      FileUtils.cp_r file, cp, :remove_destination => true
-    end
-  end
-  cd ruby_cp_dir do
+  cd "ruby" do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
       sh './configure --disable-install-doc'
@@ -31,9 +17,8 @@ task :bop do
     sh 'make'
   end
 end
-
 task :ruby_test => :ruby do
-  cd ruby_cp_dir do
+  cd "ruby" do
     sh 'make test' do |ok, res|
       if ! ok then
         fail "Ruby tests failed with exit code = #{res.exitstatus}"
@@ -41,7 +26,6 @@ task :ruby_test => :ruby do
     end
   end
 end
-
 task :bop_test => :bop do
   test_dir.each do |dir|
     cd 'tests/' + dir do
@@ -63,8 +47,12 @@ task :nuke do
 	sh 'git clean -xfd'
 end
 task :clean do
-	sh "rm -rdf #{ruby_cp_dir}" #ruby clean
-  cd bop_dir do
+	cd "ruby" do
+		if(File.exists?("Makefile")) then
+			sh 'make clean'
+		end
+	end
+  cd "bop" do
     sh 'make clean'
   end
   test_dir.each do |dir|
