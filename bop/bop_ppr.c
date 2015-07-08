@@ -415,18 +415,13 @@ static void wait_process() {
   assert (monitor_process_id != 0); //was set up in BOP_init correctly
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   while (monitor_process_id) {
-    if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
-      if (WIFSIGNALED(status)) {
+    if (((child = waitpid(monitor_group, &status, WUNTRACED | WNOHANG)) != -1)) {
+      if (child && WIFSIGNALED(status)) {
         bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
       }
     }
   }
 
-  /* We expect to get ECHILD, others are an error */
-  if (errno != ECHILD) {
-    perror("wait in initial process");
-    exit(-1);
-  }
   bop_msg(1, "Monitoring process ending");
   exit(0);
 }
