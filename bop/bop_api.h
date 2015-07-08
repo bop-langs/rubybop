@@ -74,7 +74,6 @@ void BOP_record_write(void* addr, size_t size);
 #define BOP_use( x, y ) BOP_record_read( x, y )
 #define BOP_promise( x, y ) BOP_record_write( x, y )
 
-#define BOP_obj_use_promise(x) bop_msg("BOP_use_promise_here")
 
 typedef void monitor_t (void *, size_t);
 
