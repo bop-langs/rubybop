@@ -11,7 +11,15 @@
 //extern bop_port_t ruby_monitor;
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
+extern void BOP_promise(void*, size_t);
+extern void BOP_use(void*, size_t);
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
+
+void
+BOP_obj_use_promise(VALUE obj){
+  //BOP_use(&obj,rb_obj_memsize_of(obj));
+  //BOP_promise(&obj,rb_obj_memsize_of(obj));
+}
 
 static VALUE
 ppr_puts(ppr, obj)

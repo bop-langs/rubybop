@@ -460,7 +460,10 @@ rb_iseq_new_with_opt(NODE *node, VALUE name, VALUE path, VALUE absolute_path,
 #define CHECK_HASH(v)    rb_convert_type((v), T_HASH, "Hash", "to_hash")
 #define CHECK_STRING(v)  rb_convert_type((v), T_STRING, "String", "to_str")
 #define CHECK_SYMBOL(v)  rb_convert_type((v), T_SYMBOL, "Symbol", "to_sym")
-static inline VALUE CHECK_INTEGER(VALUE v) {(void)NUM2LONG(v); return v;}
+static inline VALUE CHECK_INTEGER(VALUE v) {
+  (void)NUM2LONG(v);
+  return v;
+}
 
 static enum iseq_type
 iseq_type_from_sym(VALUE type)

@@ -1158,6 +1158,9 @@ VALUE rb_setup_fake_str(struct RString *fake_str, const char *name, long len, rb
 /* util.c (export) */
 extern const signed char ruby_digit36_to_number_table[];
 
+/* ppr.c */
+void BOP_obj_use_promise(VALUE obj);
+
 /* variable.c (export) */
 void rb_gc_mark_global_tbl(void);
 void rb_mark_generic_ivar(VALUE);
