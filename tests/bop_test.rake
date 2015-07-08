@@ -5,11 +5,12 @@ require 'pathname'
 $cc = 'gcc' if $cc.nil?
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
 $ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
-$incl = "../bop/"
+$incl = "../build/bop/"
+$bop_src = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_src.nil?
 $params = '' if $params.nil?
 
 # Location of BOP
-$bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?
+$bop_dir = (Pathname.new(__FILE__).dirname + '../build/bop/').cleanpath if $bop_dir.nil?
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
 # Objects and programs for clean and realclean
@@ -84,7 +85,7 @@ desc "Compile non-BOP test(s)"
 task :orig # Prereqs to be added by bop_test
 
 task :boplib do
-  sh "cd #{$bop_dir}; make"
+  sh "cd #{$bop_src}; make"
 end
 
 desc "Remove object files"
@@ -101,9 +102,7 @@ task :default => :all
 
 desc "Force a rebuild"
 task :force do
-  cd '../../bop' do
-    sh 'make -B'
-  end
+  Rake::Task[:bop].invoke
   Rake::Task[:clean].invoke
   Rake::Task[:all].invoke
 end
