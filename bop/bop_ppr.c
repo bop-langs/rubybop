@@ -31,8 +31,7 @@
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
 #define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
-
-int monitor_process_id;
+#define OWN_GROUP()   if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
 
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
@@ -50,7 +49,11 @@ static int ppr_static_id;
 stats_t bop_stats = { 0 };
 
 static int bopgroup;
+
+static int monitor_process_id = 0;
+static int prev_mon_proc;
 static int monitor_group = 0; //the process group that PPR tasks are using
+static bool is_monitoring = false;
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -382,10 +385,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid);
     abort( );
   }
-  if (getpid() == monitor_process_id){
-    monitor_process_id = 0;
-  }
-  // assert ( 0 );
+  is_monitoring = false;
 }
 
 /* Used to remove all SPEC tasks and MAIN when UNDY wins, when a spec group
@@ -412,17 +412,20 @@ static void wait_process() {
   int status;
   pid_t child;
   assert (monitor_group != 0); //was actually written by the PIPE before this call
-  assert (monitor_process_id != 0); //was set up in BOP_init correctly
+  is_monitoring = true;
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
-  while (monitor_process_id) {
+  while (is_monitoring) {
     if (((child = waitpid(monitor_group, &status, WUNTRACED | WNOHANG)) != -1)) {
       if (child && WIFSIGNALED(status)) {
-        bop_msg(1, "Child %d was terminated by signal %d", child, WTERMSIG(status));
+        bop_msg(1, "Child %d was terminated by signal %d (monitor %d)", child, WTERMSIG(status), getpid());
       }
     }
   }
 
-  bop_msg(1, "Monitoring process ending");
+  bop_msg(1, "Monitoring process %d ending (monitor_process_id = %d)", getpid(), monitor_process_id);
+  msg_destroy();
+  if (prev_mon_proc != 0)
+    kill(prev_mon_proc, SIGUSR1);
   exit(0);
 }
 
@@ -431,12 +434,15 @@ static void BOP_fini(void);
 extern int bop_verbose;
 extern int errno;
 char *strerror(int errnum);
+bool did_this_before = false;
 /* Initialize allocation map.  Insta4lls the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
-  monitor_process_id = getpid();
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
+  if(did_this_before)
+    return;
+  did_this_before = true;
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
@@ -469,6 +475,8 @@ void __attribute__ ((constructor)) BOP_init(void) {
     /* create a process to allow the use of time command */
     int pipe_fd[2]; //r/w file discribtors
     PIPE(pipe_fd);
+    prev_mon_proc = monitor_process_id;
+    monitor_process_id = getpid();
     int fd = fork();
 
     switch (fd) {
@@ -480,18 +488,18 @@ void __attribute__ ((constructor)) BOP_init(void) {
       //We must first set up process group
       close(pipe_fd[0]); //close read end
       //set up a new group
-      if (setpgid(0, 0) != 0) {
-        perror("setpgid");
-        exit(-1);
-      }
+      OWN_GROUP();
       monitor_group = -getpid(); //negative-> work on process group
+
       WRITE(pipe_fd[1], &monitor_group, sizeof(monitor_group));
       close(pipe_fd[1]);
       break;
     default:
+      //parent/original process
       close(pipe_fd[1]);   //close write end
       READ(pipe_fd[0], &monitor_group, sizeof(monitor_group));
       close(pipe_fd[0]);
+      OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
       wait_process();
       abort(); /* Should never get here */
     }
@@ -530,6 +538,10 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_ordered_port, "Bop Ordered Port");
   register_port(&bop_io_port, "I/O Port");
   register_port(&bop_alloc_port, "Malloc Port");
+}
+
+void execve_cleanup(void){
+  kill(monitor_process_id, SIGUSR1);
 }
 
 static void BOP_fini(void) {
@@ -575,6 +587,6 @@ static void BOP_fini(void) {
   bop_msg( 3, "A total of %d bytes are copied during the commit and %d bytes are posted during parallel execution. The speculation group size is %d.\n\n",
 	   bop_stats.data_copied, bop_stats.data_posted,
 	   BOP_get_group_size( ));
-  msg_destroy();
+  bop_msg(3, "Sending shutdown signal to monitor process %d from pid %d", monitor_process_id, getpid());
   kill(monitor_process_id, SIGUSR1);
 }
