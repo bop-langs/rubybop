@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <string.h>
 
 #include <semaphore.h> //BOP_msg locking
 #include <fcntl.h>
@@ -31,6 +32,7 @@
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
 #define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
+#define CLOSE(x) if(close(x)) {abort();}
 #define OWN_GROUP()   if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
 
 extern bop_port_t bop_io_port;
@@ -54,6 +56,15 @@ static int monitor_process_id = 0;
 static int prev_mon_proc;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
+
+//exec pipe
+#define READ_PORT(pipe) pipe[0]
+#define WRITE_PORT(pipe) pipe[1]
+#define MAX_EXEC_MSG 300
+static int exec_pipe[2];
+
+//Prototypes
+void exec_on_monitor(void);
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -393,7 +404,9 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR2 == signo );
   assert( cntxt );
-  if (task_status == SPEC || task_status == MAIN) {
+  if(getpid() == monitor_process_id){
+    exec_on_monitor();
+  }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"Exit upon receiving SIGUSR2");
     abort( );
   }
@@ -434,15 +447,13 @@ static void BOP_fini(void);
 extern int bop_verbose;
 extern int errno;
 char *strerror(int errnum);
-bool did_this_before = false;
+
 /* Initialize allocation map.  Insta4lls the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
-  if(did_this_before)
-    return;
-  did_this_before = true;
+  PIPE(exec_pipe);
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
@@ -540,10 +551,55 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
 }
 
-void exec_cleanup(void){
-  kill(monitor_process_id, SIGUSR1);
+void exec_on_monitor(){
+  int argv_len, envp_len, ind;
+  char filename[MAX_EXEC_MSG];
+
+  READ(READ_PORT(exec_pipe), filename, sizeof(filename)); //get file name
+  //argv
+  READ(READ_PORT(exec_pipe), &argv_len, sizeof(argv_len)); //get # argv
+  char * argv[argv_len];
+  for(ind = 0; ind < argv_len; ind++){
+    argv[argv_len] = malloc(MAX_EXEC_MSG * sizeof(char));
+    READ(READ_PORT(exec_pipe), argv[ind], MAX_EXEC_MSG);
+  }
+  //envp
+  READ(READ_PORT(exec_pipe), &envp_len, sizeof(envp_len)); //get # argv
+  if(envp_len > 0){
+    char * evnp[envp_len];
+    for(ind = 0; ind < envp_len; ind++){
+      evnp[argv_len] = malloc(MAX_EXEC_MSG * sizeof(char));
+      READ(READ_PORT(exec_pipe), evnp[ind], MAX_EXEC_MSG);
+    }
+    sys_execve(filename, argv, evnp);
+  }else{
+    sys_execv(filename, argv);
+  }
 }
 
+
+void cleanup_execv(const char *filename, char *const argv[]){
+  cleanup_execve(filename, argv, NULL);
+}
+
+void cleanup_execve(const char *filename, char *const argv[], char *const envp[]){
+  int ind, argv_len, envp_len;
+  argv_len = strlen( (char*) argv);
+  envp_len = envp == NULL ? 0 : strlen((char*) envp);
+  WRITE(WRITE_PORT(exec_pipe), filename, strlen(filename)); //write file name
+  bop_msg(1, "handling argv");
+  WRITE(WRITE_PORT(exec_pipe), &argv_len, sizeof(argv_len)); //num argv
+  for(ind = 0; ind < argv_len; ind++)
+    WRITE(WRITE_PORT(exec_pipe), argv[ind], strlen(argv[ind]));
+  bop_msg(1, "handling envp");
+  WRITE(WRITE_PORT(exec_pipe), &envp_len, sizeof(envp_len)); //num envp
+  for(ind = 0; ind < envp_len; ind++)
+    WRITE(WRITE_PORT(exec_pipe), envp[ind], strlen(envp[ind]));
+  bop_msg(1, "clean done");
+  close(WRITE_PORT(exec_pipe));
+  kill(monitor_process_id, SIGUSR2);
+  abort();
+}
 static void BOP_fini(void) {
 
   bop_msg(3, "An exit is reached");
