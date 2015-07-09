@@ -10,7 +10,7 @@ NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
 BOPDIR = ../bop/
-WRAPPER = ../bop/dmmalloc.o ../bop/malloc_wrapper.o
+WRAPPER = ../bop/dmmalloc.o ../bop/malloc_wrapper.o ../bop/sys_wrapper.o
 BOPFLAGS = -ldl -DBOP -pthread
 #### Start of system configuration section. ####
 
