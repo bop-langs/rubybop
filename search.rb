@@ -4,7 +4,8 @@ require 'find'
 $pre_terms = ["VALUE", "static", "void"]
 $search_terms = [/\(.*VALUE.*\)/, /\(.*\)/, /\{/]
 $next_terms = ["{"]
-$bad_terms = ["//", "for", "if", "while", "switch", /\t/ , "\\", "*", ";"]
+$blacklist = ["rb_obj_memsize_of"]
+$bad_terms = ["//", "for", "if", "while", "switch", /\t/ , "\\", "*", ";"]+$blacklist
 $bad_pre_terms = $bad_terms << "{}"
 $bad_next_terms = $bad_terms
 

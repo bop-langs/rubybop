@@ -17,8 +17,8 @@ extern void BOP_use(void*, size_t);
 
 void
 BOP_obj_use_promise(VALUE obj){
-  //BOP_use(&obj,rb_obj_memsize_of(obj));
-  //BOP_promise(&obj,rb_obj_memsize_of(obj));
+  BOP_use(&obj,rb_obj_memsize_of(obj));
+  BOP_promise(&obj,rb_obj_memsize_of(obj));
 }
 
 static VALUE
