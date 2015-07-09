@@ -4,6 +4,8 @@
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
 
+
+extern rb_objspace_t rb_objspace;
 //TODO get get ppr_mon to work
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
@@ -12,6 +14,17 @@
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
+
+rb_heap_t old_eden_heap;
+rb_heap_t old_tomb_heap;
+
+void set_rheap_null()
+{
+    old_eden_heap = rb_objspace.eden_heap;
+    old_tomb_heap = rb_objspace.tomb_heap;
+    rb_objspace.eden_heap = NULL;
+    rb_objspace.tomb_heap = NULL;
+}
 
 static VALUE
 ppr_puts(ppr, obj)
@@ -56,6 +69,7 @@ static VALUE
 ppr_call(ppr, args)
 VALUE ppr, args; /* OK */
 {
+    set_rheap_null();
   BOP_ppr_begin(1);
 
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
@@ -189,6 +203,7 @@ kernel_ordered(void)
 
 void
 Init_PPR() {
+    
     rb_cPPR = rb_define_class("PPR", rb_cProc);
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
     rb_define_method(rb_cPPR, "call", ppr_call, -2);
