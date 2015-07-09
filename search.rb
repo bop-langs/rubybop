@@ -8,6 +8,10 @@ $bad_terms = ["//", "for", "if", "while", "switch", /\t/ , "\\", "*", ";"]
 $bad_pre_terms = $bad_terms << "{}"
 $bad_next_terms = $bad_terms
 
+$accepted_files = [/\.c\Z/]
+#$accepted_files = ["array.c", "addr2line.c", "compile.c", "compar.c", "class.c" "gc.c"]
+$ignored_files = ["miniinit.c", "compar.c", "main.c", "ppr.c", "ppr_mon.c", "thread.c", "loadpath.c", "version.c", "localeinit.c", "dln.c","dmyext.c","dmyext.c", "compile.c", "load.c","dln_find.c",/ext/,  /enc/, /missing/, /win32/]
+
 $cutoff = 14
 
 
@@ -45,13 +49,8 @@ def find_args (line)
 end
 
 def parse_file(file_name)
-  #has_internal = false
-  #first_arg = 0
   file = File.readlines(file_name)
   file.each_with_index do |line, line_no|
-    #unless line.scan("internal.h").empty?
-    #  has_internal = true
-    #end
     prev_line = file[line_no -1]
     next_line = file[line_no +1]
     i = 0
@@ -68,40 +67,34 @@ def parse_file(file_name)
 
     if i >= $cutoff
       args = find_args(line)
-
-      args.each do |arg| file.insert(line_no+2, "BOP_obj_use_promise(#{arg});") end
-
-      #if first_arg == 0
-      #  first_arg = line_no
-      #end
+      args.each do |arg| file.insert(line_no+2, "\tBOP_obj_use_promise(#{arg});") end
     end
   end
-  #unless has_internal
-    #if first_arg > 0
-      #file.insert(first_arg - 1, "#include \"internal.h\"")
-    #end
-  #end
+  puts "modifying and writing file: #{file_name}"
   if File.exists?(file_name)
     File.delete(file_name)
   end
+
   File.open(file_name, mode="w+") do |f|
     f.puts(file)
   end
 end
 
 def find_files(path)
+  puts "reading files..."
   files = Array.new()
   cfiles = Array.new()
   Find.find(path) do |file_name|
-    if file_name.scan(/\.c\Z/).empty?
-      files << file_name
-    else
+    unless (search($accepted_files, file_name) - search($ignored_files, file_name)) <= 0
       #puts file_name
       cfiles << file_name
+    else
+      files<<file_name
     end
   end
   return files, cfiles
 end
 
 other, dotc = find_files(ARGV[0])
+puts "writing new files"
 dotc.each do |f| parse_file(f) end

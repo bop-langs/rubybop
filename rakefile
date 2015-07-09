@@ -10,6 +10,7 @@ task :ruby => :bop do
   #build ruby
   FileUtils.cp_r ruby_dir, ruby_cp_dir, :remove_destination => true #only copy if needed
   dirs = Dir["#{bop_dir}/**/*.h"]
+  puts "copying ruby directory"
   dirs.each do |file|
     cp = file.to_s.sub bop_dir, bop_build_dir
     if uptodate?  file, [cp] then
