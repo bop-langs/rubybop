@@ -2952,6 +2952,8 @@ obj_memsize_of(VALUE obj, int use_all_types)
 	break;
 
       default:
+        //printf("potential error\n");
+        return sizeof(RVALUE);//FIXME this probably will not work for more than testing...
 	rb_bug("objspace/memsize_of(): unknown data type 0x%x(%p)",
 	       BUILTIN_TYPE(obj), (void*)obj);
     }
