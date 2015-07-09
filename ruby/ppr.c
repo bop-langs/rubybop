@@ -13,12 +13,18 @@ extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 extern void BOP_promise(void*, size_t);
 extern void BOP_use(void*, size_t);
+static int recurse = 1;
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
 void
 BOP_obj_use_promise(VALUE obj){
-  BOP_use(&obj,rb_obj_memsize_of(obj));
-  BOP_promise(&obj,rb_obj_memsize_of(obj));
+  if(recurse){
+    recurse = 0;
+    int size = rb_obj_memsize_of(obj);
+    BOP_use(&obj,size);
+    BOP_promise(&obj,size);
+    recurse = 1;
+  }
 }
 
 static VALUE
