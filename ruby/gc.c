@@ -7980,8 +7980,8 @@ void set_rheap_null()
 {
     old_eden_heap = rb_objspace.eden_heap;
     old_tomb_heap = rb_objspace.tomb_heap;
-    rb_objspace.eden_heap = NULL;
-    rb_objspace.tomb_heap = NULL;
+    memset(&(rb_objspace.eden_heap), 0, sizeof(rb_heap_t));
+    memset(&(rb_objspace.tomb_heap), 0, sizeof(rb_heap_t));
 }
 
 /*

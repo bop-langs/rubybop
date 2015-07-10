@@ -4,8 +4,6 @@
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
 
-extern struct rb_objspace_t;
-extern rb_objspace_t rb_objspace;
 //TODO get get ppr_mon to work
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
