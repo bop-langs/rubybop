@@ -7973,6 +7973,10 @@ wmap_size(VALUE self)
 
 /*------------------Ruby Heap on PPR Mode------------------------*/
 
+//TODO: Currently, if a ruby process enters PPR mode, each task gets a copy of the heap and will try to allocate to the same virtual address.
+//Settings heaps to null should correct the issue, but stitching final heaps is still necessary to avoid space overhead
+
+
 rb_heap_t old_eden_heap;
 rb_heap_t old_tomb_heap;
 
