@@ -17,15 +17,10 @@
 #include "bop_ppr_sync.h"
 #include "utils.h"
 
-
-#define UNDY_SLEEP(s) sleep(s) //NOTE remember to get rid of this
-
 #ifndef NDEBUG
 #define VISUALIZE(s)
-//#define UNDY_SLEEP(s)
 #else
 #define VISUALIZE(s) bop_msg(1,s);
-
 #endif
 
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
@@ -207,7 +202,6 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
-  UNDY_SLEEP(10);
   // indicate the success of the understudy
   kill(0, SIGUSR2);
   kill(-monitor_group, SIGUSR1); //main requires a special signal?
