@@ -4,7 +4,7 @@
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
 
-
+extern struct rb_objspace_t;
 extern rb_objspace_t rb_objspace;
 //TODO get get ppr_mon to work
 
@@ -15,16 +15,7 @@ extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
-rb_heap_t old_eden_heap;
-rb_heap_t old_tomb_heap;
-
-void set_rheap_null()
-{
-    old_eden_heap = rb_objspace.eden_heap;
-    old_tomb_heap = rb_objspace.tomb_heap;
-    rb_objspace.eden_heap = NULL;
-    rb_objspace.tomb_heap = NULL;
-}
+extern void set_rheap_nulll(void);
 
 static VALUE
 ppr_puts(ppr, obj)

@@ -7971,6 +7971,19 @@ wmap_size(VALUE self)
 #endif
 }
 
+/*------------------Ruby Heap on PPR Mode------------------------*/
+
+rb_heap_t old_eden_heap;
+rb_heap_t old_tomb_heap;
+
+void set_rheap_null()
+{
+    old_eden_heap = rb_objspace.eden_heap;
+    old_tomb_heap = rb_objspace.tomb_heap;
+    rb_objspace.eden_heap = NULL;
+    rb_objspace.tomb_heap = NULL;
+}
+
 /*
   ------------------------------ GC profiler ------------------------------
 */
