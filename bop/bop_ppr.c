@@ -534,10 +534,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
 }
 
-void execve_cleanup(void){
-  kill(monitor_process_id, SIGUSR1);
-}
-
 static void BOP_fini(void) {
 
   bop_msg(3, "An exit is reached");

@@ -68,8 +68,6 @@ int BOP_get_verbose(void);
 void BOP_set_group_size(int sz);
 void BOP_set_verbose(int x);
 
-void execve_cleanup(void);
-
 /* Byte granularity interface */
 void BOP_record_read(void* addr, size_t size);
 void BOP_record_write(void* addr, size_t size);

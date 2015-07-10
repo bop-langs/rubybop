@@ -10,7 +10,7 @@
   Copyright (C) 2000  Information-technology Promotion Agency, Japan
 
 **********************************************************************/
-#include "../bop/bop_api.h"
+
 #include "internal.h"
 #include "ruby/io.h"
 #include "ruby/thread.h"
@@ -1271,14 +1271,10 @@ proc_exec_cmd(const char *prog, VALUE argv_str, VALUE envp_str)
     }
 # endif /* __EMX__ */
     envp = envp_str ? (char **)RSTRING_PTR(envp_str) : NULL;
-    if (envp_str){
-				execve_cleanup();
+    if (envp_str)
         execve(prog, argv, envp); /* async-signal-safe */
-		}
-    else{
-			execve_cleanup();
+    else
         execv(prog, argv); /* async-signal-safe */
-		}
     preserving_errno(try_with_sh(prog, argv, envp)); /* try_with_sh() is async-signal-safe. */
 # if defined(__EMX__) || defined(OS2)
     if (new_argv) {
