@@ -60,6 +60,8 @@ static bool is_monitoring = false;
 //exec pipe
 #define READ_PORT(pipe) pipe[0]
 #define WRITE_PORT(pipe) pipe[1]
+#define READ_EXE(b, c) READ(READ_PORT(exec_pipe), (b), (c))
+#define WRITE_EXE(b, c) WRITE(WRITE_PORT(exec_pipe), (b), (c))
 #define MAX_EXEC_MSG 300
 static int exec_pipe[2];
 
@@ -552,27 +554,40 @@ void __attribute__ ((constructor)) BOP_init(void) {
 }
 
 void exec_on_monitor(){
-  int argv_len, envp_len, ind;
-  char filename[MAX_EXEC_MSG];
+  int argv_len, envp_len, ind, str_size;
+  bop_msg(1, "exec on montior begin");
+  READ_EXE( &str_size, sizeof(str_size));
 
-  READ(READ_PORT(exec_pipe), filename, sizeof(filename)); //get file name
+  char filename[str_size];
+  READ_EXE( filename, str_size); //get file name
+  bop_msg(1, "mon file name %s size %d", filename, str_size);
   //argv
-  READ(READ_PORT(exec_pipe), &argv_len, sizeof(argv_len)); //get # argv
+  READ_EXE( &argv_len, sizeof(argv_len)); //get # argv
+  bop_msg(1, "argv_len %d", argv_len);
   char * argv[argv_len];
   for(ind = 0; ind < argv_len; ind++){
-    argv[argv_len] = malloc(MAX_EXEC_MSG * sizeof(char));
-    READ(READ_PORT(exec_pipe), argv[ind], MAX_EXEC_MSG);
+    READ_EXE( &str_size, sizeof(str_size));
+    argv[ind] = calloc(str_size, sizeof(char));
+    READ_EXE( argv[ind], str_size);
+    bop_msg(1, "argv[%d]= %s size %d", ind, argv[ind], str_size);
   }
   //envp
-  READ(READ_PORT(exec_pipe), &envp_len, sizeof(envp_len)); //get # argv
+  READ_EXE( &envp_len, sizeof(envp_len)); //get # argv
+  bop_msg(1, "envp_len %d", envp_len);
   if(envp_len > 0){
     char * evnp[envp_len];
     for(ind = 0; ind < envp_len; ind++){
-      evnp[argv_len] = malloc(MAX_EXEC_MSG * sizeof(char));
-      READ(READ_PORT(exec_pipe), evnp[ind], MAX_EXEC_MSG);
+      READ_EXE( &str_size, sizeof(str_size));
+      evnp[ind] = calloc(str_size, sizeof(char));
+      READ_EXE( evnp[ind], str_size);
+      bop_msg(1, "evnp[%d]= %s", ind, evnp[ind]);
     }
+    bop_msg(1, "executing sys_execve");
+    close(READ_PORT(exec_pipe));
     sys_execve(filename, argv, evnp);
   }else{
+    bop_msg(1, "executing sys_execv");
+    close(READ_PORT(exec_pipe));
     sys_execv(filename, argv);
   }
 }
@@ -583,19 +598,28 @@ void cleanup_execv(const char *filename, char *const argv[]){
 }
 
 void cleanup_execve(const char *filename, char *const argv[], char *const envp[]){
-  int ind, argv_len, envp_len;
+  int ind, argv_len, envp_len, str_size;
   argv_len = strlen( (char*) argv);
   envp_len = envp == NULL ? 0 : strlen((char*) envp);
-  WRITE(WRITE_PORT(exec_pipe), filename, strlen(filename)); //write file name
-  bop_msg(1, "handling argv");
-  WRITE(WRITE_PORT(exec_pipe), &argv_len, sizeof(argv_len)); //num argv
-  for(ind = 0; ind < argv_len; ind++)
-    WRITE(WRITE_PORT(exec_pipe), argv[ind], strlen(argv[ind]));
-  bop_msg(1, "handling envp");
-  WRITE(WRITE_PORT(exec_pipe), &envp_len, sizeof(envp_len)); //num envp
-  for(ind = 0; ind < envp_len; ind++)
-    WRITE(WRITE_PORT(exec_pipe), envp[ind], strlen(envp[ind]));
-  bop_msg(1, "clean done");
+  str_size = strlen(filename);
+  WRITE_EXE( &str_size, sizeof(str_size));
+  WRITE_EXE( filename, str_size); //write file name
+  bop_msg(1, "writing argv");
+  WRITE_EXE( &argv_len, sizeof(argv_len)); //num argv
+  for(ind = 0; ind < argv_len && argv[ind] != NULL; ind++){
+    str_size = strlen(argv[ind]);
+    bop_msg(1, "writing %s size %d", argv[ind], str_size);
+    WRITE_EXE( argv[ind], str_size);
+  }
+
+  bop_msg(1, "wrting envp");
+  WRITE_EXE( &envp_len, sizeof(envp_len)); //num envp
+  for(ind = 0; ind < envp_len && envp[ind] != NULL; ind++){
+    str_size = strlen(envp[ind]);
+    bop_msg(1, "writing %s size %d", envp[ind], str_size);
+    WRITE_EXE(envp[ind], str_size);
+  }
+  bop_msg(1, "write-clean done");
   close(WRITE_PORT(exec_pipe));
   kill(monitor_process_id, SIGUSR2);
   abort();
