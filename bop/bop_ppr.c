@@ -59,15 +59,18 @@ static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
 
 //exec pipe
+#ifdef EXEC_ON_MONITOR
 #define READ_PORT(pipe) pipe[0]
 #define WRITE_PORT(pipe) pipe[1]
 #define READ_EXE(b, c) READ(READ_PORT(exec_pipe), (b), (c))
 #define WRITE_EXE(b, c) WRITE(WRITE_PORT(exec_pipe), (b), (c))
 #define MAX_EXEC_MSG 300
 static int exec_pipe[2];
-
 //Prototypes
 void exec_on_monitor(void);
+#endif
+
+
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -408,7 +411,9 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR2 == signo );
   assert( cntxt );
   if(getpid() == monitor_process_id){
+#ifdef EXEC_ON_MONITOR
     exec_on_monitor();
+#endif
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"Exit upon receiving SIGUSR2");
     abort( );
@@ -455,7 +460,9 @@ void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
+#ifdef EXEC_ON_MONITOR
   PIPE(exec_pipe);
+#endif
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
@@ -551,8 +558,9 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_ordered_port, "Bop Ordered Port");
   register_port(&bop_io_port, "I/O Port");
   register_port(&bop_alloc_port, "Malloc Port");
+  bop_msg(3, "Library initialized successfully.");
 }
-
+#ifdef EXEC_ON_MONITOR
 void exec_on_monitor(){
   int argv_len, envp_len, ind, str_size;
   bop_msg(1, "exec on montior begin");
@@ -600,6 +608,7 @@ void exec_on_monitor(){
     bop_msg(1, "executing sys_execve");
     //close(READ_PORT(exec_pipe));
     errno = 0;
+    close(READ_PORT(exec_pipe));
     int err = sys_execve(filename, argv, evnp);
     bop_msg(1, "ERROR: sys_execve returned! val = %d errno = %s", err, errno);
   }else{
@@ -610,14 +619,16 @@ void exec_on_monitor(){
     bop_msg(1, "ERROR: sys_execv returned! val = %d errno = %d", err, errno);
   }
 }
-
+#endif
 
 void cleanup_execv(const char *filename, char *const argv[]){
   cleanup_execve(filename, argv, NULL);
 }
 
 void cleanup_execve(const char *filename, char *const argv[], char *const envp[]){
-  bop_msg(1, "Begin cleanup. filename = %s envp null = %d", filename, envp == NULL);
+#ifdef EXEC_ON_MONITOR
+  bop_msg(1, "Begin cleanup. filename = %s envp null = %d monitor_process_id = %d", filename, envp == NULL, monitor_process_id);
+  assert(exec_pipe != NULL);
   int ind, argv_len, envp_len, str_size;
   argv_len = strlen( (char*) argv);
   envp_len = envp == NULL || envp[0] == NULL ? 0 : strlen((char*) envp);
@@ -645,8 +656,14 @@ void cleanup_execve(const char *filename, char *const argv[], char *const envp[]
   }
   bop_msg(1, "write-clean done");
   close(WRITE_PORT(exec_pipe));
+  bop_msg(1, "write end of pipe closed");
   kill(monitor_process_id, SIGUSR2);
+  bop_msg(1, "sent monitor_process_id SIGUSR2");
   abort();
+#else
+  kill(monitor_process_id, SIGABRT);
+  sys_execve(filename, argv, envp);
+#endif
 }
 static void BOP_fini(void) {
 
