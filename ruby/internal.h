@@ -1037,7 +1037,7 @@ extern VALUE ruby_engine_name;
 void BOP_obj_use(VALUE obj);
 void BOP_obj_promise(VALUE obj);
 
-void BOP_obj_use_promise(VALUE obj){;
+void BOP_obj_use_promise(VALUE obj);
 
 /* vm_insnhelper.h */
 rb_serial_t rb_next_class_serial(void);
