@@ -13,6 +13,21 @@ extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
+extern void BOP_use(void*, size_t);
+extern void BOP_promise(void*, size_t);
+
+void BOP_obj_use(VALUE obj){
+  BOP_use((void*) obj, rb_obj_memsize_of(obj));
+}
+void BOP_obj_promise(VALUE obj){
+  BOP_promise((void*) obj, rb_obj_memsize_of(obj));
+}
+
+void BOP_obj_use_promise(VALUE obj){
+  BOP_obj_use(obj);
+  BOP_obj_promise(obj);
+}
+
 static VALUE
 ppr_puts(ppr, obj)
 VALUE ppr, obj;
