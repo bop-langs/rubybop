@@ -10,7 +10,6 @@
   Copyright (C) 2000  Information-technology Promotion Agency, Japan
 
 **********************************************************************/
-
 #include "internal.h"
 #include "ruby/io.h"
 #include "ruby/thread.h"
@@ -1278,8 +1277,8 @@ proc_exec_cmd(const char *prog, VALUE argv_str, VALUE envp_str)
     preserving_errno(try_with_sh(prog, argv, envp)); /* try_with_sh() is async-signal-safe. */
 # if defined(__EMX__) || defined(OS2)
     if (new_argv) {
-	xfree(new_argv[0]);
-	xfree(new_argv);
+			xfree(new_argv[0]);
+			xfree(new_argv);
     }
 # endif
     return -1;

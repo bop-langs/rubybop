@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <errno.h>
+#include <string.h>
 
 #include <semaphore.h> //BOP_msg locking
 #include <fcntl.h>
@@ -26,6 +28,7 @@
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
 #define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
+#define CLOSE(x) if(close(x)) {abort();}
 #define OWN_GROUP()   if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
 
 extern bop_port_t bop_io_port;
@@ -49,6 +52,20 @@ static int monitor_process_id = 0;
 static int prev_mon_proc;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
+
+//exec pipe
+#ifdef EXEC_ON_MONITOR
+#define READ_PORT(pipe) pipe[0]
+#define WRITE_PORT(pipe) pipe[1]
+#define READ_EXE(b, c) READ(READ_PORT(exec_pipe), (b), (c))
+#define WRITE_EXE(b, c) WRITE(WRITE_PORT(exec_pipe), (b), (c))
+#define MAX_EXEC_MSG 300
+static int exec_pipe[2];
+//Prototypes
+void exec_on_monitor(void);
+#endif
+
+
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -387,7 +404,11 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR2 == signo );
   assert( cntxt );
-  if (task_status == SPEC || task_status == MAIN) {
+  if(getpid() == monitor_process_id){
+#ifdef EXEC_ON_MONITOR
+    exec_on_monitor();
+#endif
+  }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"Exit upon receiving SIGUSR2");
     abort( );
   }
@@ -427,16 +448,15 @@ static void BOP_fini(void);
 
 extern int bop_verbose;
 extern int errno;
-char *strerror(int errnum);
-bool did_this_before = false;
+
 /* Initialize allocation map.  Insta4lls the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
-  if(did_this_before)
-    return;
-  did_this_before = true;
+#ifdef EXEC_ON_MONITOR
+  PIPE(exec_pipe);
+#endif
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
@@ -532,8 +552,113 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_ordered_port, "Bop Ordered Port");
   register_port(&bop_io_port, "I/O Port");
   register_port(&bop_alloc_port, "Malloc Port");
+  bop_msg(3, "Library initialized successfully.");
+}
+#ifdef EXEC_ON_MONITOR
+void exec_on_monitor(){
+  int argv_len, envp_len, ind, str_size;
+  bop_msg(1, "exec on montior begin");
+  READ_EXE( &str_size, sizeof(str_size));
+  bop_msg(1, "file name size = %d", str_size);
+  char filename[str_size];
+  memset(filename, 0, str_size);
+  READ_EXE( filename, str_size); //get file name
+  bop_msg(1, "read mon file name %s size %d", filename, str_size);
+  //argv
+  READ_EXE( &argv_len, sizeof(argv_len)); //get # argv
+  bop_msg(1, "read argv_len %d", argv_len);
+  char * argv[argv_len + 1];
+  for(ind = 0; ind < argv_len -1; ind++){
+    READ_EXE( &str_size, sizeof(str_size));
+    bop_msg(1, "read ind %d size %d", ind, str_size);
+    if(str_size > 0){
+      argv[ind] = calloc(str_size, sizeof(char));
+      READ_EXE( argv[ind], str_size);
+    }else
+      argv[ind] = NULL;
+    bop_msg(1, "read argv[%d]= %s size %d", ind, argv[ind], str_size);
+  }
+  argv[argv_len] = NULL; //array is made one larger
+  bop_msg(1, "MON: finished reading argv");
+  //envp
+
+  envp_len = 0;
+  //TODO enable: READ_EXE( &envp_len, sizeof(envp_len)); //get # argv
+
+  bop_msg(1, "read envp_len %d", envp_len);
+  if(envp_len > 0){
+    char * evnp[envp_len + 1];
+    for(ind = 0; ind < envp_len; ind++){
+      READ_EXE( &str_size, sizeof(str_size));
+      if(str_size > 0){
+        evnp[ind] = calloc(str_size, sizeof(char));
+        READ_EXE( evnp[ind], str_size);
+      }else{
+        evnp[ind] = NULL;
+      }
+      bop_msg(1, "read evnp[%d]= %s", ind, evnp[ind]);
+    }
+    evnp[envp_len] = NULL; //array is made one larger
+    bop_msg(1, "executing sys_execve");
+    //close(READ_PORT(exec_pipe));
+    errno = 0;
+    close(READ_PORT(exec_pipe));
+    int err = sys_execve(filename, argv, evnp);
+    bop_msg(1, "ERROR: sys_execve returned! val = %d errno = %s", err, errno);
+  }else{
+    bop_msg(1, "executing sys_execv");
+    close(READ_PORT(exec_pipe));
+    errno = 0;
+    int err = sys_execv(filename, argv);
+    bop_msg(1, "ERROR: sys_execv returned! val = %d errno = %d", err, errno);
+  }
+}
+#endif
+
+void cleanup_execv(const char *filename, char *const argv[]){
+  cleanup_execve(filename, argv, NULL);
 }
 
+void cleanup_execve(const char *filename, char *const argv[], char *const envp[]){
+#ifdef EXEC_ON_MONITOR
+  bop_msg(1, "Begin cleanup. filename = %s envp null = %d monitor_process_id = %d", filename, envp == NULL, monitor_process_id);
+  assert(exec_pipe != NULL);
+  int ind, argv_len, envp_len, str_size;
+  argv_len = strlen( (char*) argv);
+  envp_len = envp == NULL || envp[0] == NULL ? 0 : strlen((char*) envp);
+  str_size = strlen(filename);
+  WRITE_EXE( &str_size, sizeof(str_size)); //length of file
+  WRITE_EXE( filename, str_size); //write file name
+  bop_msg(1, "writing argv");
+  WRITE_EXE( &argv_len, sizeof(argv_len)); //num argv
+  for(ind = 0; ind < argv_len && argv[ind] != NULL; ind++){
+    str_size = strlen(argv[ind]);
+    WRITE_EXE(&str_size, sizeof(str_size));
+    bop_msg(1, "writing %s size %d", argv[ind], str_size);
+    WRITE_EXE( argv[ind], str_size);
+  }
+
+  bop_msg(1, "wrting envp_len= %d", envp_len);
+  WRITE_EXE( &envp_len, sizeof(envp_len)); //num envp
+  if(envp_len != 0){
+	  for(ind = 0; ind < envp_len && envp[ind] != NULL; ind++){
+		str_size = strlen(envp[ind]);
+		WRITE_EXE(&str_size, sizeof(str_size));
+		bop_msg(1, "writing %s size %d", envp[ind], str_size);
+		WRITE_EXE(envp[ind], str_size);
+	  }
+  }
+  bop_msg(1, "write-clean done");
+  close(WRITE_PORT(exec_pipe));
+  bop_msg(1, "write end of pipe closed");
+  kill(monitor_process_id, SIGUSR2);
+  bop_msg(1, "sent monitor_process_id SIGUSR2");
+  abort();
+#else
+  kill(monitor_process_id, SIGABRT);
+  sys_execve(filename, argv, envp);
+#endif
+}
 static void BOP_fini(void) {
 
   bop_msg(3, "An exit is reached");
