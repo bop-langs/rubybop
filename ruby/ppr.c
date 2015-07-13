@@ -27,6 +27,7 @@ void BOP_obj_use_promise(VALUE obj){
   BOP_obj_use(obj);
   BOP_obj_promise(obj);
 }
+extern void set_rheap_nulll(void);
 
 static VALUE
 ppr_puts(ppr, obj)
@@ -71,6 +72,7 @@ static VALUE
 ppr_call(ppr, args)
 VALUE ppr, args; /* OK */
 {
+    set_rheap_null();
   BOP_ppr_begin(1);
 
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
@@ -204,6 +206,7 @@ kernel_ordered(void)
 
 void
 Init_PPR() {
+
     rb_cPPR = rb_define_class("PPR", rb_cProc);
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
     rb_define_method(rb_cPPR, "call", ppr_call, -2);
