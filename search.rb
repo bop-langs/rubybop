@@ -12,7 +12,7 @@ $bad_next_terms = $bad_terms
 $accepted_files = [/\.c\Z/]
 #$accepted_files = ["main.c","thread.c", "loadpath.c", "version.c", "localeinit.c", "dln.c","dmyext.c","dmyext.c", "compile.c", "load.c", "dln_find.c", "goruby.c","eval_jump.c", "enum.c", "enumerator.c","inits.c", "file.c","iseq.c", "pack.c", "safe.c", "marshal.c","random.c", "sparc.c","array.c", "bignum.c", "addr2line.c","error.c", "parse.c", "st.c", "re.c", "node.c", "debug.c"]
 $ignored_files = ["miniinit.c", "compar.c", "ppr.c", "ppr_mon.c",
-  #"ruby.c", "eval.c", "gc.c", "io.c", "dir.c", "hash.c", "st.c",
+  "ruby.c", "eval.c", "gc.c", "io.c", "dir.c", "hash.c", "st.c",
   /vm/, /ext/,  /enc/, /missing/, /win32/, /nacl/]
 
 $cutoff = 14

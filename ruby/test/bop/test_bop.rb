@@ -1,4 +1,3 @@
-PPR.verbose(3);
 
 t1 = Time.now.to_f
 

@@ -21,8 +21,13 @@ BOP_obj_use_promise(VALUE obj){
   if(recurse){
     recurse = 0;
     int size = rb_obj_memsize_of(obj);
-    BOP_use(&obj,size);
-    BOP_promise(&obj,size);
+    if(size > 0 ){
+      BOP_use(&obj,size);
+      BOP_promise(&obj,size);
+    }
+    else{
+      bop_msg(1, "Incorrect size in use promise");
+    }
     recurse = 1;
   }
 }
