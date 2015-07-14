@@ -19,7 +19,7 @@ task :bop do
 end
 task :ruby_test => :ruby do
   cd "ruby" do
-    sh 'make test' do |ok, res|
+    sh './ruby --disable-gems ./bootstraptest/runner.rb' do |ok, res|
       if ! ok then
         fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
