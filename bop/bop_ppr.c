@@ -19,11 +19,7 @@
 #include "bop_ppr_sync.h"
 #include "utils.h"
 
-#ifndef NDEBUG
 #define VISUALIZE(s)
-#else
-#define VISUALIZE(s) bop_msg(1,s);
-#endif
 
 #define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
@@ -54,7 +50,7 @@ static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
 
 //exec pipe
-#ifdef EXEC_ON_MONITOR
+#ifdef OVERRIDE_EXEC
 #define READ_PORT(pipe) pipe[0]
 #define WRITE_PORT(pipe) pipe[1]
 #define READ_EXE(b, c) READ(READ_PORT(exec_pipe), (b), (c))
@@ -64,8 +60,6 @@ static int exec_pipe[2];
 //Prototypes
 void exec_on_monitor(void);
 #endif
-
-
 
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
@@ -383,6 +377,14 @@ void _BOP_ppr_end(int id) {
    All processes have the same SIGUSR1 and SIGUSR2 handlers.
 
 */
+void MonitorInteruptFwd(int signo){
+  bop_msg(3, "forwarding SIGINT to children of pgrp %d", monitor_group);
+  assert(signo == SIGINT);
+  assert(getpid() == monitor_process_id);
+
+  kill(monitor_group, SIGINT);
+  is_monitoring = false; //stop monitoring
+}
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
 
@@ -396,7 +398,8 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid);
     abort( );
   }
-  is_monitoring = false;
+  if(getpid() == monitor_process_id)
+    is_monitoring = false;
 }
 
 /* Used to remove all SPEC tasks and MAIN when UNDY wins, when a spec group
@@ -405,8 +408,10 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR2 == signo );
   assert( cntxt );
   if(getpid() == monitor_process_id){
-#ifdef EXEC_ON_MONITOR
+#ifdef OVERRIDE_EXEC
     exec_on_monitor();
+#else
+    bop_msg(2, "Monitoring process got sig2 from pid %d when not in OVERRIDE_EXEC mode", siginfo->si_pid);
 #endif
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"Exit upon receiving SIGUSR2");
@@ -439,8 +444,6 @@ static void wait_process() {
 
   bop_msg(1, "Monitoring process %d ending (monitor_process_id = %d)", getpid(), monitor_process_id);
   msg_destroy();
-  if (prev_mon_proc != 0)
-    kill(prev_mon_proc, SIGUSR1);
   exit(0);
 }
 
@@ -454,7 +457,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
-#ifdef EXEC_ON_MONITOR
+#ifdef OVERRIDE_EXEC
   PIPE(exec_pipe);
 #endif
   struct sigaction action;
@@ -510,10 +513,13 @@ void __attribute__ ((constructor)) BOP_init(void) {
       break;
     default:
       //parent/original process
+
       close(pipe_fd[1]);   //close write end
       READ(pipe_fd[0], &monitor_group, sizeof(monitor_group));
       close(pipe_fd[0]);
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
+      //fowrard SIGINT to children/monitor group
+      signal( SIGINT, MonitorInteruptFwd );
       wait_process();
       abort(); /* Should never get here */
     }
@@ -542,7 +548,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   task_status = SEQ;
 
   /* prepare related signals */
-  signal( SIGINT, SigBopExit );
+  signal( SIGINT, SigBopExit ); //user-process
   signal( SIGQUIT, SigBopExit );
   signal( SIGTERM, SigBopExit );
 
@@ -554,7 +560,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
   bop_msg(3, "Library initialized successfully.");
 }
-#ifdef EXEC_ON_MONITOR
+#ifdef OVERRIDE_EXEC
 void exec_on_monitor(){
   int argv_len, envp_len, ind, str_size;
   bop_msg(1, "exec on montior begin");
@@ -613,14 +619,13 @@ void exec_on_monitor(){
     bop_msg(1, "ERROR: sys_execv returned! val = %d errno = %d", err, errno);
   }
 }
-#endif
+
 
 void cleanup_execv(const char *filename, char *const argv[]){
   cleanup_execve(filename, argv, NULL);
 }
 
 void cleanup_execve(const char *filename, char *const argv[], char *const envp[]){
-#ifdef EXEC_ON_MONITOR
   bop_msg(1, "Begin cleanup. filename = %s envp null = %d monitor_process_id = %d", filename, envp == NULL, monitor_process_id);
   assert(exec_pipe != NULL);
   int ind, argv_len, envp_len, str_size;
@@ -654,11 +659,8 @@ void cleanup_execve(const char *filename, char *const argv[], char *const envp[]
   kill(monitor_process_id, SIGUSR2);
   bop_msg(1, "sent monitor_process_id SIGUSR2");
   abort();
-#else
-  kill(monitor_process_id, SIGABRT);
-  sys_execve(filename, argv, envp);
-#endif
 }
+#endif
 static void BOP_fini(void) {
 
   bop_msg(3, "An exit is reached");

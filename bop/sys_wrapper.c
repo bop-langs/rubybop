@@ -1,5 +1,5 @@
 //Wraps various system functions. Similar design to malloc_wrapper
-
+#ifdef EXEC_ON_MONITOR
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
@@ -7,14 +7,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "bop_api.h"
-
-#define GEN_SYS(name, p...)\
-  int sys_##name (p){\
-    if(!(libc_##name))\
-      libc_##name = load_function(#name);\
-    return (libc_##name)
-
-
 
 void* load_function(char* name){
   void* val = dlsym(RTLD_NEXT, name);
@@ -26,54 +18,16 @@ void* load_function(char* name){
   return val;
 }
 
-#define GET_MACRO(_1,_2,_3,_4, NAME,...) NAME
-#define GENERATE(...) GET_MACRO(__VA_ARGS__, GENERATE4, GENERATE3)(__VA_ARGS__)
-
-#define GENERATE4(name, fn, argv, envp)\
-  static int (*libc_##name)(const char* fn, char * const ag[], char * const enp[]); \
-  int name (const char *fn, char *const argv[], char *const envp[]){ \
-  if(!(libc_##name)) \
-    libc_##name = load_function(#name);\
-  cleanup_##name(fn, argv, envp); \
-  bop_msg(2, "libc %s is at %p", #name, libc_##name); \
-  assert(libc_##name != NULL); \
-  return (libc_##name)(fn, argv, envp);}\
-  int sys_##name (const char *fn, char *const argv[], char *const envp[]){ \
-  if(!(libc_##name)) \
-    libc_##name = load_function(#name);\
-  bop_msg(2, "libc %s is at %p", #name, libc_##name); \
-  assert(libc_##name != NULL); \
-  return (libc_##name)(fn, argv, envp);}
-
-#define GENERATE3(name, fn, argv)\
-    static int (*libc_##name)(const char*, char *, const x[]); \
-    int name (const char *fn, char *const argv[]){ \
-    if(!(libc_##name)) \
-      libc_##name = load_function(#name);\
-    cleanup_##name(fn, argv); \
-    bop_msg(2, "libc %s is at %p", #name, libc_##name); \
-    assert(libc_##name != NULL); \
-    return (libc_##name)(fn, argv);}\
-    int sys_##name (const char *fn, char *const argv[]){ \
-    if(!(libc_##name)) \
-      libc_##name = load_function(#name);\
-    bop_msg(2, "libc %s is at %p", #name, libc_##name); \
-    assert(libc_##name != NULL); \
-    return (libc_##name)(fn, argv);}
-
-
-GENERATE(execve, filename, a, b);
-//GENERATE(execv, fn, argv)
-
-static int (*libc_execv)(const char *filename, char *const argv[]) = NULL;
-
-int execv(const char *filename, char *const argv[]){
-  cleanup_execv(filename, argv);
+int execve(const char *filename, char *const argv[], char *const envp[]){
+  bop_msg(3, "caught execve call for %s", filename);
+  cleanup_execve(filename, argv, envp);
   //should never get here...
-  return sys_execv(filename, argv);
+  bop_msg(1, "cleanup_execve returned!");
+  return sys_execv(filename, argv, envp);
 }
 
-int sys_execv (const char *filename, char *const argv[]){
+int sys_execve (const char *filename, char *const argv[]){
+  static int (*libc_execve)(const char *filename, char *const argv[], char *const envp[]);
   if(libc_execv == NULL){
     libc_execv = load_function("execv");
   }
@@ -81,3 +35,26 @@ int sys_execv (const char *filename, char *const argv[]){
   assert(libc_execv != NULL);
   return (libc_execv)(filename, argv);
 }
+
+
+
+
+int execv(const char *filename, char *const argv[]){
+  bop_msg(3, "caught execv call for %s", filename);
+  cleanup_execv(filename, argv);
+  //should never get here...
+  bop_msg(1, "cleanup_execve returned!");
+  return sys_execv(filename, argv);
+}
+
+int sys_execv (const char *filename, char *const argv[]){
+  static int (*libc_execv)(const char *filename, char *const argv[]);
+  if(libc_execv == NULL){
+    libc_execv = load_function("execv");
+  }
+  bop_msg(2, "libc %s is at %p", "execv", libc_execv);
+  assert(libc_execv != NULL);
+  return (libc_execv)(filename, argv);
+}
+
+#endif

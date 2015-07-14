@@ -5,19 +5,22 @@ OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tre
 ALL = $(OBJS) $(TESTS)
 
 CFLAGS = -Wall -fPIC -pthread -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(CUSTOMDEF)
-CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
+CUSTOMDEF = -D USE_DL_PREFIX -DBOP -D__LINUX__ -U NDEBUG
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
-DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
+DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS
+ARCHIVE = inst.a
 
-library: $(OBJS)
-	ar r inst.a $(OBJS)
-	ranlib inst.a
-all: $(ALL)
+library: $(ARCHIVE)
+
+$(ARCHIVE): $(OBJS)
+	ar r $(ARCHIVE) $(OBJS)
+	ranlib $(ARCHIVE)
+
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: $(ALL)
+debug: library
 
-%_wrapper.o: %_wrapper.c
+%_wrapper.o: %_wrapper.c #wrappers are assumed to use dlsym, which breaks with optimizations
 	$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
 
 %.o: %.c
