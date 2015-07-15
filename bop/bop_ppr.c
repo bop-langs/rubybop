@@ -427,24 +427,55 @@ void SigBopExit( int signo ){
  *
  * Waits until all children have exited before exiting itself.
  */
-
+ #define DEF_EXIT 0 //assume it works unless shown otherwise
+int report_child(pid_t child, int status){
+  if(child == -1 || !child)
+    return DEF_EXIT;
+  char * msg;
+  int val = -1;
+  int rval = DEF_EXIT;
+  if(WIFEXITED(status)){
+    msg = "Child %d exited with value %d";
+    rval = val = WEXITSTATUS(status);
+  }else if(WIFSIGNALED(status)){
+    msg = "Child %d was terminated by signal %d (monitor %d)";
+    val =  WTERMSIG(status);
+  }else if(WIFSTOPPED(status)){
+    msg = "Child %d was stopped by signal %d";
+    val = WSTOPSIG(status);
+  }else if(WIFCONTINUED(status)){
+    msg = "Child %d was continued";
+  }
+  if(val != -1)
+    bop_msg(1, msg, child, val);
+  else
+    bop_msg(1, msg, child);
+  return rval;
+}
 static void wait_process() {
   int status;
   pid_t child;
   assert (monitor_group != 0); //was actually written by the PIPE before this call
   is_monitoring = true;
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
+  int my_exit = 0; //success
   while (is_monitoring) {
     if (((child = waitpid(monitor_group, &status, WUNTRACED | WNOHANG)) != -1)) {
-      if (child && WIFSIGNALED(status)) {
-        bop_msg(1, "Child %d was terminated by signal %d (monitor %d)", child, WTERMSIG(status), getpid());
-      }
+      my_exit |= report_child(child, status); //we only care about zero v. not-zero
     }
   }
-
-  bop_msg(1, "Monitoring process %d ending (monitor_process_id = %d)", getpid(), monitor_process_id);
+  //handle remaining processes. Above may not have gotten everything
+  while (((child = waitpid(monitor_group, &status, WUNTRACED | WNOHANG)) != -1)) {
+    my_exit |= report_child(child, status); //we only care about zero v. not-zero
+  }
+  if(errno != ECHILD){
+    perror("Error in wait_process");
+    exit(EXIT_FAILURE);
+  }
+  my_exit = my_exit ? EXIT_FAILURE : EXIT_SUCCESS;
+  bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
-  exit(0);
+  exit(my_exit);
 }
 
 static void BOP_fini(void);
