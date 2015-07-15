@@ -521,9 +521,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   /* setting up the timing process and initialize the SEQ task */
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
-    int pipe_fd[2]; //r/w file discribtors
-    PIPE(pipe_fd);
-    prev_mon_proc = monitor_process_id;
     monitor_process_id = getpid();
     int fd = fork();
 
@@ -534,24 +531,17 @@ void __attribute__ ((constructor)) BOP_init(void) {
     case 0:
       /* Child process continues after switch */
       //We must first set up process group
-      close(pipe_fd[0]); //close read end
       //set up a new group
       OWN_GROUP();
       monitor_group = -getpid(); //negative-> work on process group
-
-      WRITE(pipe_fd[1], &monitor_group, sizeof(monitor_group));
-      close(pipe_fd[1]);
       break;
     default:
-      //parent/original process
-
-      close(pipe_fd[1]);   //close write end
-      READ(pipe_fd[0], &monitor_group, sizeof(monitor_group));
-      close(pipe_fd[0]);
+      monitor_group = -fd; //child will set up its call
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
+
       //fowrard SIGINT to children/monitor group
-      signal( SIGINT, MonitorInteruptFwd );
-      wait_process();
+      signal( SIGINT, MonitorInteruptFwd ); //sigint
+      wait_process(); //never returns
       abort(); /* Should never get here */
     }
 
@@ -707,7 +697,7 @@ static void BOP_fini(void) {
       task_group_commit( );
       task_group_succ_fini( );
     }
-    exit( 0 );
+    return;
 
   case UNDY:
     kill(0, SIGUSR2);
