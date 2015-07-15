@@ -19,20 +19,12 @@ task :bop do
 end
 
 task :ruby_test => :ruby do
-#Previous ruby_test
-=begin
   cd "ruby" do
-    sh 'make test' do |ok, res|
-      #Ignore Errors
-    end
+		sh './ruby --disable-gems ./bootstraptest/runner.rb'
+			if ! ok then
+         fail "Ruby tests failed with exit code = #{res.exitstatus}"
+      end
   end
-=end
-#New ruby_test (calls runrubyfunc without exec(*cmd))
-#./ruby --disable-gems ./bootstraptest/runner.rb
-=begin
-	ruby "runrubyfunc.rb
-=end
-	'./ruby --disable-gems ./bootstraptest/runner.rb'
 	puts "Finished running all tests"
 end
 
