@@ -2,7 +2,8 @@ require 'pathname'
 #### Global variables
 
 # Compiler config
-$cc = 'gcc' if $cc.nil?
+$cc = ENV['CC']
+$cc = 'gcc' if $cc =='cc'
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
 $ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
 $incl = "../bop/"
