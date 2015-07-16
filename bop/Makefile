@@ -1,27 +1,36 @@
 #NOTE: for malloc_wrapper to build correctly it cannot be compiled with optimizaitons (ie don't specify -O option). All other seperate files can be compiled with optimizations as normal and still build correctly.
 
-CC = gcc
+CC ?= gcc
+ifeq ($(CC), cc)
+  CC = gcc
+endif
 OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o sys_wrapper.o
 ALL = $(OBJS) $(TESTS)
 
-CFLAGS = -Wall -fPIC -pthread -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(CUSTOMDEF)
-CUSTOMDEF = -D USE_DL_PREFIX -DBOP -D__LINUX__ -U NDEBUG
+CFLAGS = -Wall -fPIC -pthread -g3 -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)
+CUSTOMDEF = -D USE_DL_PREFIX -D BOP
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
-DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS
-ARCHIVE = inst.a
+DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 
-library: $(ARCHIVE)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    PLATFORM += -D__LINUX__
+endif
+ifeq ($(UNAME_S),Darwin)
+    PLATFORM += -D__OSX__
+    CUSTOMDEF += -D_XOPEN_SOURCE
+endif
 
-$(ARCHIVE): $(OBJS)
-	ar r $(ARCHIVE) $(OBJS)
-	ranlib $(ARCHIVE)
-
+library: $(OBJS)
+	ar r inst.a $(OBJS)
+	ranlib inst.a
+all: $(ALL)
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: library
+debug: $(ALL)
 
-%_wrapper.o: %_wrapper.c #wrappers are assumed to use dlsym, which breaks with optimizations
-	$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
+malloc_wrapper.o: malloc_wrapper.c
+		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
 
 %.o: %.c
 	$(CC) -c -o $@ $^ $(CFLAGS)
