@@ -8,7 +8,7 @@
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
 //TODO get this to work
-extern bop_port_t ruby_monitor;
+//extern bop_port_t ruby_monitor;
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
@@ -16,18 +16,42 @@ extern int _BOP_ppr_end();
 extern void BOP_use(void*, size_t);
 extern void BOP_promise(void*, size_t);
 
+#ifndef SEQUENTIAL
+#define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
+#endif
+
+static int recurse = 1;
+
 void BOP_obj_use(VALUE obj){
-  bop_msg(0, "Using object %p at address %p with size %d", (obj), &obj, rb_obj_memsize_of(obj));
-  BOP_use(&obj, rb_obj_memsize_of(obj));
+  if (recurse){
+    int size = 0;
+    recurse = 0;
+    size = rb_obj_memsize_of(obj);
+    if(size!=0){
+      bop_msg(4, "Using object %p at address %p with size %d", (obj), &obj, size);
+      BOP_use(&obj, size);
+    }
+    recurse = 1;
+  }
 }
 void BOP_obj_promise(VALUE obj){
-  bop_msg(0, "Promising object %p at address %p with size %d", (obj), &obj, rb_obj_memsize_of(obj));
-  BOP_promise(&obj, rb_obj_memsize_of(obj));
+  if (recurse){
+    int size = 0;
+    recurse = 0;
+    size = rb_obj_memsize_of(obj);
+    if(size!=0){
+      bop_msg(4, "Promising object %p at address %p with size %d", (obj), &obj, size);
+      BOP_promise(&obj, size);
+    }
+    recurse = 1;
+  }
 }
 
 void BOP_obj_use_promise(VALUE obj){
-  BOP_obj_use(obj);
-  BOP_obj_promise(obj);
+  if(!SEQUENTIAL && (obj != NULL || obj != 0x40)){
+    BOP_obj_use(obj);
+    BOP_obj_promise(obj);
+  }
 }
 extern void set_rheap_nulll(void);
 
@@ -133,7 +157,7 @@ VALUE ppr, obj;
     return Qnil;
 }
 //TODO get these to work
-
+/*
 extern st_table *ppr_pot;
 void bop_scan_table( st_table* );
 
@@ -165,7 +189,7 @@ get_pot(void)
   st_foreach( ppr_pot, add_i, ary );
   return ary;
 }
-
+*/
 
 static VALUE
 ppr_ppr_index(ppr)
@@ -245,7 +269,7 @@ Init_PPR() {
     rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 0);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
-    rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
+    //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
     rb_define_singleton_method(rb_cPPR, "abort_spec", ppr_abort_spec, 1);
     rb_define_singleton_method(rb_cPPR, "abort_next_spec", ppr_abort_next_spec, 1);
 
@@ -257,7 +281,7 @@ Init_PPR() {
     rb_define_method(rb_mKernel, "PPR", kernel_ppr, 0);
 
     //TODO get this uncommented
-    register_port(&ruby_monitor, "Ruby Object Monitoring Port");
+    //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
 }
 
