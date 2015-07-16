@@ -47,11 +47,12 @@ void BOP_obj_promise(VALUE obj){
   }
 }
 
-void BOP_obj_use_promise(VALUE obj){
-  if(!SEQUENTIAL && (obj != NULL || obj != 0x40)){
+void _BOP_obj_use_promise(VALUE obj, char* file, int line){
+  //if(!SEQUENTIAL && (obj != NULL || obj != 0x40)){
+    bop_msg(3, "USE PROMISE file: %s line %d", file, line);
     BOP_obj_use(obj);
     BOP_obj_promise(obj);
-  }
+  //}
 }
 extern void set_rheap_nulll(void);
 

@@ -12,7 +12,6 @@
 **********************************************************************/
 
 #include "internal.h"
-#include "../bop/bop_api.h"
 #include "ruby/st.h"
 #include "ruby/re.h"
 #include "ruby/io.h"
@@ -2844,6 +2843,7 @@ rb_obj_id(VALUE obj)
 }
 
 #include "regint.h"
+extern void bop_msg(int level, const char * msg, ...);
 
 static size_t
 obj_memsize_of(VALUE obj, int use_all_types)
