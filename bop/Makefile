@@ -19,6 +19,7 @@ ifeq ($(UNAME_S),Linux)
 endif
 ifeq ($(UNAME_S),Darwin)
     PLATFORM += -D__OSX__
+    CUSTOMDEF += -D_XOPEN_SOURCE
 endif
 
 library: $(OBJS)
