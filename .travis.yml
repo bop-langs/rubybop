@@ -5,6 +5,12 @@ compiler:
 os:
   - linux
   - osx
+
+matrix:
+  exclude:
+  - os: osx
+    compiler: gcc
+      
 #dependencies for the ruby language
 before_install:
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then sudo apt-get -qq update; fi"
