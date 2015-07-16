@@ -4,7 +4,7 @@ compiler:
   - clang
 os:
   - linux
-  - osx Disable OSX buids on master until the issues are resolved
+  - osx
 
 matrix:
   exclude: #gcc/osx causes issues
