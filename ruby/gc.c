@@ -12,6 +12,7 @@
 **********************************************************************/
 
 #include "internal.h"
+#include "../bop/bop_api.h"
 #include "ruby/st.h"
 #include "ruby/re.h"
 #include "ruby/io.h"
@@ -2952,8 +2953,8 @@ obj_memsize_of(VALUE obj, int use_all_types)
 	break;
 
       default:
-        printf("potential error\n");
-        return sizeof(RVALUE);//FIXME this probably will not work for more than testing...
+      bop_msg(1, "potential error\n");
+      return 0;//FIXME this probably will not work for more than testing...
 	rb_bug("objspace/memsize_of(): unknown data type 0x%x(%p)",
 	       BUILTIN_TYPE(obj), (void*)obj);
     }
