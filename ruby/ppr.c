@@ -28,7 +28,7 @@ void BOP_obj_use(VALUE obj){
     recurse = 0;
     size = rb_obj_memsize_of(obj);
     if(size!=0){
-      bop_msg(4, "Using object %p at address %p with size %d", (obj), &obj, size);
+      bop_msg(5, "Using object %p at address %p with size %d", (obj), &obj, size);
       BOP_use(&obj, size);
     }
     recurse = 1;
@@ -40,7 +40,7 @@ void BOP_obj_promise(VALUE obj){
     recurse = 0;
     size = rb_obj_memsize_of(obj);
     if(size!=0){
-      bop_msg(4, "Promising object %p at address %p with size %d", (obj), &obj, size);
+      bop_msg(5, "Promising object %p at address %p with size %d", (obj), &obj, size);
       BOP_promise(&obj, size);
     }
     recurse = 1;

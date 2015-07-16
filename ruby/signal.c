@@ -1428,52 +1428,5 @@ Init_signal(void)
     rb_alias(rb_eSignal, rb_intern_const("signm"), rb_intern_const("message"));
     rb_define_method(rb_eInterrupt, "initialize", interrupt_init, -1);
 
-    /* At this time, there is no subthread. Then sigmask guarantee atomics. */
-    rb_disable_interrupt();
-
-    install_sighandler(SIGINT, sighandler);
-#ifdef SIGHUP
-    install_sighandler(SIGHUP, sighandler);
-#endif
-#ifdef SIGQUIT
-    install_sighandler(SIGQUIT, sighandler);
-#endif
-#ifdef SIGTERM
-    install_sighandler(SIGTERM, sighandler);
-#endif
-#ifdef SIGALRM
-    install_sighandler(SIGALRM, sighandler);
-#endif
-#ifdef SIGUSR1
-    install_sighandler(SIGUSR1, sighandler);
-#endif
-#ifdef SIGUSR2
-    install_sighandler(SIGUSR2, sighandler);
-#endif
-
-    if (!ruby_enable_coredump) {
-#ifdef SIGBUS
-	install_sighandler(SIGBUS, (sighandler_t)sigbus);
-#endif
-#ifdef SIGILL
-	install_sighandler(SIGILL, (sighandler_t)sigill);
-#endif
-#ifdef SIGSEGV
-# ifdef USE_SIGALTSTACK
-	rb_register_sigaltstack(GET_THREAD());
-# endif
-	install_sighandler(SIGSEGV, (sighandler_t)sigsegv);
-#endif
-    }
-#ifdef SIGPIPE
-    install_sighandler(SIGPIPE, SIG_IGN);
-#endif
-
-#if defined(SIGCLD)
-    init_sigchld(SIGCLD);
-#elif defined(SIGCHLD)
-    init_sigchld(SIGCHLD);
-#endif
-
-    rb_enable_interrupt();
+    /* Where the old signal handlers were */
 }
