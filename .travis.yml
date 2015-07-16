@@ -4,9 +4,15 @@ compiler:
   - clang
 os:
   - linux
-#  - osx Disable OSX buids on master until the issues are resolved
+  - osx Disable OSX buids on master until the issues are resolved
+
+matrix:
+  exclude: #gcc/osx causes issues
+  - os: osx
+    compiler: gcc
 #dependencies for the ruby language
-sudo: false #remove for OSX or makesure autoconf & openssl are installed
+
+sudo: false
 addons:
   apt:
     packages:
