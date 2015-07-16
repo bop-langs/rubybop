@@ -1,7 +1,7 @@
 load '../bop_test.rake'
 
 if RUBY_PLATFORM.include?("darwin")
-  $cflags = $cflags + " -D__MACH__" 
+  $cflags = $cflags + " -D__MACH__"
 end
 
 # To add stack size
