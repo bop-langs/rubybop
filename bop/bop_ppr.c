@@ -25,7 +25,9 @@
 #define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
 #define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
 #define CLOSE(x) if(close(x)) {abort();}
-#define OWN_GROUP()   if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
+#define OWN_GROUP() if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
+#define READ_PORT(pipe) pipe[0]
+#define WRITE_PORT(pipe) pipe[1]
 
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
@@ -45,14 +47,16 @@ stats_t bop_stats = { 0 };
 static int bopgroup;
 
 static int monitor_process_id = 0;
-static int prev_mon_proc;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
 
+static void BOP_abort_spec_2(bool, const char*); //only for in this function
+static void __attribute__((noreturn)) wait_process(void);
+static void __attribute__((noreturn)) end_clean(void); //exit if children errored or call abort
+static int  cleanup_children(void); //returns the value that end_clean would call with _exit (or 0 if would have aborted)
+
 //exec pipe
 #ifdef OVERRIDE_EXEC
-#define READ_PORT(pipe) pipe[0]
-#define WRITE_PORT(pipe) pipe[1]
 #define READ_EXE(b, c) READ(READ_PORT(exec_pipe), (b), (c))
 #define WRITE_EXE(b, c) WRITE(WRITE_PORT(exec_pipe), (b), (c))
 #define MAX_EXEC_MSG 300
@@ -167,8 +171,7 @@ int _BOP_ppr_begin(int id) {
 //  bop_msg(2, "Abort all speculation because %s", msg );
 //  kill( 0, SIGUSR2 );
 // }
-
-void BOP_abort_spec( const char *msg ) {
+static void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;
@@ -183,8 +186,14 @@ void BOP_abort_spec( const char *msg ) {
     bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
     signal_commit_done( );
-    abort( );  /* die silently */
+    if(really_abort)
+      end_clean(); //abort();  /* die silently, but reap children*/
+    else
+      bop_msg(2, "WARNING: Not calling abort to preserve exit values");
   }
+}
+void BOP_abort_spec( const char *msg ) {
+  BOP_abort_spec_2(true, msg); //original behavior
 }
 
 void BOP_abort_next_spec( char *msg ) {
@@ -281,7 +290,8 @@ void _task_group_commit( void ) {
       task_status = SEQ;
       return;
     }
-    else abort( );  /* UNDY has run ahead */
+    else
+      end_clean();//abort( );  /* UNDY has run ahead */
   }
 
   wait_group_commit_done( );
@@ -313,7 +323,7 @@ void ppr_task_commit( void ) {
   /* Earlier spec aborted further tasks */
   if ( spec_order >= partial_group_get_size( ) ) {
   	  bop_msg( 4, "ppr task outside group size" );
-  	  abort( );
+  	  abort( ); //error
   }
 
   _ppr_check_correctness( );
@@ -335,7 +345,7 @@ void ppr_task_commit( void ) {
     return;
   }
 
-  abort( );
+  end_clean();//abort( );
 }
 
 void _BOP_ppr_end(int id) {
@@ -374,6 +384,8 @@ void _BOP_ppr_end(int id) {
    SPEC group.  The second is by the succeeding SPEC sending SIGUSR2
    to Undy.
 
+   In addition, the monitor/timing process begins it's clean up process when it recieves SigUsr1. If OVERRIDE_EXEC is defined at compile-time, the monitoring process starts reading a pipe from the process that executed the exec* call. This feature is experimental and extremely buggy.
+
    All processes have the same SIGUSR1 and SIGUSR2 handlers.
 
 */
@@ -391,15 +403,16 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if (task_status == UNDY) {
     bop_msg(3,"Understudy concedes the race (sender pid %d)", siginfo->si_pid);
     signal_undy_conceded( );
-    abort( );
+    abort( ); //has no children. don't reap
   }
   if (task_status == SPEC || task_status == MAIN) {
     if ( spec_order == partial_group_get_size() - 1 ) return;
-    bop_msg(3,"Quiting after the last spec succeeds", siginfo->si_pid);
-    abort( );
+    bop_msg(3,"Quiting after the last spec succeeds (sender pid %d)", siginfo->si_pid);
+    end_clean(); //wait for children. doesn't return
   }
-  if(getpid() == monitor_process_id)
+  if(getpid() == monitor_process_id){
     is_monitoring = false;
+  }
 }
 
 /* Used to remove all SPEC tasks and MAIN when UNDY wins, when a spec group
@@ -411,10 +424,11 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 #ifdef OVERRIDE_EXEC
     exec_on_monitor();
 #else
-    bop_msg(2, "Monitoring process got sig2 from pid %d when not in OVERRIDE_EXEC mode", siginfo->si_pid);
+    //should never get here
+    bop_msg(2, "ERR: Monitoring process got sig2 from pid %d when not in OVERRIDE_EXEC mode", siginfo->si_pid);
 #endif
   }else if (task_status == SPEC || task_status == MAIN) {
-    bop_msg(3,"Exit upon receiving SIGUSR2");
+    bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
     abort( );
   }
 }
@@ -438,13 +452,16 @@ int report_child(pid_t child, int status){
     msg = "Child %d exited with value %d";
     rval = val = WEXITSTATUS(status);
   }else if(WIFSIGNALED(status)){
-    msg = "Child %d was terminated by signal %d (monitor %d)";
+    msg = "Child %d was terminated by signal %d";
     val =  WTERMSIG(status);
   }else if(WIFSTOPPED(status)){
     msg = "Child %d was stopped by signal %d";
     val = WSTOPSIG(status);
   }else if(WIFCONTINUED(status)){
     msg = "Child %d was continued";
+  }else{
+    msg = "Child %d exit unkown status = %d";
+    val = status;
   }
   if(val != -1)
     bop_msg(1, msg, child, val);
@@ -452,30 +469,53 @@ int report_child(pid_t child, int status){
     bop_msg(1, msg, child);
   return rval;
 }
+
+//don't actually need this
 static void wait_process() {
   int status;
   pid_t child;
   assert (monitor_group != 0); //was actually written by the PIPE before this call
-  is_monitoring = true;
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   int my_exit = 0; //success
   while (is_monitoring) {
-    if (((child = waitpid(monitor_group, &status, WUNTRACED | WNOHANG)) != -1)) {
-      my_exit |= report_child(child, status); //we only care about zero v. not-zero
+    if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
+      my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
     }
   }
   //handle remaining processes. Above may not have gotten everything
-  while (((child = waitpid(monitor_group, &status, WUNTRACED | WNOHANG)) != -1)) {
-    my_exit |= report_child(child, status); //we only care about zero v. not-zero
+  while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
+    my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
   }
   if(errno != ECHILD){
     perror("Error in wait_process");
-    exit(EXIT_FAILURE);
+    _exit(EXIT_FAILURE);
   }
-  my_exit = my_exit ? EXIT_FAILURE : EXIT_SUCCESS;
+  my_exit = my_exit ? 1 : 0;
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
-  exit(my_exit);
+  _exit(my_exit);
+}
+static void child_handler(int signo){
+  assert(signo == SIGCHLD);
+  int val = cleanup_children();
+  if(val)
+    _exit(val);
+}
+int cleanup_children(){
+  int my_exit = 0;
+  pid_t child;
+  int status;
+  while((child = waitpid(monitor_group, &status, WUNTRACED)) != -1){ //any child
+    my_exit = my_exit ||  report_child(child, status);
+  }
+  return my_exit;
+}
+void end_clean(){
+  int exit_code = cleanup_children();
+  if(exit_code)
+    _exit(exit_code);
+  else
+    abort();
 }
 
 static void BOP_fini(void);
@@ -483,7 +523,7 @@ static void BOP_fini(void);
 extern int bop_verbose;
 extern int errno;
 
-/* Initialize allocation map.  Insta4lls the timer process. */
+/* Initialize allocation map.  Installs the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
@@ -509,8 +549,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
   msg_init();
-  /* malloc init must come before anything that requires mspace allocation */
-  // bop_malloc_init( 2 );
 
   /* start the time */
   struct timeval tv;
@@ -536,22 +574,17 @@ void __attribute__ ((constructor)) BOP_init(void) {
       monitor_group = -getpid(); //negative-> work on process group
       break;
     default:
-      monitor_group = -fd; //child will set up its call
+      monitor_group = -fd; //child will set up its monitor_group variable
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
 
-      //fowrard SIGINT to children/monitor group
-      signal( SIGINT, MonitorInteruptFwd ); //sigint
+      //forward SIGINT to children/monitor group
+      signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
+      is_monitoring = true; //the real monitor process is the only one to actually loop
       wait_process(); //never returns
       abort(); /* Should never get here */
     }
 
     /* the child process continues */
-
-    /* Ensure we are always in our own process group. */
-    /*if (setpgid(0, 0) != 0) {
-      perror("setpgid");
-      exit(-1);
-    } */
 
     /* register BOP_End at exit */
     if (atexit(BOP_fini)) {
@@ -568,10 +601,11 @@ void __attribute__ ((constructor)) BOP_init(void) {
   assert(getpgrp() == -monitor_group);
   task_status = SEQ;
 
-  /* prepare related signals */
+  /* prepare related signals. Need these???*/
   signal( SIGINT, SigBopExit ); //user-process
   signal( SIGQUIT, SigBopExit );
   signal( SIGTERM, SigBopExit );
+  signal( SIGCHLD, child_handler);
 
   /* Load ports */
   register_port(&bop_merge_port, "Copy-n-merge Port");
@@ -682,22 +716,38 @@ void cleanup_execve(const char *filename, char *const argv[], char *const envp[]
   abort();
 }
 #endif
-static void BOP_fini(void) {
 
-  bop_msg(3, "An exit is reached");
+char* status_name(){
+  switch (task_status) {
+  case SPEC:
+    return "SPEC";
+  case UNDY:
+    return "UNDY";
+  case MAIN:
+    return "MAIN";
+  case SEQ:
+    return "SEQ";
+  default:
+    return "UNKOWN";
+  }
+}
+static void BOP_fini(void) {
+  bop_msg(3, "An exit is reached in %s mode", status_name());
 
   switch (task_status) {
   case SPEC:
-    BOP_abort_spec( "SPEC reached an exit");  /* will abort */
-    kill(0, SIGUSR2); //send SIGUSR to spec group -> own group
-
+    BOP_abort_spec_2(true, "SPEC reached an exit");  /* will abort */
+    signal(SIGUSR2, SIG_IGN);
+    kill(0, SIGUSR2); //send SIGUSR to spec group but not ourself-> own group
+    //everything is termininating
     if (bop_mode == SERIAL) {
       data_commit( );
       partial_group_set_size( 1 );
       task_group_commit( );
       task_group_succ_fini( );
     }
-    return;
+    goto kill_monitor;
+    break;
 
   case UNDY:
     kill(0, SIGUSR2);
@@ -711,6 +761,7 @@ static void BOP_fini(void) {
     break;
 
   default:
+    bop_msg(1, "invalid task status in bop_fini");
     assert(0); //should never get here
   }
 
@@ -718,13 +769,21 @@ static void BOP_fini(void) {
   gettimeofday(&tv, NULL);
   double bop_end_time = tv.tv_sec+(tv.tv_usec/1000000.0);
 
-  bop_msg( 1, "\n***BOP Report***\n The total run time is %.2lf seconds.  There were %d ppr tasks, %d executed speculatively and %d non-speculatively (%d by main and %d by understudy).\n",
+  bop_msg( 1, "\n***BOP Report***\n The total run time is %.2lf seconds.  There were %d ppr tasks, %d executed speculatively and %d non-speculatively (%d by main and %d by understudy). pid %d\n",
 	   bop_end_time - bop_stats.start_time, ppr_index,
-	   bop_stats.num_by_spec, bop_stats.num_by_undy + bop_stats.num_by_main, bop_stats.num_by_main, bop_stats.num_by_undy);
+	   bop_stats.num_by_spec, bop_stats.num_by_undy + bop_stats.num_by_main, bop_stats.num_by_main, bop_stats.num_by_undy, getpid());
 
   bop_msg( 3, "A total of %d bytes are copied during the commit and %d bytes are posted during parallel execution. The speculation group size is %d.\n\n",
 	   bop_stats.data_copied, bop_stats.data_posted,
 	   BOP_get_group_size( ));
-  bop_msg(3, "Sending shutdown signal to monitor process %d from pid %d", monitor_process_id, getpid());
-  kill(monitor_process_id, SIGUSR1);
+
+
+  kill_monitor:
+    bop_msg(3, "Final process forwarding children...");
+    int exitv = cleanup_children();
+    bop_msg(3, "Sending shutdown signal to monitor process %d from pid %d", monitor_process_id, getpid());
+    kill(monitor_process_id, SIGUSR1);
+    if(exitv)
+      _exit(exitv);
+    //don't need to call normal exit,
 }
