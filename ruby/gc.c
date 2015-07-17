@@ -7251,6 +7251,10 @@ objspace_malloc_gc_stress(rb_objspace_t *objspace)
     }
 }
 
+
+//BOP Notes
+//objspace_malloc_increase seems to take the final call from xmalloc/xrealloc/xfree calls, and performs operations on the objectspace
+
 static void
 objspace_malloc_increase(rb_objspace_t *objspace, void *mem, size_t new_size, size_t old_size, enum memop_type type)
 {
