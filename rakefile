@@ -22,7 +22,6 @@ task :ruby_test => :ruby do
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
 		sh './ruby --disable-gems ./bootstraptest/runner.rb'
-#Just gonna comment out since gives undefined error
 			if ! ok then
          fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
@@ -30,7 +29,6 @@ task :ruby_test => :ruby do
 	puts "Finished running all tests"
 end
 
-#Took out some parts to make sh ignore unsuccessful commands
 task :bop_test => :bop do
   test_dir.each do |dir|
 		cd 'tests/' + dir do
