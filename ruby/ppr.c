@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "ppr.h"
+#include "gc.h"
 #include "internal.h"
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
@@ -114,7 +115,7 @@ ppr_promise(VALUE ppr, VALUE obj)
 
 static VALUE
 ppr_call(ppr, args)
-VALUE ppr, args; /* OK */
+VALUE ppr, args; /* Currently does not work... */
 {
     //set_rheap_null();
   //BOP_ppr_begin(1);
@@ -139,9 +140,11 @@ ppr_yield()
 {
     //set_rheap_null();
     BOP_ppr_begin(1);
+        rb_gc_disable();
         //set_rheap_null();
         bop_msg(0,"yielding block...");
         rb_yield(0);
+        rb_gc_enable();
     BOP_ppr_end(1);
     return 0;
 }

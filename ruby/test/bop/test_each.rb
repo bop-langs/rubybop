@@ -1,25 +1,25 @@
 puts "start"
-a = 1
-b = 2
-c = 3
-d = 4
+a = "1"
+b = "2"
+c = "3"
+d = "4"
 
 PPR.yield{
-  sleep(1); puts a; a = "FIRE"
+    a="good"
+    sleep(1)
   }
 PPR.yield{
-  sleep(1); puts b; b="good2"
+    b="good"
+    sleep(1)
   }
 PPR.yield{
-  sleep(1); puts c; c="goodgood3"
+  c="good"
+  sleep(1)
   }
 PPR.yield{
-  sleep(1); puts d; d="goodgoodgood4"
+  d="good"
+  sleep(1);
   }
-
-
-
-
 
 puts a
 puts b

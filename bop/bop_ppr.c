@@ -302,8 +302,8 @@ void ppr_task_commit( void ) {
 
   /* Earlier spec aborted further tasks */
   if ( spec_order >= partial_group_get_size( ) ) {
-  	  bop_msg( 4, "ppr task outside group size" );
-  	  abort( );
+  	  bop_msg( 2, "ppr task outside group size" );
+  	  abort();
   }
 
   _ppr_check_correctness( );
