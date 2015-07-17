@@ -127,7 +127,7 @@ def run
   $progs.each do |prog|
     cmd = "./#{prog} #{$params}"
     sh cmd do |ok, res|
-      if ! ok  && cmd.include? '_bop' then
+      if ! ok  && cmd.includes?(_bop) then
         fail "cbop test #{cmd} failed with code #{res.exitstatus}"
       else
         puts "\ncbop test #{cmd} successful" #new line
