@@ -12,12 +12,15 @@
 #include "external/malloc.h"
 #include "dmmalloc.h"
 #include "malloc_wrapper.h"
+#include "bop_api.h"
 
 #ifndef NDEBUG
 #define VISUALIZE(s)
 #else
 #define VISUALIZE(s) printf(s); fflush(stdout);
 #endif
+
+#define SPEC_VISUALIZE(s) if(!SEQUENTIAL) bop_msg(s)
 
 
 #define TABLESIZE 100000
@@ -87,6 +90,7 @@ struct mallinfo mallinfo() {
 }
 
 void* malloc(size_t s) {
+    SPEC_VISUALIZE("+");
     VISUALIZE("+");
     void* p = u_malloc(s);
 #ifdef PTR_CHECK
@@ -97,6 +101,7 @@ void* malloc(size_t s) {
     return p;
 }
 void* realloc(void *p , size_t s) {
+    SPEC_VISUALIZE(".");
     VISUALIZE(".");
     assert (p != calloc_hack);
     void* p2 = u_realloc(p, s);
@@ -108,6 +113,7 @@ void* realloc(void *p , size_t s) {
     return p2;
 }
 void free(void * p) {
+    SPEC_VISUALIZE("-");
     VISUALIZE("-");
     if(p == NULL || p == calloc_hack) return;
 #ifdef PTR_CHECK
@@ -120,6 +126,7 @@ void free(void * p) {
 }
 
 size_t malloc_usable_size(void* ptr) {
+    SPEC_VISUALIZE(" ");
     VISUALIZE(" ");
     assert(ptr != calloc_hack);
 #ifdef PTR_CHECK
@@ -132,6 +139,7 @@ size_t malloc_usable_size(void* ptr) {
 
 
 void * calloc(size_t sz, size_t n) {
+    SPEC_VISUALIZE("0");
     VISUALIZE("0");
     calloc_init();
     //make sure the right calloc_func is being used
