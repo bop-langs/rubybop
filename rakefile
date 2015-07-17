@@ -22,11 +22,9 @@ task :ruby_test => :ruby do
   cd "ruby" do
 		sh './ruby --disable-gems ./bootstraptest/runner.rb'
 #Just gonna comment out since gives undefined error
-=begin
 			if ! ok then
          fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
-=end
   end
 	puts "Finished running all tests"
 end
@@ -36,7 +34,9 @@ task :bop_test => :bop do
   test_dir.each do |dir|
 		cd 'tests/' + dir do
 			sh 'rake; rake run' do |ok, res|
-				#Ignore Errors
+        if ! ok then
+          fail "bop tests failed status: #{res.exitstatus}"
+        end
 	  	end
     end
   end
