@@ -4,9 +4,6 @@
 
 #include "bop_api.h"
 
-#define malloc(x)	BOP_malloc(x)
-#define free(x)		BOP_free(x)
-
 #define STEP 20000000
 #define min(a,b)  ((a < b) ? a : b)
 #define read(x) BOP_use(&x, sizeof x)
@@ -176,5 +173,5 @@ int main(int argc, char *argv[]) {
 	} else {
 		printf("%d\n",strcmp(a,b));
 	}
-
+  return 0;
 }

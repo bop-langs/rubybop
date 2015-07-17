@@ -275,7 +275,7 @@ int main(int argc, char *argv[]) {
 
 	BOP_replace(a2,argv[2],argv[3]);
 	BOP_print_string(a2);
-
+return 0;
 	/*if (argv[3][0] == 'b') {
 		printf("%d\n",BOP_strcmp(a,b));
 	} else {
