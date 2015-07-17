@@ -19,6 +19,7 @@ task :bop do
 end
 
 task :ruby_test => :ruby do
+  ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
 		sh './ruby --disable-gems ./bootstraptest/runner.rb'
 #Just gonna comment out since gives undefined error
