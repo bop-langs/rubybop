@@ -107,7 +107,7 @@ task :default => :all
 
 desc "Force a rebuild"
 task :force do
-  cd '../../bop' do
+  cd '../bop' do
     sh 'make -B'
   end
   Rake::Task[:clean].invoke
@@ -128,18 +128,16 @@ task :run do
 
 end
 def run
-=begin FIXME the bop tests are not set up to correcly handle the terminal. Not valid for unit testing
   puts "$prog = " + $progs.to_s
-  ENV["BOP_Verbose"]=1.to_s
+  ENV["BOP_Verbose"]=1.to_s #want some output
   $progs.each do |prog|
     cmd = "./#{prog} #{$params}"
     sh cmd do |ok, res|
-      if ! ok  && res.exitstatus != 40 then
+      if ! ok  && cmd.include?('_bop') then
         fail "cbop test #{cmd} failed with code #{res.exitstatus}"
       else
         puts "\ncbop test #{cmd} successful" #new line
       end
     end
   end
-=end
 end

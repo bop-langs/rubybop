@@ -17,25 +17,30 @@ task :bop do
     sh 'make'
   end
 end
+
 task :ruby_test => :ruby do
+  ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
-    sh 'make test' do |ok, res|
-      if ! ok then
-        fail "Ruby tests failed with exit code = #{res.exitstatus}"
+		sh './ruby --disable-gems ./bootstraptest/runner.rb' do |ok, res|
+			if ! ok then
+         fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
     end
   end
+	puts "Finished running all tests"
 end
+
 task :bop_test => :bop do
   test_dir.each do |dir|
-    cd 'tests/' + dir do
-      sh 'rake; rake run' do |ok, res|
+		cd 'tests/' + dir do
+			sh 'rake; rake run' do |ok, res|
         if ! ok then
-          fail "Bop test failure"
+          fail "bop tests failed status: #{res.exitstatus}"
         end
-      end
+	  	end
     end
   end
+  puts "Finished running all tests"
 end
 
 task :test do

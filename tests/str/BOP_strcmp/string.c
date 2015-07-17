@@ -87,5 +87,5 @@ int main(int argc, char *argv[]) {
 	} else {
 		printf("%d\n",strcmp(a,b));
 	}
-
+	return 0;
 }
