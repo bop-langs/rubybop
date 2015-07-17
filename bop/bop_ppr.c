@@ -50,7 +50,7 @@ static int monitor_process_id = 0;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
 
-static void BOP_abort_spec_2(bool, const char*); //only for in this function
+void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
 static void __attribute__((noreturn)) end_clean(void); //exit if children errored or call abort
 static int  cleanup_children(void); //returns the value that end_clean would call with _exit (or 0 if would have aborted)
@@ -171,7 +171,7 @@ int _BOP_ppr_begin(int id) {
 //  bop_msg(2, "Abort all speculation because %s", msg );
 //  kill( 0, SIGUSR2 );
 // }
-static void BOP_abort_spec_2(bool really_abort, const char* msg){
+void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
     return;
@@ -323,7 +323,8 @@ void ppr_task_commit( void ) {
   /* Earlier spec aborted further tasks */
   if ( spec_order >= partial_group_get_size( ) ) {
   	  bop_msg( 4, "ppr task outside group size" );
-  	  abort( ); //error
+  	  cleanup_children();
+      //abort( ); //error
   }
 
   _ppr_check_correctness( );
@@ -396,6 +397,30 @@ void MonitorInteruptFwd(int signo){
 
   kill(monitor_group, SIGINT);
   is_monitoring = false; //stop monitoring
+}
+void print_backtrace(void){
+  bop_msg(1, "\nBACKTRACE");
+  void *bt[1024];
+  int bt_size;
+  char **bt_syms;
+  int i;
+
+  bt_size = backtrace(bt, 1024);
+  bt_syms = backtrace_symbols(bt, bt_size);
+  for (i = 1; i < bt_size; i++) {
+    size_t len = strlen(bt_syms[i]);
+    bop_msg(1, "\nBT: %s", bt_syms[i], len);
+  }
+  bop_msg(1, "\nEND BACKTRACE");
+}
+void ErrorKillAll(int signo){
+  bop_msg(1, "ERROR CAUGHT %d", signo);
+
+  print_backtrace();
+  bop_msg(1, "EXIT VAL %d", signo == 0 ? -1 : signo);
+  kill(monitor_process_id, SIGUSR1); //kill monitor
+  kill(monitor_group, SIGKILL);
+  _exit(signo == 0 ? -1 : signo);
 }
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
@@ -606,6 +631,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   signal( SIGQUIT, SigBopExit );
   signal( SIGTERM, SigBopExit );
   signal( SIGCHLD, child_handler);
+  signal( SIGSEGV, ErrorKillAll);
 
   /* Load ports */
   register_port(&bop_merge_port, "Copy-n-merge Port");
