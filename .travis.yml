@@ -7,6 +7,9 @@ os:
   - osx
 
 matrix:
+  fast_finish: true
+  allow_failures:
+  - os: osx #mac is unstable for the time being
   exclude: #gcc/osx causes issues
   - os: osx
     compiler: gcc
