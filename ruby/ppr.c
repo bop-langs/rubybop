@@ -3,7 +3,6 @@
 #include "internal.h"
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
-
 //TODO get get ppr_mon to work
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
@@ -12,6 +11,8 @@
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
+VALUE rb_gc_enable();
+VALUE rb_gc_disable();
 
 extern void BOP_use(void*, size_t);
 extern void BOP_promise(void*, size_t);
@@ -74,7 +75,9 @@ VALUE ppr, args; /* OK */
 {
     set_rheap_null();
   BOP_ppr_begin(1);
-
+    printf("IN PPR CALL\n");
+    rb_gc_disable();
+    BOP_ppr_begin(1);
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
     VALUE ret = rb_proc_call(ppr, args);
     if (!NIL_P(ret))
@@ -84,7 +87,7 @@ VALUE ppr, args; /* OK */
     //if (task_parallel_p) ppr_pot_upload( );
 
   BOP_ppr_end(1);
-
+  rb_gc_enable();
     return Qnil;
 }
 
