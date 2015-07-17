@@ -21,10 +21,11 @@ end
 task :ruby_test => :ruby do
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
-		sh './ruby --disable-gems ./bootstraptest/runner.rb'
+		sh './ruby --disable-gems ./bootstraptest/runner.rb' do |ok, res|
 			if ! ok then
          fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
+    end
   end
 	puts "Finished running all tests"
 end
