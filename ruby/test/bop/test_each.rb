@@ -3,19 +3,18 @@ a = 1
 b = 2
 c = 3
 d = 4
-puts a
 
 PPR.yield{
-  sleep(1); a=2; a = "FIRE" ; PPR.promise(a)
+  sleep(1); puts a; a = "FIRE"
   }
 PPR.yield{
-  sleep(1); puts b; b="good2"; PPR.promise(b)
+  sleep(1); puts b; b="good2"
   }
 PPR.yield{
-  sleep(1); puts c; c="goodgood3"; PPR.promise(c)
+  sleep(1); puts c; c="goodgood3"
   }
 PPR.yield{
-  sleep(1); puts d; d="goodgoodgood4"; PPR.promise(d)
+  sleep(1); puts d; d="goodgoodgood4"
   }
 
 
