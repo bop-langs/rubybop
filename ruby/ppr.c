@@ -29,7 +29,7 @@ void BOP_obj_use(VALUE obj){
     size = rb_obj_memsize_of(obj);
     if(size!=0){
       bop_msg(5, "Using object %p at address %p with size %d", (obj), &obj, size);
-      BOP_use(&obj, size);
+      BOP_use(obj, size);
     }
     recurse = 1;
   }
@@ -41,18 +41,21 @@ void BOP_obj_promise(VALUE obj){
     size = rb_obj_memsize_of(obj);
     if(size!=0){
       bop_msg(5, "Promising object %p at address %p with size %d", (obj), &obj, size);
-      BOP_promise(&obj, size);
+      BOP_promise(obj, size);
     }
     recurse = 1;
   }
 }
 
-void _BOP_obj_use_promise(VALUE obj, char* file, int line){
-  //if(!SEQUENTIAL && (obj != NULL || obj != 0x40)){
-    bop_msg(3, "USE PROMISE file: %s line %d", file, line);
-    BOP_obj_use(obj);
-    BOP_obj_promise(obj);
-  //}
+void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* function){
+  if(!SEQUENTIAL && (obj != NULL|| !FIXNUM_P(obj))){
+    int size = rb_obj_memsize_of(obj);
+    if (size > 0){
+      bop_msg(3, "USE PROMISE \tfile: %s line: %d function: %s\t object: %016llx size: %d\t", file, line, function, obj, size);
+      BOP_obj_use(obj);
+      BOP_obj_promise(obj);
+    }
+  }
 }
 extern void set_rheap_nulll(void);
 
