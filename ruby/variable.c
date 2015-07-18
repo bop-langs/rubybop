@@ -498,12 +498,14 @@ undef_marker(VALUE *var)
 VALUE
 val_getter(ID id, void *data, struct global_variable *var)
 {
+    BOP_obj_use_promise(data);
     return (VALUE)data;
 }
 
 void
 val_setter(VALUE val, ID id, void *data, struct global_variable *var)
 {
+    BOP_obj_use_promise(data);
     var->data = (void*)val;
 }
 
@@ -517,6 +519,7 @@ val_marker(VALUE *var)
 VALUE
 var_getter(ID id, void *data, struct global_variable *gvar)
 {
+    BOP_obj_use_promise(data);
     VALUE *var = data;
     if (!var) return Qnil;
     return *var;
@@ -525,6 +528,7 @@ var_getter(ID id, void *data, struct global_variable *gvar)
 void
 var_setter(VALUE val, ID id, void *data, struct global_variable *gvar)
 {
+    BOP_obj_use_promise(data);
     *(VALUE *)data = val;
 }
 

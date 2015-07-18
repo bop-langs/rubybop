@@ -52,7 +52,7 @@ void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* fun
   if(!SEQUENTIAL && (obj != NULL|| !FIXNUM_P(obj))){
     int size = rb_obj_memsize_of(obj);
     if (size > 0){
-      bop_msg(3, "USE PROMISE \tfile: %s line: %d function: %s\t object: %016llx size: %d\t", file, line, function, obj, size);
+      bop_msg(5, "USE PROMISE \tfile: %s line: %d function: %s\t object: %016llx size: %d\t", file, line, function, obj, size);
       BOP_obj_use(obj);
       BOP_obj_promise(obj);
     }
