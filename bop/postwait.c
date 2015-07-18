@@ -105,6 +105,7 @@ void channel_fill( addr_t id, addr_t base, unsigned size ) {
   if ( local_ch_id == 0 ) local_ch_id = id;
 
   map_add_range( & local_ch_data, base, size, NULL );
+  bop_msg( 4, "channel fill : map_add_range %p, %p, %.0f, %d", &local_ch_data, base, *((double *)base), size);
 }
 
 extern map_t read_map;
@@ -151,6 +152,8 @@ void channel_post( addr_t id ) {
     }
   }
   bop_lock_release( & switch_board.lock );
+
+  map_subtract( & write_map, & local_ch_data );
 
   channel_local_reset( );
 }
