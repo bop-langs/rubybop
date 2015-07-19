@@ -512,7 +512,7 @@ static void wait_process() {
     my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
   }
   if(errno != ECHILD){
-    perror("Error in wait_process");
+    perror("Error in wait_process. errno != ECHILD");
     _exit(EXIT_FAILURE);
   }
   my_exit = my_exit ? 1 : 0;
