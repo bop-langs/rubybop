@@ -1625,6 +1625,8 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
     } \
 } while (0)
 
+extern void bop_msg(int, const char*, ...);
+
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 {
@@ -1702,6 +1704,9 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     objspace->total_allocated_objects++;
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
+    //TODO sever the heap so that this actually works...
+    bop_msg(4, "newobj:%s\n", obj_info(obj));
+    //BOP_obj_use_promise(obj);
     return obj;
 }
 
