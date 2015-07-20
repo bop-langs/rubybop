@@ -409,20 +409,24 @@ void print_backtrace(void){
 }
 void ErrorKillAll(int signo){
   bop_msg(1, "ERROR CAUGHT %d", signo);
-  //
+  kill(monitor_process_id, SIGUSR2); //if this process was going to deliver the signal, deliver the signal.
+  int kids = cleanup_children();
   if(task_status == UNDY || task_status == SEQ){
-    bop_msg(1, "termintating all processes");
-    //one of these fail, then the overall execution will fail
-    print_backtrace();
-    kill(monitor_process_id, SIGUSR2);
-  }else{
-    bop_msg(1, "Not termintating all because of invalid task state.");
-  }
-  abort();
-  // bop_msg(1, "EXIT VAL %d", signo == 0 ? -1 : signo);
-  // kill(monitor_process_id, SIGUSR1); //kill monitor
-  // kill(monitor_group, SIGKILL);
-  // exit(EXIT_FAILURE);
+    _exit(kids);
+  }else
+    _exit(0);
+    /*
+    if(task_status == UNDY || task_status == SEQ){
+      bop_msg(1, "Sending shutdown signal to monitor process");
+      //one of these fail, then the overall execution will fail
+      print_backtrace();
+
+      signal(SIGABRT, SIG_DFL);
+      kill(monitor_group, SIGABRT);
+    }else{
+      bop_msg(1, "Not termintating all because of invalid task state. ppid %d", getppid());
+    }
+    */
 }
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
@@ -506,6 +510,7 @@ static void wait_process() {
       my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
     }
   }
+  errno = 0;
   //handle remaining processes. Above may not have gotten everything
   while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
     my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
