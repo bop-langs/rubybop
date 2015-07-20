@@ -434,7 +434,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if (task_status == UNDY) {
     bop_msg(3,"Understudy concedes the race (sender pid %d)", siginfo->si_pid);
     signal_undy_conceded( );
-    abort( ); //has no children. don't reap
+    abort( ); //has no children. don't need to reap
   }
   if (task_status == SPEC || task_status == MAIN) {
     if ( spec_order == partial_group_get_size() - 1 ) return;
@@ -442,6 +442,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     end_clean(); //wait for children. doesn't return
   }
   if(getpid() == monitor_process_id){
+    bop_msg(3, "Monitor process setting is_monitoring to false. Sender %d", siginfo->si_pid);
     is_monitoring = false;
   }
 }
@@ -452,9 +453,8 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR2 == signo );
   assert( cntxt );
   if(getpid() == monitor_process_id){
-    bop_msg(1, "Monitor process ending everything. PID %d sent SigUsr2", siginfo->si_pid);
-    kill(SIGKILL, monitor_group); //all die
-    _exit(EXIT_FAILURE);
+    bop_msg(1, "Monitor process exiting main loop because of SIGUSR2 (error)", siginfo->si_pid);
+    is_monitoring = false;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
     abort( );
@@ -522,6 +522,7 @@ static void wait_process() {
   my_exit = my_exit ? 1 : 0;
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
+  kill(monitor_group, SIGKILL);
   _exit(my_exit);
 }
 static void child_handler(int signo){
