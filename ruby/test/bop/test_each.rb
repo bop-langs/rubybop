@@ -5,12 +5,12 @@ $c = "3"
 $d = "4"
 
 PPR.yield{
-    $a="good"
-    sleep(1)
+  $a="good"
+  sleep(1)
   }
 PPR.yield{
-    $b="good"
-    sleep(1)
+  $b="good"
+  sleep(1)
   }
 PPR.yield{
   $c="good"
