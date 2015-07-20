@@ -110,6 +110,7 @@ void channel_fill( addr_t id, addr_t base, unsigned size ) {
 
 extern map_t read_map;
 extern map_t write_map;
+extern void map_subtract(map_t *, map_t *);
 
 void channel_post( addr_t id ) {
   if ( task_status == SEQ || task_status == UNDY ) return;
