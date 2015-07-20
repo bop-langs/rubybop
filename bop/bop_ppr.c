@@ -495,18 +495,6 @@ int report_child(pid_t child, int status){
   return rval;
 }
 sigset_t * old_set;
-static inline void block_wait(){
-  sigset_t set;
-  sigfillset(&set); //block everything
-  sigprocmask(SIG_BLOCK,&set, old_set);
-}
-static inline void unblock_wait(){
-  //set blocking signals to what it was before block_wait
-  sigset_t set;
-  sigemptyset(&set);
-  sigprocmask(SIG_SETMASK, old_set, NULL);
-}
-
 //don't actually need this
 static void wait_process() {
   int status;
@@ -515,18 +503,14 @@ static void wait_process() {
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   int my_exit = 0; //success
   while (is_monitoring) {
-    block_wait();
     if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
       my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
     }
-    unblock_wait();
   }
   //handle remaining processes. Above may not have gotten everything
-  block_wait();
   while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
     my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
   }
-  unblock_wait();
   if(errno != ECHILD){
     perror("Error in wait_process. errno != ECHILD");
     _exit(EXIT_FAILURE);
@@ -575,7 +559,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
-  action.sa_flags = SA_SIGINFO;
+  action.sa_flags &= SA_SIGINFO | SA_RESTART; //for wait pid
   action.sa_sigaction = (void *) SigUsr1;
   sigaction(SIGUSR1, &action, NULL);
   action.sa_sigaction = (void *) SigUsr2;
@@ -779,7 +763,7 @@ static void BOP_fini(void) {
   switch (task_status) {
   case SPEC:
     BOP_abort_spec_2(true, "SPEC reached an exit");  /* will abort */
-    signal(SIGUSR2, SIG_IGN);
+    signal(SIGUSR2, SIG_IGN); //we don't want to respond to this signal
     kill(0, SIGUSR2); //send SIGUSR to spec group but not ourself-> own group
     //everything is termininating
     if (bop_mode == SERIAL) {
