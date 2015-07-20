@@ -3,7 +3,7 @@
 CC = gcc
 _OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 
-CFLAGS = -Wall -fPIC -pthread -I. $(OPITIMIZEFLAGS) $(DEBUG_FLAGS)  -Wno-unused-function $(CUSTOMDEF)
+CFLAGS = -Wall -fPIC -pthread -I. $(DEBUG_FLAGS)  -Wno-unused-function $(CUSTOMDEF)
 CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
