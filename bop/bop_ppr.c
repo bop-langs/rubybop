@@ -494,7 +494,21 @@ int report_child(pid_t child, int status){
     bop_msg(1, msg, child);
   return rval;
 }
-sigset_t * old_set;
+static inline void block_wait(){
+  sigset_t set;
+  sigemptyset(&set); //block everything
+  sigaddset(&set, SIGUSR2);
+  sigaddset(&set, SIGUSR1);
+  sigprocmask(SIG_BLOCK,&set, NULL);
+}
+static inline void unblock_wait(){
+  //set blocking signals to what it was before block_wait
+  sigset_t set;
+  sigemptyset(&set); //block everything
+  sigaddset(&set, SIGUSR2);
+  sigaddset(&set, SIGUSR1);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
+}
 //don't actually need this
 static void wait_process() {
   int status;
@@ -503,11 +517,16 @@ static void wait_process() {
   bop_msg(3, "Monitoring pg %d from pid %d (group %d)", monitor_group, getpid(), getpgrp());
   int my_exit = 0; //success
   while (is_monitoring) {
+    block_wait();
+    errno = 0;
     if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
       my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
     }
+    unblock_wait();
   }
   //handle remaining processes. Above may not have gotten everything
+  errno = 0;
+  //block_wait();
   while (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
     my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
   }
@@ -515,6 +534,7 @@ static void wait_process() {
     perror("Error in wait_process. errno != ECHILD");
     _exit(EXIT_FAILURE);
   }
+//  unblock_wait();
   my_exit = my_exit ? 1 : 0;
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
