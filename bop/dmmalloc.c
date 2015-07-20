@@ -369,19 +369,25 @@ void *dm_malloc (const size_t size) {
     //ASSERT_VALID_COUNT(which);
     if (block == NULL) {
         //no item in list. Either correct list is empty OR huge block
-        if (SEQUENTIAL && alloc_size > MAX_SIZE) {
-            //huge block always use system malloc
-            block = sys_malloc (alloc_size);
-            if (block == NULL) {
-                release_lock();
-								BOP_abort_spec("Allocating too large a region in PPR");
-                return NULL;
-            }
-            //don't need to add to free list, just set information
-            block->allocated.blocksize = alloc_size;
-            ASSERTBLK(block);
-            release_lock();
-            return PAYLOAD (block);
+        if (alloc_size > MAX_SIZE) {
+						if(SEQUENTIAL){
+            	//huge block always use system malloc
+	            block = sys_malloc (alloc_size);
+	            if (block == NULL) {
+	                release_lock();
+									BOP_abort_spec("System malloc couldn't support large allocation size");
+	                return NULL;
+	            }
+	            //don't need to add to free list, just set information
+	            block->allocated.blocksize = alloc_size;
+	            ASSERTBLK(block);
+	            release_lock();
+	            return PAYLOAD (block);
+					}else{
+						//not sequential
+						BOP_abort_spec("Tried to allocate larger than is supported in PPR");
+						return NULL;
+					}
         } else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
             splits++;
