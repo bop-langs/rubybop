@@ -415,7 +415,6 @@ void print_backtrace(void){
 }
 void ErrorKillAll(int signo){
   bop_msg(1, "ERROR CAUGHT %d", signo);
-
   print_backtrace();
   bop_msg(1, "EXIT VAL %d", signo == 0 ? -1 : signo);
   kill(monitor_process_id, SIGUSR1); //kill monitor
