@@ -141,12 +141,12 @@ ppr_yield()
     //set_rheap_null();
     BOP_ppr_begin(1);
         rb_gc_disable();
-        set_rheap_null();
+        //set_rheap_null();
         bop_msg(3,"yielding block...");
         rb_yield(0);
         rb_gc_enable();
     BOP_ppr_end(1);
-    return 0;
+    return Qnil;
 }
 
 static VALUE
@@ -255,14 +255,14 @@ static VALUE
 kernel_ppr(void)
 {
 	VALUE ppr = rb_funcall(rb_cPPR, rb_intern("new"), 0);
-	return rb_funcall(ppr, rb_intern("call"), 0);
+	return rb_funcall(ppr, rb_intern("yield"), 0);
 }
 
 static VALUE
 kernel_ordered(void)
 {
 	VALUE ordered = rb_funcall(rb_cOrdered, rb_intern("new"), 0);
-	return rb_funcall(ordered, rb_intern("call"), 0);
+	return rb_funcall(ordered, rb_intern("yield"), 0);
 }
 
 void
@@ -285,7 +285,7 @@ Init_PPR() {
     rb_define_singleton_method(rb_cPPR, "set_group_size", set_group_size, 1);
     rb_define_singleton_method(rb_cPPR, "get_group_size", get_group_size, 0);
 
-    rb_define_method(rb_mKernel, "PPR", kernel_ppr, 0);
+    rb_define_method(rb_mKernel, "PPR", ppr_yield, 0);
 
     //TODO get this uncommented
     //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
