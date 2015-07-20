@@ -14,7 +14,7 @@ void initialize( int );
 double lots_of_computation_on_block( int start, int end );
 
 int main(int argc, char ** argv)
-{ 
+{
   int data_size, num_blocks;
   int block_size;
 
@@ -32,9 +32,7 @@ int main(int argc, char ** argv)
   initialize(data_size );
 
   printf("%d: adding %d million numbers\n", getpid(), data_size/1000000);
-
   block_size = ceil( (float) data_size / num_blocks );
-
   int index = 0;
   while ( data_size > 0 ) {
     int block_end = data_size;
@@ -50,7 +48,6 @@ int main(int argc, char ** argv)
        BOP_promise( &sums[ index ], sizeof( double ) );
 
     BOP_ppr_end(1);  /* End PPR */
-
     index ++;
   }
 
@@ -59,7 +56,7 @@ int main(int argc, char ** argv)
     sum += sums[ i ];
 
   printf("%d: The sum is %.0f million (%.0f) \n", getpid(), sum/1000000, sum);
-  exit(0);
+  return 0;
 }
 
 

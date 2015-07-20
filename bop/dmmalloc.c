@@ -478,7 +478,6 @@ static inline header* dm_split (int which) {
 }
 // standard calloc using malloc
 void * dm_calloc (size_t n, size_t size) {
-    assert((n * size) >= n && (n * size) >= size); //overflow
     char *allocd = dm_malloc (size * n);
     if(allocd != NULL){
         memset (allocd, 0, size * n);

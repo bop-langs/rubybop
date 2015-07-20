@@ -272,5 +272,5 @@ int main(int argc, char *argv[]) {
 		a[i] = i;
 	}
 	printf("%d\n",find_int(a,10000,9500));
-
+	return 0;
 }
