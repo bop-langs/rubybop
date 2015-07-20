@@ -13,7 +13,7 @@ $black_objs = ["flags", "klass"]
 #$accepted_files = [/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/]
 $accepted_files = [/\.c\Z/]
 #$accepted_files = ["main.c","thread.c", "loadpath.c", "version.c", "localeinit.c", "dln.c","dmyext.c","dmyext.c", "compile.c", "load.c", "dln_find.c", "goruby.c","eval_jump.c", "enum.c", "enumerator.c","inits.c", "file.c","iseq.c", "pack.c", "safe.c", "marshal.c","random.c", "sparc.c","array.c", "bignum.c", "addr2line.c","error.c", "parse.c", "st.c", "re.c", "node.c", "debug.c"]
-$ignored_files = ["miniinit.c", "compar.c", "ppr.c", "ppr_mon.c", "io.c",
+$ignored_files = ["miniinit.c", "compar.c", "ppr.c", "ppr_mon.c", "io.c", "string.c",
   #"ruby.c", "eval.c", "gc.c", "dir.c", "hash.c", "st.c",
   /vm/, /ext/,  /enc/, /missing/, /win32/, /nacl/]
 
