@@ -11,11 +11,11 @@ if RUBY_PLATFORM =~ /darwin/ then
 else 
 	$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
 end 
-$incl = "../bop/"
+$incl = "../bop/build"
 $params = '' if $params.nil?
 
 # Location of BOP
-$bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?
+$bop_dir = (Pathname.new(__FILE__).dirname + '../build/bop/').cleanpath if $bop_dir.nil?
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
 # Objects and programs for clean and realclean
