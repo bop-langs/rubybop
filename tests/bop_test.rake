@@ -2,15 +2,15 @@ require 'pathname'
 #### Global variables
 
 # Compiler config
-$cc = ENV['CC']
-$cc = 'gcc' if $cc =='cc'
+$cc = ENV['CC'] || 'gcc'
+if $cc == 'cc' then $cc = 'gcc' end
 $c_flags = '-g3 -fPIC' if $c_flags.nil?
-#This is a horrible hack...maybe change this? 
-if RUBY_PLATFORM =~ /darwin/ then 
+#This is a horrible hack...maybe change this?
+if RUBY_PLATFORM =~ /darwin/ then
 	$ldflags = '-lm -Wl --no-as-needed -ldl -pthread'
-else 
+else
 	$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
-end 
+end
 $incl = "../bop/"
 $params = '' if $params.nil?
 
