@@ -7,7 +7,7 @@ CFLAGS = -Wall -fPIC -pthread -I. $(DEBUG_FLAGS)  -Wno-unused-function $(CUSTOMD
 CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
-DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
+DEBUG_FLAGS = -ggdb3 -g3 -pg -U NDEBUG
 BUILD_DIR = ../build/bop
 LIB_SO = $(BUILD_DIR)/inst.a
 
