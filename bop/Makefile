@@ -4,7 +4,7 @@ CC ?= gcc
 ifeq ($(CC), cc)
   CC = gcc
 endif
-OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o sys_wrapper.o
+OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 ALL = $(OBJS) $(TESTS)
 
 CFLAGS = -Wall -fPIC -pthread -g3 -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)

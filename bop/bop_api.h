@@ -72,14 +72,6 @@ void exec_cleanup(char*);
 
 // int sys_execv(const char *filename, char *const argv[]);
 // int sys_execve(const char *filename, char *const argv[], char *const envp[]);
-#ifdef OVERRIDE_EXEC
-void cleanup_execv(const char *filename, char *const argv[]);
-void cleanup_execve(const char *filename, char *const argv[], char *const envp[]);
-int sys_execv(const char *filename, char *const argv[]);
-int sys_execve(const char *filename, char *const argv[], char *const envp[]);
-int execv(const char *filename, char *const argv[]);
-int execve(const char *filename, char *const argv[], char *const envp[]);
-#endif
 
 /* Byte granularity interface */
 void BOP_record_read(void* addr, size_t size);
