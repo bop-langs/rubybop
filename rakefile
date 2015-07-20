@@ -1,8 +1,8 @@
-
+build_dir = 'build'
 ruby_dir = 'ruby'
-ruby_cp_dir = 'build/ruby'
+ruby_cp_dir = "#{build_dir}/ruby"
 bop_dir = 'bop'
-bop_build_dir = 'build/bop'
+bop_build_dir = "#{build_dir}/bop"
 
 task :default => :ruby
 test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
@@ -66,10 +66,7 @@ task :nuke do
 	sh 'git clean -xfd'
 end
 task :clean do
-	sh "rm -rdf #{ruby_cp_dir}" #ruby clean
-  cd bop_dir do
-    sh 'make clean'
-  end
+  sh "rm -rf #{build_dir}" #ruby clean
   test_dir.each do |dir|
     cd "tests/" + dir do
       sh 'rake clean'
