@@ -410,8 +410,14 @@ void print_backtrace(void){
 void ErrorKillAll(int signo){
   bop_msg(1, "ERROR CAUGHT %d", signo);
   //
-  print_backtrace();
-  kill(monitor_process_id, SIGUSR2);
+  if(task_status == UNDY || task_status == SEQ){
+    bop_msg(1, "termintating all processes");
+    //one of these fail, then the overall execution will fail
+    print_backtrace();
+    kill(monitor_process_id, SIGUSR2);
+  }else{
+    bop_msg(1, "Not termintating all because of invalid task state.");
+  }
   abort();
   // bop_msg(1, "EXIT VAL %d", signo == 0 ? -1 : signo);
   // kill(monitor_process_id, SIGUSR1); //kill monitor
