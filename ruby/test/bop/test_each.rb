@@ -4,19 +4,19 @@ $b = "2"
 $c = "3"
 $d = "4"
 
-PPR.yield{
+PPR {
   $a="good"
   sleep(1)
   }
-PPR.yield{
+PPR {
   $b="good"
   sleep(1)
   }
-PPR.yield{
+PPR {
   $c="good"
   sleep(1)
   }
-PPR.yield{
+PPR {
   $d="good"
   sleep(1);
   }
