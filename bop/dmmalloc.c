@@ -12,7 +12,6 @@
 #include "malloc_wrapper.h"
 #include "bop_api.h"
 #include "bop_ports.h"
-//#include "../mri/ppr.h"
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
 #define LOG(x) llog2(x)
@@ -32,7 +31,7 @@
 
 
 //debug macros
-#ifdef CHECK_COUNTS
+#ifdef CHECK_COUNTS2342
 #define ASSERT_VALID_COUNT(which) \
 	if(which != -1 && SEQUENTIAL){\
 		if(!((headers[(which)] == NULL && counts[(which)] == 0)  || \
@@ -375,6 +374,7 @@ void *dm_malloc (const size_t size) {
             block = sys_malloc (alloc_size);
             if (block == NULL) {
                 release_lock();
+								BOP_abort_spec("Allocating too large a region in PPR");
                 return NULL;
             }
             //don't need to add to free list, just set information

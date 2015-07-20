@@ -245,32 +245,32 @@ int main(int argc, char *argv[]) {
 	printf("%s\n",BOP_strsub("a man a plan a canal panama","man","canama"));
 	printf("%s\n",BOP_strsub("a man a plan a canal panama","an","qqqqqq"));
 
-	/* open file for reading */
-	FILE* fStream = fopen(argv[1], "r");
-	if(fStream == NULL){fputs("File open error\n",stderr); exit(1);}
-
-	/* get file size */
-	fseek(fStream, 0, SEEK_END);
-	int fSize = ftell(fStream);
-	rewind(fStream);
-
-	/* allocate memory */
-	char* str = malloc(fSize * sizeof *str);
-	if(str == NULL){fputs("Memory error\n", stderr); exit(2);}
-
-	/* read sequence into buffer */
-	size_t result = fread(str, 1, fSize - 1, fStream);
-	if(result != fSize - 1){fputs("Reading error\n", stderr); exit(3);}
-
-	/* terminate */
-	fclose(fStream);
-
-	//printf("%s\n",BOP_strsub(str,argv[2],argv[3]));
-	int a[10000];
-	int i;
-	for (i=0;i<10000;i++) {
-		a[i] = i;
-	}
-	printf("%d\n",find_int(a,10000,9500));
+	// /* open file for reading */
+	// FILE* fStream = fopen(argv[1], "r");
+	// if(fStream == NULL){fputs("File open error\n",stderr); exit(1);}
+	//
+	// /* get file size */
+	// fseek(fStream, 0, SEEK_END);
+	// int fSize = ftell(fStream);
+	// rewind(fStream);
+	//
+	// /* allocate memory */
+	// char* str = malloc(fSize * sizeof *str);
+	// if(str == NULL){fputs("Memory error\n", stderr); exit(2);}
+	//
+	// /* read sequence into buffer */
+	// size_t result = fread(str, 1, fSize - 1, fStream);
+	// if(result != fSize - 1){fputs("Reading error\n", stderr); exit(3);}
+	//
+	// /* terminate */
+	// fclose(fStream);
+	//
+	// //printf("%s\n",BOP_strsub(str,argv[2],argv[3]));
+	// int a[10000];
+	// int i;
+	// for (i=0;i<10000;i++) {
+	// 	a[i] = i;
+	// }
+	// printf("%d\n",find_int(a,10000,9500));
 	return 0;
 }
