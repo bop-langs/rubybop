@@ -14,6 +14,7 @@
 #include "internal.h"
 #include "ruby/st.h"
 #include "ruby/util.h"
+#include "ppr.h"
 #include "node.h"
 #include "constant.h"
 #include "id.h"
@@ -495,17 +496,20 @@ undef_marker(VALUE *var)
 {
 }
 
+extern void BOP_record_write(void*, size_t);
+extern void BOP_record_read(void*, size_t);
+
 VALUE
 val_getter(ID id, void *data, struct global_variable *var)
 {
-    BOP_obj_use_promise(data);
+    //BOP_obj_use(data);
     return (VALUE)data;
 }
 
 void
 val_setter(VALUE val, ID id, void *data, struct global_variable *var)
 {
-    BOP_obj_use_promise(data);
+    BOP_record_write(var, sizeof(struct global_variable));
     var->data = (void*)val;
 }
 
@@ -531,7 +535,6 @@ var_setter(VALUE val, ID id, void *data, struct global_variable *gvar)
     BOP_obj_use_promise(data);
     *(VALUE *)data = val;
 }
-
 void
 var_marker(VALUE *var)
 {
