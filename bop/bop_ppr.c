@@ -220,7 +220,7 @@ void post_ppr_undy( void ) {
   	abort();
   	return; //doesn't actually happen
   }
-  
+
   // indicate the success of the understudy
   kill(0, SIGUSR2);
   kill(-monitor_group, SIGUSR1); //main requires a special signal?
@@ -595,7 +595,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
-  bop_undy_active = get_int_from_env("FORCE_NO_UNDY", 0, 1, 1);
+  bop_undy_active = get_int_from_env("BOP_UndyFinish", 0, 1, 1);
 
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
