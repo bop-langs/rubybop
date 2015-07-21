@@ -1,4 +1,4 @@
-assert_equal %q{goodgoodgoodgood}, %q{
+assert_finish 4, %q{
 $a = "1"
 $b = "2"
 $c = "3"
@@ -21,5 +21,10 @@ PPR {
   sleep(1);
   }
 
-$a+$b+$c+$d
+unless($a+$b+$c+$d == "goodgoodgoodgood")
+  sleep(6)
+end
+
 }
+
+
