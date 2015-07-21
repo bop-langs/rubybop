@@ -5000,9 +5000,9 @@ Init_Thread(void)
     sym_on_blocking = ID2SYM(rb_intern("on_blocking"));
     id_locals = rb_intern("locals");
 
-    // rb_define_singleton_method(rb_cThread, "new", thread_s_new, -1);
-    // rb_define_singleton_method(rb_cThread, "start", thread_start, -2);
-    // rb_define_singleton_method(rb_cThread, "fork", thread_start, -2);
+    rb_define_singleton_method(rb_cThread, "new", thread_s_new, -1);
+    rb_define_singleton_method(rb_cThread, "start", thread_start, -2);
+    rb_define_singleton_method(rb_cThread, "fork", thread_start, -2);
     rb_define_singleton_method(rb_cThread, "main", rb_thread_s_main, 0);
     rb_define_singleton_method(rb_cThread, "current", thread_s_current, 0);
     rb_define_singleton_method(rb_cThread, "stop", rb_thread_stop, 0);
