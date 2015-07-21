@@ -214,6 +214,11 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
+#if FORCE_NO_UNDY
+  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting. Recompile with FORCE_NO_UNDY undefined to restore normal behavior.");
+  abort();
+  return; //doesn't actually happen
+#endif
   // indicate the success of the understudy
   kill(0, SIGUSR2);
   kill(-monitor_group, SIGUSR1); //main requires a special signal?
@@ -227,7 +232,6 @@ void post_ppr_undy( void ) {
 
 /* Return true if it is UNDY (or SEQ in the rare case). */
 int spawn_undy( void ) {
-
   int fid = fork( );
   switch( fid ) {
   case -1:
