@@ -457,6 +457,25 @@ enum gc_stat {
     gc_stat_sweeping
 };
 
+
+struct node{
+    int free_slots;
+    node *next;
+}
+
+struct node *head;
+void addcount_init()
+{
+    head = (struct node*)malloc(sizeof(struct node));
+}
+void add_count_entry(struct node **head, int count)
+{
+    struct node worker;
+    worker = head;
+    while (worker->next)
+	worker->next = *worker->next;
+}
+
 typedef struct rb_objspace {
     struct {
 	size_t limit;
@@ -1491,7 +1510,7 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 static void
 heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    struct heap_page *page = heap_page_create(objspace);
+    struct heap *page = heap_page_create(objspace);
     heap_add_page(objspace, heap, page);
     heap_add_freepage(objspace, heap, page);
 }
