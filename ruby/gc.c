@@ -614,6 +614,10 @@ enum {
     HEAP_BITMAP_PLANES = USE_RGENGC ? 3 : 1 /* RGENGC: mark bits, rememberset bits and oldgen bits */
 };
 
+
+//BOP NOTES
+// free_slots seems to take track of the number of free available blocks on each heap page. The poisoning mechanism would iterate through each page and set the free slots to 0
+// Ideally this would result in each PPR task creating a new page, avoiding the allocations to the same block.
 struct heap_page {
     struct heap_page_body *body;
     struct heap_page *prev;
