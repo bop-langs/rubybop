@@ -460,20 +460,20 @@ enum gc_stat {
 
 struct node{
     int free_slots;
-    node *next;
-}
+    struct node *next;
+};
 
 struct node *head;
 void addcount_init()
 {
     head = (struct node*)malloc(sizeof(struct node));
 }
-void add_count_entry(struct node **head, int count)
+void add_count_entry(struct node *head, int count)
 {
-    struct node worker;
+    struct node *worker;
     worker = head;
     while (worker->next)
-	worker->next = *worker->next;
+	worker = worker->next;
 }
 
 typedef struct rb_objspace {
