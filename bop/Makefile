@@ -51,4 +51,4 @@ $(BUILD_DIR)/%.h: %.h
 	@cp  $^ $@
 
 clean:
-	rm -f $(OBJS) $(LIB_SO) $(HEADERS)
+	rm -f $(OBJS) $(LIB_SO)
