@@ -3,19 +3,21 @@ require 'pathname'
 
 # Compiler config
 $cc = ENV['CC'] || 'gcc'
-if $cc == 'cc' then $cc = 'gcc' end
+$cc = 'gcc' if $cc == 'cc'
 $c_flags = '-g3 -fPIC -pg' if $c_flags.nil?
-#This is a horrible hack...maybe change this?
+#This is a horrible hack...maybe change this? Makes it work on OSX (eventually)
 if RUBY_PLATFORM =~ /darwin/ then
 	$ldflags = '-lm -Wl --no-as-needed -ldl -pthread'
 else
 	$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
 end
 
+end
+$incl = "../bop/build"
 $params = '' if $params.nil?
 
 # Location of BOP
-$bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?
+$bop_dir = (Pathname.new(__FILE__).dirname + '../build/bop/').cleanpath if $bop_dir.nil?
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
 $incl = $bop_dir

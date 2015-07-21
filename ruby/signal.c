@@ -1428,8 +1428,5 @@ Init_signal(void)
     rb_alias(rb_eSignal, rb_intern_const("signm"), rb_intern_const("message"));
     rb_define_method(rb_eInterrupt, "initialize", interrupt_init, -1);
 
-    /* At this time, there is no subthread. Then sigmask guarantee atomics. */
-    rb_disable_interrupt();
-
-    rb_enable_interrupt();
+    /* Where the old signal handlers were */
 }

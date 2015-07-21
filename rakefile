@@ -1,8 +1,25 @@
+build_dir = 'build'
+ruby_dir = 'ruby'
+ruby_cp_dir = "#{build_dir}/ruby"
+bop_dir = 'bop'
+bop_build_dir = "#{build_dir}/bop"
+
 task :default => :ruby
 test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
 task :ruby => :bop do
   #build ruby
-  cd "ruby" do
+  FileUtils.cp_r ruby_dir, ruby_cp_dir, :remove_destination => true #only copy if needed
+  dirs = Dir["#{bop_dir}/**/*.h"]
+  puts "copying ruby directory"
+  dirs.each do |file|
+    cp = file.to_s.sub bop_dir, bop_build_dir
+    if uptodate?  file, [cp] then
+      FileUtils.cp_r file, cp, :remove_destination => true
+    end
+  end
+  change = "./search.rb #{ruby_cp_dir}"
+  sh change
+  cd ruby_cp_dir do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
       sh './configure --disable-install-doc'
@@ -19,28 +36,25 @@ task :bop do
 end
 
 task :ruby_test => :ruby do
-  ENV["BOP_Verbose"]=0.to_s
-  cd "ruby" do
-		sh './ruby --disable-gems ./bootstraptest/runner.rb' do |ok, res|
-			if ! ok then
-         fail "Ruby tests failed with exit code = #{res.exitstatus}"
+  cd ruby_cp_dir do
+    sh 'make test' do |ok, res|
+      if ! ok then
+        fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
     end
   end
-	puts "Finished running all tests"
 end
 
 task :bop_test => :bop do
   test_dir.each do |dir|
-		cd 'tests/' + dir do
-			sh 'rake; rake run' do |ok, res|
+    cd 'tests/' + dir do
+      sh 'rake; rake run' do |ok, res|
         if ! ok then
-          fail "bop tests failed status: #{res.exitstatus}"
+          fail "cbop  test failure code #{res.exitstatus}"
         end
-	  	end
+      end
     end
   end
-  puts "Finished running all tests"
 end
 
 task :test do
@@ -52,14 +66,7 @@ task :nuke do
 	sh 'git clean -xfd'
 end
 task :clean do
-	cd "ruby" do
-		if(File.exists?("Makefile")) then
-			sh 'make clean'
-		end
-	end
-  cd "bop" do
-    sh 'make clean'
-  end
+  sh "rm -rf #{build_dir}" #ruby clean
   test_dir.each do |dir|
     cd "tests/" + dir do
       sh 'rake clean'

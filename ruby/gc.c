@@ -1625,6 +1625,8 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
     } \
 } while (0)
 
+extern void bop_msg(int, const char*, ...);
+
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 {
@@ -1702,6 +1704,9 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     objspace->total_allocated_objects++;
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
+    //TODO sever the heap so that this actually works...
+    bop_msg(4, "newobj:%s\n", obj_info(obj));
+    //BOP_obj_use_promise(obj);
     return obj;
 }
 
@@ -2843,6 +2848,7 @@ rb_obj_id(VALUE obj)
 }
 
 #include "regint.h"
+extern void bop_msg(int level, const char * msg, ...);
 
 static size_t
 obj_memsize_of(VALUE obj, int use_all_types)
@@ -2952,6 +2958,8 @@ obj_memsize_of(VALUE obj, int use_all_types)
 	break;
 
       default:
+      bop_msg(1, "potential error\n");
+      //return 0;//FIXME this probably will not work for more than testing...
 	rb_bug("objspace/memsize_of(): unknown data type 0x%x(%p)",
 	       BUILTIN_TYPE(obj), (void*)obj);
     }
