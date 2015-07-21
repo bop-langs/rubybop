@@ -249,6 +249,8 @@ VALUE ppr;
 }
 
 static VALUE rb_cPPR, rb_cOrdered;
+
+
 void
 Init_PPR() {
 
@@ -280,6 +282,6 @@ Init_PPR() {
 void
 Init_Ordered() {
     rb_cOrdered = rb_define_class("Ordered", rb_cProc);
-    rb_define_singleton_method(rb_cPPR, "start", ordered_start, 1);
+    rb_define_singleton_method(rb_cOrdered, "start", ordered_start, 1);
     rb_define_method(rb_mKernel, "Ordered", ordered_yield, 0);
 }
