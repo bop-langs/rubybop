@@ -4,7 +4,11 @@ CC ?= gcc
 ifeq ($(CC), cc)
   CC = gcc
 endif
-OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
+
+BUILD_DIR = .
+_OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o \
+				range_tree/dtree.o bop_ppr.o utils.o external/malloc.o\
+				bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 
 CFLAGS_DEF = -Wall -fPIC -pthread -g3 -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)
 CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D USE_LOCKS
@@ -13,22 +17,14 @@ OPITIMIZEFLAGS = -O2
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 LIB = inst.a
 CFLAGS = $(CFLAGS_DEF) $(OPITIMIZEFLAGS)
-CC = gcc
-_OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 
-CFLAGS = -Wall -fPIC -pthread -I. $(DEBUG_FLAGS)  -Wno-unused-function $(CUSTOMDEF)
-CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
-LDFLAGS = -Wl,--no-as-needed -ldl
-OPITIMIZEFLAGS = -O2
-DEBUG_FLAGS = -ggdb3 -g3 -pg -U NDEBUG
-BUILD_DIR = ../bop
 LIB_SO = $(BUILD_DIR)/inst.a
 
 OBJS = $(patsubst %,$(BUILD_DIR)/%,$(_OBJS))
 _HEADERS = $(wildcard *.h) $(wildcard external/*.h) $(wildcard range_tree/*.h)
 HEADERS = $(patsubst %,$(BUILD_DIR)/%,$(_HEADERS))
 
-library: $(LIB_SO) $(HEADERS)
+library: $(LIB_SO) # $(HEADERS)
 
 $(LIB_SO): $(OBJS)
 	ar r $(LIB_SO) $(OBJS)
