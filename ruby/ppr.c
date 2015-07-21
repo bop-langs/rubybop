@@ -99,49 +99,12 @@ ppr_meaning() {
     return LONG2NUM(42);
 }
 
-static VALUE
-ppr_use(VALUE ppr, VALUE obj)
-{
-    BOP_obj_use(obj);
-    return obj;
-}
-
-static VALUE
-ppr_promise(VALUE ppr, VALUE obj)
-{
-    BOP_obj_promise(obj);
-    return obj;
-}
-
-static VALUE
-ppr_call(ppr, args)
-VALUE ppr, args; /* Currently does not work... */
-{
-    //set_rheap_null();
-  //BOP_ppr_begin(1);
-
-    //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
-    VALUE ret = rb_proc_call(ppr, args);
-    if (!NIL_P(ret)){
-      assert (NIL_P(ret));
-      BOP_abort_spec("PPR returns a non-nil value");
-    }
-
-    //TODO get this fixed
-    //if (task_parallel_p) ppr_pot_upload( );
-
-  //BOP_ppr_end(1);
-
-    return Qnil;
-}
 
 static VALUE
 ppr_yield()
 {
-    //set_rheap_null();
     BOP_ppr_begin(1);
         rb_gc_disable();
-        //set_rheap_null();
         bop_msg(3,"yielding block...");
         rb_yield(0);
         rb_gc_enable();
@@ -213,15 +176,12 @@ ppr_spec_order(ppr)
 }
 
 static VALUE
-ordered_call(ordered, args)
-VALUE ordered, args;
+ordered_yield()
 {
-    BOP_ordered_begin( 1 );
-
-    VALUE ret = rb_proc_call(ordered, args);
-
-    BOP_ordered_end( 1 );
-
+    BOP_ordered_begin(1);
+        bop_msg(3,"yielding ordered block...");
+        rb_yield(0);
+    BOP_ordered_end(1);
     return Qnil;
 }
 
@@ -249,30 +209,11 @@ VALUE ppr;
    return ret;
 }
 
-static VALUE rb_cPPR, rb_cOrdered;
-
-static VALUE
-kernel_ppr(void)
-{
-	VALUE ppr = rb_funcall(rb_cPPR, rb_intern("new"), 0);
-	return rb_funcall(ppr, rb_intern("yield"), 0);
-}
-
-static VALUE
-kernel_ordered(void)
-{
-	VALUE ordered = rb_funcall(rb_cOrdered, rb_intern("new"), 0);
-	return rb_funcall(ordered, rb_intern("yield"), 0);
-}
-
 void
 Init_PPR() {
 
     rb_cPPR = rb_define_class("PPR", rb_cProc);
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
-    rb_define_method(rb_cPPR, "call", ppr_call, -2);
-    rb_define_singleton_method(rb_cPPR, "use", ppr_use, 1);
-    rb_define_singleton_method(rb_cPPR, "promise", ppr_promise, 1);
     rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 0);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
@@ -295,7 +236,5 @@ Init_PPR() {
 void
 Init_Ordered() {
     rb_cOrdered = rb_define_class("Ordered", rb_cProc);
-    rb_define_method(rb_cOrdered, "call", ordered_call, -2);
-
-    rb_define_method(rb_mKernel, "Ordered", kernel_ordered, 0);
+    rb_define_method(rb_mKernel, "Ordered", ordered_yield, 0);
 }
