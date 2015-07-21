@@ -15,7 +15,7 @@ matrix:
   - env: BOP_UndyFinish=0
   exclude: #gcc/osx causes issues
   - os: osx
-    compiler: gcc
+    env: BOP_UndyFinish=0
 #dependencies for the ruby language
 
 sudo: false
