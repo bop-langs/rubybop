@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include "ppr.h"
+#include "gc.h"
 #include "internal.h"
 #include "../bop/bop_api.h"
 #include "../bop/bop_ports.h"
+
 //TODO get get ppr_mon to work
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
@@ -11,22 +13,50 @@
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
-VALUE rb_gc_enable();
-VALUE rb_gc_disable();
 
 extern void BOP_use(void*, size_t);
 extern void BOP_promise(void*, size_t);
 
+#ifndef SEQUENTIAL
+#define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
+#endif
+
+static int recurse = 1;
+
 void BOP_obj_use(VALUE obj){
-  BOP_use((void*) obj, rb_obj_memsize_of(obj));
+  if (recurse){
+    int size = 0;
+    recurse = 0;
+    size = rb_obj_memsize_of(obj);
+    if(size!=0){
+      bop_msg(5, "Using object %p at address %p with size %d", (obj), &obj, size);
+      BOP_use(obj, size);
+    }
+    recurse = 1;
+  }
 }
 void BOP_obj_promise(VALUE obj){
-  BOP_promise((void*) obj, rb_obj_memsize_of(obj));
+  if (recurse){
+    int size = 0;
+    recurse = 0;
+    size = rb_obj_memsize_of(obj);
+    if(size!=0){
+      bop_msg(5, "Promising object %p at address %p with size %d", (obj), &obj, size);
+      BOP_promise(obj, size);
+    }
+    recurse = 1;
+  }
 }
 
-void BOP_obj_use_promise(VALUE obj){
-  BOP_obj_use(obj);
-  BOP_obj_promise(obj);
+void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* function){
+  if(!SEQUENTIAL && (obj != NULL|| !FIXNUM_P(obj))){
+    int size = rb_obj_memsize_of(obj);
+    if (size > 0){
+      bop_msg(1, "USE PROMISE \tfile: %s line: %d function: %s\t object: %016llx size: %d\t", file, line, function, obj, size);
+      BOP_obj_use(obj);
+      BOP_obj_promise(obj);
+    }
+  }
 }
 extern void set_rheap_nulll(void);
 
@@ -70,24 +100,52 @@ ppr_meaning() {
 }
 
 static VALUE
-ppr_call(ppr, args)
-VALUE ppr, args; /* OK */
+ppr_use(VALUE ppr, VALUE obj)
 {
-    set_rheap_null();
-  BOP_ppr_begin(1);
-    printf("IN PPR CALL\n");
-    rb_gc_disable();
-    BOP_ppr_begin(1);
+    BOP_obj_use(obj);
+    return obj;
+}
+
+static VALUE
+ppr_promise(VALUE ppr, VALUE obj)
+{
+    BOP_obj_promise(obj);
+    return obj;
+}
+
+static VALUE
+ppr_call(ppr, args)
+VALUE ppr, args; /* Currently does not work... */
+{
+    //set_rheap_null();
+  //BOP_ppr_begin(1);
+
     //VALUE ret = rb_proc_call_with_block(ppr, args, Qundef, 0);
     VALUE ret = rb_proc_call(ppr, args);
-    if (!NIL_P(ret))
+    if (!NIL_P(ret)){
+      assert (NIL_P(ret));
       BOP_abort_spec("PPR returns a non-nil value");
+    }
 
     //TODO get this fixed
     //if (task_parallel_p) ppr_pot_upload( );
 
-  BOP_ppr_end(1);
-  rb_gc_enable();
+  //BOP_ppr_end(1);
+
+    return Qnil;
+}
+
+static VALUE
+ppr_yield()
+{
+    //set_rheap_null();
+    BOP_ppr_begin(1);
+        rb_gc_disable();
+        //set_rheap_null();
+        bop_msg(3,"yielding block...");
+        rb_yield(0);
+        rb_gc_enable();
+    BOP_ppr_end(1);
     return Qnil;
 }
 
@@ -197,14 +255,14 @@ static VALUE
 kernel_ppr(void)
 {
 	VALUE ppr = rb_funcall(rb_cPPR, rb_intern("new"), 0);
-	return rb_funcall(ppr, rb_intern("call"), 0);
+	return rb_funcall(ppr, rb_intern("yield"), 0);
 }
 
 static VALUE
 kernel_ordered(void)
 {
 	VALUE ordered = rb_funcall(rb_cOrdered, rb_intern("new"), 0);
-	return rb_funcall(ordered, rb_intern("call"), 0);
+	return rb_funcall(ordered, rb_intern("yield"), 0);
 }
 
 void
@@ -213,6 +271,9 @@ Init_PPR() {
     rb_cPPR = rb_define_class("PPR", rb_cProc);
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
     rb_define_method(rb_cPPR, "call", ppr_call, -2);
+    rb_define_singleton_method(rb_cPPR, "use", ppr_use, 1);
+    rb_define_singleton_method(rb_cPPR, "promise", ppr_promise, 1);
+    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 0);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
     //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
@@ -224,7 +285,7 @@ Init_PPR() {
     rb_define_singleton_method(rb_cPPR, "set_group_size", set_group_size, 1);
     rb_define_singleton_method(rb_cPPR, "get_group_size", get_group_size, 0);
 
-    rb_define_method(rb_mKernel, "PPR", kernel_ppr, 0);
+    rb_define_method(rb_mKernel, "PPR", ppr_yield, 0);
 
     //TODO get this uncommented
     //register_port(&ruby_monitor, "Ruby Object Monitoring Port");

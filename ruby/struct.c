@@ -110,16 +110,36 @@ rb_struct_getmember(VALUE obj, ID id)
     UNREACHABLE;
 }
 
-static VALUE rb_struct_ref0(VALUE obj) {return RSTRUCT_GET(obj, 0);}
-static VALUE rb_struct_ref1(VALUE obj) {return RSTRUCT_GET(obj, 1);}
-static VALUE rb_struct_ref2(VALUE obj) {return RSTRUCT_GET(obj, 2);}
-static VALUE rb_struct_ref3(VALUE obj) {return RSTRUCT_GET(obj, 3);}
-static VALUE rb_struct_ref4(VALUE obj) {return RSTRUCT_GET(obj, 4);}
-static VALUE rb_struct_ref5(VALUE obj) {return RSTRUCT_GET(obj, 5);}
-static VALUE rb_struct_ref6(VALUE obj) {return RSTRUCT_GET(obj, 6);}
-static VALUE rb_struct_ref7(VALUE obj) {return RSTRUCT_GET(obj, 7);}
-static VALUE rb_struct_ref8(VALUE obj) {return RSTRUCT_GET(obj, 8);}
-static VALUE rb_struct_ref9(VALUE obj) {return RSTRUCT_GET(obj, 9);}
+static VALUE rb_struct_ref0(VALUE obj) {
+  return RSTRUCT_GET(obj, 0);
+}
+static VALUE rb_struct_ref1(VALUE obj) {
+  return RSTRUCT_GET(obj, 1);
+}
+static VALUE rb_struct_ref2(VALUE obj) {
+  return RSTRUCT_GET(obj, 2);
+}
+static VALUE rb_struct_ref3(VALUE obj) {
+  return RSTRUCT_GET(obj, 3);
+}
+static VALUE rb_struct_ref4(VALUE obj) {
+  return RSTRUCT_GET(obj, 4);
+}
+static VALUE rb_struct_ref5(VALUE obj) {
+  return RSTRUCT_GET(obj, 5);
+}
+static VALUE rb_struct_ref6(VALUE obj) {
+  return RSTRUCT_GET(obj, 6);
+}
+static VALUE rb_struct_ref7(VALUE obj) {
+  return RSTRUCT_GET(obj, 7);
+}
+static VALUE rb_struct_ref8(VALUE obj) {
+  return RSTRUCT_GET(obj, 8);
+}
+static VALUE rb_struct_ref9(VALUE obj) {
+  return RSTRUCT_GET(obj, 9);
+}
 
 #define N_REF_FUNC numberof(ref_func)
 
