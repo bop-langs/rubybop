@@ -12,7 +12,6 @@ else
 	$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
 end
 
-end
 $incl = "../bop/build"
 $params = '' if $params.nil?
 
