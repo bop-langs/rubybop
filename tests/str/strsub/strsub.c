@@ -264,13 +264,13 @@ int main(int argc, char *argv[]) {
 
 	/* terminate */
 	fclose(fStream);
-
-	//printf("%s\n",BOP_strsub(str,argv[2],argv[3]));
-	int a[10000];
-	int i;
-	for (i=0;i<10000;i++) {
-		a[i] = i;
-	}
-	printf("%d\n",find_int(a,10000,9500));
+	//
+	// //printf("%s\n",BOP_strsub(str,argv[2],argv[3]));
+	// int a[10000];
+	// int i;
+	// for (i=0;i<10000;i++) {
+	// 	a[i] = i;
+	// }
+	// printf("%d\n",find_int(a,10000,9500));
 	return 0;
 }

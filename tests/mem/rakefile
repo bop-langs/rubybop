@@ -1,6 +1,5 @@
 load '../bop_test.rake'
 
-$cc = 'gcc'
 $c_flags = '-g3'
 
 $params = '100000 4'
