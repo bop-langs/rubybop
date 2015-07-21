@@ -17,6 +17,7 @@ $params = '' if $params.nil?
 
 # Location of BOP
 $bop_dir = (Pathname.new(__FILE__).dirname + '../build/bop/').cleanpath if $bop_dir.nil?
+$bop_src = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_src.nil?
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
 $incl = $bop_dir
@@ -92,7 +93,7 @@ desc "Compile non-BOP test(s)"
 task :orig # Prereqs to be added by bop_test
 
 task :boplib do
-  sh "cd #{$bop_dir}; make debug"
+  sh "cd #{$bop_src}; make debug"
 end
 
 desc "Remove object files"

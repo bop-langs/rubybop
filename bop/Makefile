@@ -25,8 +25,10 @@ BUILD_DIR = ../build/bop
 LIB_SO = $(BUILD_DIR)/inst.a
 
 OBJS = $(patsubst %,$(BUILD_DIR)/%,$(_OBJS))
+_HEADERS = $(wildcard *.h) $(wildcard external/*.h) $(wildcard range_tree/*.h)
+HEADERS = $(patsubst %,$(BUILD_DIR)/%,$(_HEADERS))
 
-library: $(LIB_SO)
+library: $(LIB_SO) $(HEADERS)
 
 $(LIB_SO): $(OBJS)
 	ar r $(LIB_SO) $(OBJS)
@@ -44,5 +46,9 @@ $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(@D)
 	$(CC) -c -o $@ $^ $(CFLAGS)
 
+$(BUILD_DIR)/%.h: %.h
+	@mkdir -p $(@D)
+	@cp  $^ $@
+
 clean:
-	rm -f $(OBJS) $(LIB_SO)
+	rm -f $(OBJS) $(LIB_SO) $(HEADERS)
