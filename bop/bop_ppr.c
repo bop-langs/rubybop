@@ -201,6 +201,7 @@ void BOP_abort_next_spec( char *msg ) {
 }
 
 static int undy_ppr_count;
+extern int bop_undy_active;
 
 void post_ppr_undy( void ) {
   undy_ppr_count ++;
@@ -214,11 +215,12 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
-#if FORCE_NO_UNDY
-  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting. Recompile with FORCE_NO_UNDY undefined to restore normal behavior.");
-  abort();
-  return; //doesn't actually happen
-#endif
+  if(!bop_undy_active){
+ 	bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
+  	abort();
+  	return; //doesn't actually happen
+  }
+  
   // indicate the success of the understudy
   kill(0, SIGUSR2);
   kill(-monitor_group, SIGUSR1); //main requires a special signal?
@@ -590,12 +592,11 @@ void __attribute__ ((constructor)) BOP_init(void) {
   action.sa_sigaction = (void *) SigUsr2;
   sigaction(SIGUSR2, &action, NULL);
 
-
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
-
-
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
+  bop_undy_active = get_int_from_env("FORCE_NO_UNDY", 0, 1, 1);
+
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
   msg_init();
