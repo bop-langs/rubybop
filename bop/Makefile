@@ -21,7 +21,7 @@ CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D__LINUX__
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
 DEBUG_FLAGS = -ggdb3 -g3 -pg -U NDEBUG
-BUILD_DIR = ../build/bop
+BUILD_DIR = ../bop
 LIB_SO = $(BUILD_DIR)/inst.a
 
 OBJS = $(patsubst %,$(BUILD_DIR)/%,$(_OBJS))
