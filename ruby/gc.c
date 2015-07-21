@@ -468,12 +468,22 @@ void addcount_init()
 {
     head = (struct node*)malloc(sizeof(struct node));
 }
+
 void add_count_entry(struct node *head, int count)
 {
     struct node *worker;
     worker = head;
     while (worker->next)
+    {
 	worker = worker->next;
+    }
+    worker->free_slots = count;
+    worker-> next = (struct node *)malloc(sizeof(struct node));
+}
+
+void record_free_counts()
+{
+    ;
 }
 
 typedef struct rb_objspace {
