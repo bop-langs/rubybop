@@ -4,20 +4,21 @@ require 'pathname'
 # Compiler config
 $cc = ENV['CC'] || 'gcc'
 if $cc == 'cc' then $cc = 'gcc' end
-$c_flags = '-g3 -fPIC' if $c_flags.nil?
+$c_flags = '-g3 -fPIC -pg' if $c_flags.nil?
 #This is a horrible hack...maybe change this?
 if RUBY_PLATFORM =~ /darwin/ then
 	$ldflags = '-lm -Wl --no-as-needed -ldl -pthread'
 else
 	$ldflags = '-lm -Wl,--no-as-needed -ldl -pthread'
 end
-$incl = "../bop/"
+
 $params = '' if $params.nil?
 
 # Location of BOP
 $bop_dir = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_dir.nil?
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
+$incl = $bop_dir
 # Objects and programs for clean and realclean
 $objs = [] if $objs.nil?
 $progs = [] if $progs.nil?
@@ -90,7 +91,7 @@ desc "Compile non-BOP test(s)"
 task :orig # Prereqs to be added by bop_test
 
 task :boplib do
-  sh "cd #{$bop_dir}; make"
+  sh "cd #{$bop_dir}; make debug"
 end
 
 desc "Remove object files"
@@ -129,7 +130,9 @@ task :run do
 end
 def run
   puts "$prog = " + $progs.to_s
-  ENV["BOP_Verbose"]=1.to_s #want some output
+	if  ENV['TRAVIS_OS_NAME'] != nil
+  	ENV["BOP_Verbose"]=1.to_s #want some output. Only on travis ci
+	end
   $progs.each do |prog|
     cmd = "./#{prog} #{$params}"
     sh cmd do |ok, res|

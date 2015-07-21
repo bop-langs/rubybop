@@ -4,15 +4,16 @@ CC ?= gcc
 ifeq ($(CC), cc)
   CC = gcc
 endif
-OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o sys_wrapper.o
+OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o range_tree/dtree.o bop_ppr.o utils.o external/malloc.o bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 ALL = $(OBJS) $(TESTS)
 
-CFLAGS = -Wall -fPIC -pthread -g3 -I. $(OPITIMIZEFLAGS)  -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)
+CFLAGS_DEF = -Wall -fPIC -pthread -g3 -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)
 CUSTOMDEF = -D USE_DL_PREFIX -D BOP
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O2
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 LIB = inst.a
+CFLAGS = $(CFLAGS_DEF) $(OPITIMIZEFLAGS)
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
@@ -29,12 +30,11 @@ $(LIB): $(OBJS)
 	ar r $(LIB) $(OBJS)
 	ranlib $(LIB)
 
-debug: CFLAGS +=  $(DEBUG_FLAGS)
-debug: clean library
+debug: CFLAG = $(CFLAGS_DEF)  $(DEFBUG_FLAGS)
+debug: library
 
 %_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
-		$(CC) -c -o $@ $^ $(filter-out $(OPITIMIZEFLAGS), $(CFLAGS))
-
+		$(CC) -c -o $@ $^ $(CFLAGS_DEF)
 %.o: %.c
 	$(CC) -c -o $@ $^ $(CFLAGS)
 
