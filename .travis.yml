@@ -8,7 +8,7 @@ os:
 env:
   - BOP_UndyFinish=1 #normal behavior
   - BOP_UndyFinish=0 #force PPR tasks to finish
-  - BOP_UndyFinish=1 BOP_GroupSize=4 #normal understudy, more PPR tasks
+  - BOP_GroupSize=4 #normal understudy, more PPR tasks
 matrix:
   fast_finish: true
   allow_failures:
