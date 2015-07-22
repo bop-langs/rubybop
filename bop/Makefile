@@ -27,20 +27,24 @@ HEADERS = $(patsubst %,$(BUILD_DIR)/%,$(_HEADERS))
 library: $(LIB_SO) # $(HEADERS)
 
 $(LIB_SO): $(OBJS)
-	ar r $(LIB_SO) $(OBJS)
-	ranlib $(LIB_SO)
+	@echo building archive "$(LIB_SO)"
+	@@ar r $(LIB_SO) $(OBJS)
+	@ranlib $(LIB_SO)
 
-debug: CFLAG = $(CFLAGS_DEF)  $(DEFBUG_FLAGS)
+debug: CFLAGS = $(CFLAGS_DEF)  $(DEFBUG_FLAGS)
 debug: library
 
-$(BUILD_DIR)/%_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
+ $(BUILD_DIR)/%_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
 		@mkdir -p $(@D)
-		$(CC) -c -o $@ $^ $(CFLAGS_DEF)
+		@echo compiling $^
+		@$(CC) -c -o $@ $^ $(CFLAGS_DEF)
+
 all: $(OBJS)
 
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p $(@D)
-	$(CC) -c -o $@ $^ $(CFLAGS)
+	@echo compiling $^
+	@$(CC) -c -o $@ $^ $(CFLAGS)
 
 $(BUILD_DIR)/%.h: %.h
 	@mkdir -p $(@D)
