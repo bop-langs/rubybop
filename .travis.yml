@@ -8,14 +8,17 @@ os:
 env:
   - BOP_UndyFinish=1 #normal behavior
   - BOP_UndyFinish=0 #force PPR tasks to finish
+  - BOP_GroupSize=4 #get larger test
 matrix:
   fast_finish: true
   allow_failures:
   - os: osx #mac is unstable for the time being
   - env: BOP_UndyFinish=0
-  exclude: #gcc/osx causes issues
+  exclude:
   - os: osx
-    env: BOP_UndyFinish=0
+    env: BOP_UndyFinish=0 BOP_GroupSize=4
+  -env: BOP_GroupSize=4
+    compiler: clang
 #dependencies for the ruby language
 
 sudo: false
