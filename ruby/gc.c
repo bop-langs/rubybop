@@ -658,6 +658,7 @@ struct heap_page {
     rb_heap_t *heap;
     int total_slots;
     int free_slots;
+    int old_free_slots;
     int final_slots;
     struct {
 	unsigned int before_sweep : 1;
@@ -781,6 +782,7 @@ void zero_out_frees()
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
+	worker->old_free_slots = worker->free_slots;
 	worker->free_slots = 0;
 	worker = worker->next;
     }
