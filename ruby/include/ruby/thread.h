@@ -30,6 +30,11 @@ void *rb_thread_call_without_gvl(void *(*func)(void *), void *data1,
 void *rb_thread_call_without_gvl2(void *(*func)(void *), void *data1,
 				  rb_unblock_function_t *ubf, void *data2);
 
+void *rb_thread_call_without_gvl_par(void *(*func)(void *), void *data1,
+					rb_unblock_function_t *ubf, void *data2);
+void *rb_thread_call_without_gvl2_par(void *(*func)(void *), void *data1,
+					rb_unblock_function_t *ubf, void *data2);
+
 #define RUBY_CALL_WO_GVL_FLAG_SKIP_CHECK_INTS_AFTER 0x01
 #define RUBY_CALL_WO_GVL_FLAG_SKIP_CHECK_INTS_
 

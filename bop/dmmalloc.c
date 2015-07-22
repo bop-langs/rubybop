@@ -134,7 +134,6 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
 
 static int counts[NUM_CLASSES] = {0,0,0,0,0,0,0,0,0,0,0,0};
 static int promise_counts[NUM_CLASSES]; //the merging PPR tasks promises these values, which are the then handled by the surving PPR task. The surviving task copies the counts OR (on abort) adds the total counts that the PPR task got, which is constant for all tasks
-static pthread_mutex_t lock;
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode
 header* freedlist= NULL; //list of items freed during PPR-mode
@@ -203,12 +202,18 @@ static inline int get_index (size_t size) {
     return index;
 }
 /**Locking functions*/
+#ifdef USE_LOCKS
+static pthread_mutex_t lock;
 static inline void get_lock() {
     pthread_mutex_lock(&lock);
 }
 static inline void release_lock() {
     pthread_mutex_unlock(&lock);
 }
+#else
+static inline void get_lock() {/*Do nothing*/}
+static inline void release_lock() {/*Do nothing*/}
+#endif //use locks
 /** Bop-related functionss*/
 
 /** Divide up the currently allocated groups into regions.

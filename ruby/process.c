@@ -2452,6 +2452,8 @@ static int rb_exec_without_timer_thread(const struct rb_execarg *eargp, char *er
 VALUE
 rb_f_exec(int argc, const VALUE *argv)
 {
+		return Qnil;
+
     VALUE execarg_obj, fail_str;
     struct rb_execarg *eargp;
 #define CHILD_ERRMSG_BUFLEN 80
@@ -4390,17 +4392,8 @@ proc_getpgrp(void)
 static VALUE
 proc_setpgrp(void)
 {
-    rb_secure(2);
-  /* check for posix setpgid() first; this matches the posix */
-  /* getpgrp() above.  It appears that configure will set SETPGRP_VOID */
-  /* even though setpgrp(0,0) would be preferred. The posix call avoids */
-  /* this confusion. */
-#ifdef HAVE_SETPGID
-    if (setpgid(0,0) < 0) rb_sys_fail(0);
-#elif defined(HAVE_SETPGRP) && defined(SETPGRP_VOID)
-    if (setpgrp() < 0) rb_sys_fail(0);
-#endif
-    return INT2FIX(0);
+	//we cannot change pgrp
+  return INT2FIX(0);
 }
 #else
 #define proc_setpgrp rb_f_notimplement
@@ -7522,10 +7515,10 @@ InitVM_process(void)
     rb_define_virtual_variable("$?", rb_last_status_get, 0);
     rb_define_virtual_variable("$$", get_pid, 0);
   	//rb_define_global_function("exec", rb_f_exec, -1);
-    rb_define_global_function("fork", rb_f_fork, 0);
-    //rb_define_global_function("exit!", rb_f_exit_bang, -1);
+    // rb_define_global_function("fork", rb_f_fork, 0);
+    rb_define_global_function("exit!", rb_f_exit_bang, -1);
     rb_define_global_function("system", rb_f_system, -1);
-    rb_define_global_function("spawn", rb_f_spawn, -1);
+    // rb_define_global_function("spawn", rb_f_spawn, -1);
     rb_define_global_function("sleep", rb_f_sleep, -1);
     rb_define_global_function("exit", rb_f_exit, -1);
     rb_define_global_function("abort", rb_f_abort, -1);
@@ -7547,8 +7540,8 @@ InitVM_process(void)
     rb_define_const(rb_mProcess, "WUNTRACED", INT2FIX(0));
 #endif
 
-    rb_define_singleton_method(rb_mProcess, "exec", rb_f_exec, -1);
-    rb_define_singleton_method(rb_mProcess, "fork", rb_f_fork, 0);
+    // rb_define_singleton_method(rb_mProcess, "exec", rb_f_exec, -1);
+    // rb_define_singleton_method(rb_mProcess, "fork", rb_f_fork, 0);
     rb_define_singleton_method(rb_mProcess, "spawn", rb_f_spawn, -1);
     rb_define_singleton_method(rb_mProcess, "exit!", rb_f_exit_bang, -1);
     rb_define_singleton_method(rb_mProcess, "exit", rb_f_exit, -1);
@@ -7592,9 +7585,9 @@ InitVM_process(void)
     rb_define_module_function(rb_mProcess, "ppid", get_ppid, 0);
 
     rb_define_module_function(rb_mProcess, "getpgrp", proc_getpgrp, 0);
-    rb_define_module_function(rb_mProcess, "setpgrp", proc_setpgrp, 0);
+    // rb_define_module_function(rb_mProcess, "setpgrp", proc_setpgrp, 0);
     rb_define_module_function(rb_mProcess, "getpgid", proc_getpgid, 1);
-    rb_define_module_function(rb_mProcess, "setpgid", proc_setpgid, 2);
+    // rb_define_module_function(rb_mProcess, "setpgid", proc_setpgid, 2);
 
     rb_define_module_function(rb_mProcess, "getsid", proc_getsid, -1);
     rb_define_module_function(rb_mProcess, "setsid", proc_setsid, 0);
