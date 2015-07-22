@@ -457,6 +457,39 @@ enum gc_stat {
     gc_stat_sweeping
 };
 
+//Previous list method for poisoning values. Deprecated in favor of direct struct manipulation
+/*
+struct node{
+    int free_slots;
+    struct node *next;
+};
+
+struct node *head;
+void addcount_init()
+{
+    head = (struct node*)malloc(sizeof(struct node));
+}
+
+void add_count_entry(struct node *head, int count)
+{
+    struct node *worker;
+    worker = head;
+    while (worker->next)
+    {
+	worker = worker->next;
+    }
+    worker->free_slots = count;
+    worker-> next = (struct node *)malloc(sizeof(struct node));
+}
+
+void record_free_counts()
+{
+    ;
+}
+*/
+//End of list method
+
+
 typedef struct rb_objspace {
     struct {
 	size_t limit;
@@ -515,7 +548,6 @@ typedef struct rb_objspace {
 	size_t final_slots;
 	VALUE deferred_final;
     } heap_pages;
-
     st_table *finalizer_table;
 
     struct {
@@ -614,12 +646,19 @@ enum {
     HEAP_BITMAP_PLANES = USE_RGENGC ? 3 : 1 /* RGENGC: mark bits, rememberset bits and oldgen bits */
 };
 
+
+//BOP NOTES
+// free_slots seems to take track of the number of free available blocks on each heap page. The poisoning mechanism would iterate through each page and set the free slots to 0
+// Ideally this would result in each PPR task creating a new page, avoiding the allocations to the same block.
+
+
 struct heap_page {
     struct heap_page_body *body;
     struct heap_page *prev;
     rb_heap_t *heap;
     int total_slots;
     int free_slots;
+    int old_free_slots;
     int final_slots;
     struct {
 	unsigned int before_sweep : 1;
@@ -731,6 +770,25 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 #endif
 
 #define RANY(o) ((RVALUE*)(o))
+
+
+//BOP
+//Iterates through heap pages and sets each free slot to zero
+//
+void zero_out_frees()
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    struct heap_page *worker;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    while (worker)
+    {
+	worker->old_free_slots = worker->free_slots;
+	worker->free_slots = 0;
+	worker = worker->next;
+    }
+    return;
+}
+
 
 struct RZombie {
     struct RBasic basic;
@@ -1487,7 +1545,7 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 static void
 heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    struct heap_page *page = heap_page_create(objspace);
+    struct heap *page = heap_page_create(objspace);
     heap_add_page(objspace, heap, page);
     heap_add_freepage(objspace, heap, page);
 }
@@ -6818,7 +6876,7 @@ gc_stress_set(rb_objspace_t *objspace, VALUE flag)
  *  Updates the GC stress mode.
  *
  *  When stress mode is enabled, the GC is invoked at every GC opportunity:
- *  all memory and object allocations.
+ *  all memory and object.
  *
  *  Enabling stress mode will degrade performance, it is only for debugging.
  *
