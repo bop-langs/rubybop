@@ -457,7 +457,8 @@ enum gc_stat {
     gc_stat_sweeping
 };
 
-
+//Previous list method for poisoning values. Deprecated in favor of direct struct manipulation
+/*
 struct node{
     int free_slots;
     struct node *next;
@@ -485,6 +486,9 @@ void record_free_counts()
 {
     ;
 }
+*/
+//End of list method
+
 
 typedef struct rb_objspace {
     struct {
@@ -767,16 +771,17 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 #define RANY(o) ((RVALUE*)(o))
 
 
-
+//BOP
 //Iterates through heap pages and sets each free slot to zero
+//
 void zero_out_frees()
 {
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
-    worker = objspace->heap_pages.sorted;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    
     return;
 }
-
 
 
 struct RZombie {
