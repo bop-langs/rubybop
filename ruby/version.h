@@ -1,4 +1,4 @@
-#define RUBY_VERSION "2.2.3 bop"
+#define RUBY_VERSION "2.2.3"
 #define RUBY_RELEASE_DATE "2015-05-21"
 #define RUBY_PATCHLEVEL 115
 
@@ -40,7 +40,7 @@
 #endif
 
 # define RUBY_DESCRIPTION	    \
-    "ruby "RUBY_VERSION		    \
+    "rubybop "RUBY_VERSION		    \
     RUBY_PATCHLEVEL_STR		    \
     " ("RUBY_RELEASE_DATE	    \
     RUBY_REVISION_STR") "	    \
