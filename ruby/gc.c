@@ -779,7 +779,11 @@ void zero_out_frees()
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
-    
+    while (worker)
+    {
+	worker->free_slots = 0;
+	worker = worker->next;
+    }
     return;
 }
 
@@ -6870,7 +6874,7 @@ gc_stress_set(rb_objspace_t *objspace, VALUE flag)
  *  Updates the GC stress mode.
  *
  *  When stress mode is enabled, the GC is invoked at every GC opportunity:
- *  all memory and object allocations.
+ *  all memory and object.
  *
  *  Enabling stress mode will degrade performance, it is only for debugging.
  *
