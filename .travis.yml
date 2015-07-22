@@ -17,8 +17,6 @@ matrix:
   exclude:
   - os: osx
     env: BOP_UndyFinish=0 BOP_GroupSize=4
-  -env: BOP_GroupSize=4
-    compiler: clang
 #dependencies for the ruby language
 
 sudo: false
