@@ -544,7 +544,6 @@ typedef struct rb_objspace {
 	size_t final_slots;
 	VALUE deferred_final;
     } heap_pages;
-
     st_table *finalizer_table;
 
     struct {
@@ -647,6 +646,8 @@ enum {
 //BOP NOTES
 // free_slots seems to take track of the number of free available blocks on each heap page. The poisoning mechanism would iterate through each page and set the free slots to 0
 // Ideally this would result in each PPR task creating a new page, avoiding the allocations to the same block.
+
+
 struct heap_page {
     struct heap_page_body *body;
     struct heap_page *prev;
@@ -764,6 +765,19 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 #endif
 
 #define RANY(o) ((RVALUE*)(o))
+
+
+
+//Iterates through heap pages and sets each free slot to zero
+void zero_out_frees()
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    struct heap_page *worker;
+    worker = objspace->heap_pages.sorted;
+    return;
+}
+
+
 
 struct RZombie {
     struct RBasic basic;
