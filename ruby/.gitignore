@@ -27,7 +27,7 @@ Makefile.old
 extconf.h
 y.output
 y.tab.c
-
+rubybop
 # /
 /*-fake.rb
 /*.pc

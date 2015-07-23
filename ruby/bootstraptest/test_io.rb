@@ -89,28 +89,6 @@ assert_normal_exit %q{
   ARGF.set_encoding "foo"
 }
 
-10.times do
-  assert_normal_exit %q{
-    at_exit { p :foo }
-
-    megacontent = "abc" * 12345678
-    #File.open("megasrc", "w") {|f| f << megacontent }
-
-    t0 = Thread.main
-    Thread.new { sleep 0.001 until t0.stop?; Process.kill(:INT, $$) }
-
-    r1, w1 = IO.pipe
-    r2, w2 = IO.pipe
-    t1 = Thread.new { w1 << megacontent; w1.close }
-    t2 = Thread.new { r2.read; r2.close }
-    IO.copy_stream(r1, w2) rescue nil
-    w2.close
-    r1.close
-    t1.join
-    t2.join
-  }, 'megacontent-copy_stream', ["INT"], :timeout => 10 or break
-end
-
 assert_normal_exit %q{
   r, w = IO.pipe
   STDOUT.reopen(w)

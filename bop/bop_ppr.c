@@ -391,12 +391,14 @@ void _BOP_ppr_end(int id) {
 
 */
 void MonitorInteruptFwd(int signo){
-  bop_msg(3, "forwarding SIGINT to children of pgrp %d", monitor_group);
-  assert(signo == SIGINT);
+  bop_msg(3, "forwarding signal '%s' to children of pgrp %d", strsignal(signo), monitor_group);
   assert(getpid() == monitor_process_id);
-
-  kill(monitor_group, SIGINT);
-  is_monitoring = false; //stop monitoring
+  kill(monitor_group, signo);
+  is_monitoring = is_monitoring && signo == SIGINT; //stop monitoring
+  if(signo == SIGINT){
+    while(waitpid((pid_t) -1, NULL, WUNTRACED) != -1);
+    _exit(0);
+  }
 }
 void print_backtrace(void){
   bop_msg(1, "\nBACKTRACE pid = %d parent pid %d", getpid(), getppid());
@@ -468,8 +470,8 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 }
 
 void SigBopExit( int signo ){
-  bop_msg( 3,"Program exits (%d).  Cleanse remaining processes. ", signo );
-  exit(cleanup_children());
+  bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
+  abort(); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
  *
