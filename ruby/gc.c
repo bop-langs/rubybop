@@ -9016,3 +9016,8 @@ Init_GC(void)
 	OBJ_FREEZE(opts);
     }
 }
+
+bop_port_t rubyheap_port = {
+    .ppr_group_init = zero_out_freess
+    
+}
