@@ -298,6 +298,10 @@ def CONFIG.[](name, mandatory = false)
   if mandatory
     raise "CONFIG['#{name}'] must be set" if !value or value.empty?
   end
+#  value = value.gsub("ruby", "rubybop")
+  value = value.gsub('ruby', 'rubybop') if !value.nil? && !value.include?('rubybop')
+  #puts "Found #{value} with key #{name}"
+
   value
 end
 

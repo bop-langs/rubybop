@@ -11,6 +11,12 @@ task :ruby => :bop do
   end
 end
 
+task :smoke_test do
+  cd 'ruby' do
+    sh 'make check' if File.exists? 'Makefile'
+  end
+end
+
 task :bop do
   #build bop
   cd "bop" do
@@ -69,4 +75,12 @@ end
 task :again do
 	Rake::Task[:clean].invoke
 	Rake::Task[:default].invoke
+end
+task :install => :ruby do
+  cd "ruby" do
+    sh 'make install' do |ok, res| end
+  end
+end
+task :uninstall do
+  sh 'make -C ruby uninstall'
 end
