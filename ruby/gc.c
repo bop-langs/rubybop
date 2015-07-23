@@ -9019,6 +9019,6 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = zero_out_freess
+    .ppr_group_init = zero_out_frees
     
 }
