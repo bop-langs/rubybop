@@ -790,6 +790,18 @@ void zero_out_frees()
     return;
 }
 
+void frees_restore()
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    struct heap_page *worker;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    while (worker)
+    {
+	worker->free_slots = worker->old_free_slots;
+	worker = worker->next;
+    }
+    return;   
+}
 
 struct RZombie {
     struct RBasic basic;
