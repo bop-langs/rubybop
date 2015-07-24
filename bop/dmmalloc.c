@@ -360,81 +360,83 @@ static inline header * get_header (size_t size, int *which) {
 	}
     return found;
 }
-
+int has_returned = 0;
+extern void BOP_malloc_rescue(char *);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
-    if(size == 0)
-        return NULL;
-		int pass_throughs = 0;
-    get_lock();
-    //get the right header
-		malloc_begin:
-		pass_throughs++;
-		if(pass_throughs >= 3){
-			release_lock();
-			BOP_abort_spec("dmmalloc ran out of memory");
+	header * block = NULL;
+	int which, pass_throughs = 0;
+	size_t alloc_size;
+	if(size == 0)
+	return NULL;
+
+	alloc_size = ALIGN (size + HSIZE); //same regardless of task_status
+	get_lock();
+	//get the right header
+ malloc_begin:
+	pass_throughs++;
+	if(pass_throughs >= 3){
+		release_lock();
+		BOP_abort_spec("dmmalloc ran out of memory");
+	}else if(pass_throughs != 1 && has_returned){
+		//we went through this before
+		// bop_msg(1, "DM MALLOC IS TRYING AGAIN, size %u", size);
+	}
+	which = -2;
+	block = get_header (alloc_size, &which);
+	assert (which != -2);
+	//ASSERT_VALID_COUNT(which);
+	if (block == NULL) {
+		//no item in list. Either correct list is empty OR huge block
+		if (alloc_size > MAX_SIZE) {
+			if(SEQUENTIAL){
+				//huge block always use system malloc
+				block = sys_malloc (alloc_size);
+				if (block == NULL) {
+					//ERROR: ran out of system memory
+					return NULL;
+				}
+				//don't need to add to free list, just set information
+				block->allocated.blocksize = alloc_size;
+				goto checks;
+			}else{
+				//not sequential, and allocating a too-large block. Might be able to rescue
+				BOP_malloc_rescue("Large allocation in PPR");
+				goto malloc_begin; //try again
+			}
+		} else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+#ifndef NDEBUG
+			splits++;
+#endif
+			block = dm_split (which);
+			ASSERTBLK(block);
+		} else if (SEQUENTIAL) {
+			//grow the allocated region
+#ifndef NDEBUG
+			if (index_bigger (which) != -1)
+			missed_splits++;
+#endif
+			grow (1);
+			goto malloc_begin;
+		} else {
+			BOP_malloc_rescue("Need to grow the lists in non-sequential");
+			goto malloc_begin; //try again
+			//bop_abort
 		}
-    size_t alloc_size = ALIGN (size + HSIZE);
-    int which = -2;
-    header *block = get_header (alloc_size, &which);
-    assert (which != -2);
-    //ASSERT_VALID_COUNT(which);
-    if (block == NULL) {
-        //no item in list. Either correct list is empty OR huge block
-        if (alloc_size > MAX_SIZE) {
-						if(SEQUENTIAL){
-            	//huge block always use system malloc
-	            block = sys_malloc (alloc_size);
-	            if (block == NULL) {
-									BOP_abort_spec("System malloc couldn't support large allocation size");
-									assert(task_status == UNDY); //sanity
-									goto malloc_begin; //if abort spec returns, we are now the understudy. Try again (should pass)
-	            }
-	            //don't need to add to free list, just set information
-	            block->allocated.blocksize = alloc_size;
-	            ASSERTBLK(block);
-	            release_lock();
-	            return PAYLOAD (block);
-					}else{
-						//not sequential, and allocating a too-large block
-						BOP_abort_spec("Tried to allocate larger than is supported in PPR");
-						assert(task_status == UNDY); //sanity
-						goto malloc_begin; //try again
-					}
-        } else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
-#ifndef NDEBUG
-            splits++;
-#endif
-            block = dm_split (which);
-            ASSERTBLK(block);
-        } else if (SEQUENTIAL) {
-						//grow the allocated region
-#ifndef NDEBUG
-            if (index_bigger (which) != -1)
-                missed_splits++;
-#endif
-            grow (1);
-            goto malloc_begin;
-        } else {
-						BOP_abort_spec("No way to meet requirement. Generic error.");
-						assert(task_status == UNDY); //sanity
-						goto malloc_begin; //try again
-            //bop_abort
-        }
-    } else
-        block->allocated.blocksize = sizes[which];
-		if(block == NULL)
-			return NULL; //there was no possible way to correcly allocate the block
-		ASSERTBLK(block);
-    //actually allocate the block
-    headers[which] = CAST_H (block->free.next);	//remove from free list
-    counts[which]--;
-    if(!SEQUENTIAL)
-        add_next_list(&allocatedList, block);
-    ASSERT_VALID_COUNT(which);
-    ASSERTBLK(block);
-    release_lock();
-    return PAYLOAD (block);
+	} else
+	block->allocated.blocksize = sizes[which];
+	ASSERTBLK(block);
+	//actually allocate the block
+	headers[which] = CAST_H (block->free.next);	//remove from free list
+	counts[which]--;
+	if(!SEQUENTIAL)
+	add_next_list(&allocatedList, block);
+	ASSERT_VALID_COUNT(which);
+ checks:
+	ASSERTBLK(block);
+	release_lock();
+	has_returned = 1;
+	return PAYLOAD (block);
 }
 
 // Compute the index of the next lagest index > which st the index has a non-null headers

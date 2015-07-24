@@ -163,6 +163,33 @@ int _BOP_ppr_begin(int id) {
 //  bop_msg(2, "Abort all speculation because %s", msg );
 //  kill( 0, SIGUSR2 );
 // }
+bool waiting = false;
+void temp_sigint(int sigo){
+  waiting = true;
+}
+//if malloc cannot meet a request, it calls this funcion
+void BOP_malloc_rescue(char * msg){
+  bop_msg(2, "Bop trying to save malloc-requesting process.  Failure: %s", msg);
+  if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
+    bop_msg(1, "ERROR. Malloc failed while logically sequential");
+  }else if( task_status == MAIN || (task_status == SPEC && spec_order == 0)){
+      bop_msg(1, "Changing pid %d (mode %s)", getpid(),
+          task_status == MAIN ? "Main" : "SPEC");
+      task_status = UNDY;
+      //'undy wins the race'
+      bop_msg(1, "Changing sigint handler");
+      void* x = signal(SIGINT, temp_sigint);
+      kill(monitor_group, SIGINT);
+      while(!waiting){
+        __asm__("nop;");
+      }
+      bop_msg(1, "restore sigint");
+      signal(SIGINT, x); //resore
+  }else{
+    BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
+    abort(); //for exit!
+  }
+}
 void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
@@ -173,11 +200,6 @@ void BOP_abort_spec_2(bool really_abort, const char* msg){
       bop_msg(2, "Abort main speculation because %s", msg);
       partial_group_set_size( 1 );
     }
-  }
-  else if(task_status == SPEC && spec_order == 0){
-    //we cant abort the first SPEC process. Convert to undy and kill the other spec processes
-    task_status = UNDY;
-    //kill all other spec tasks
   }else{
     bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
@@ -220,14 +242,14 @@ void post_ppr_undy( void ) {
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
   if(!bop_undy_active){
- 	bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
+ 	  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
   	abort();
   	return; //doesn't actually happen
   }
 
   // indicate the success of the understudy
   kill(0, SIGUSR2);
-  kill(-monitor_group, SIGUSR1); //main requires a special signal?
+  //kill(-monitor_group, SIGUSR1); //TODO why is this here????? main requires a special signal?
 
   undy_succ_fini( );
 
@@ -353,6 +375,7 @@ void ppr_task_commit( void ) {
 
 void _BOP_ppr_end(int id) {
   VISUALIZE("?");
+  bop_msg(1, "\t end ppr (pid %d)", getpid());
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
@@ -583,7 +606,6 @@ static void BOP_fini(void);
 
 extern int bop_verbose;
 extern int errno;
-
 /* Initialize allocation map.  Installs the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
