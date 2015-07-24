@@ -174,7 +174,11 @@ void BOP_abort_spec_2(bool really_abort, const char* msg){
       partial_group_set_size( 1 );
     }
   }
-  else {
+  else if(task_status == SPEC && spec_order == 0){
+    //we cant abort the first SPEC process. Convert to undy and kill the other spec processes
+    task_status = UNDY;
+    //kill all other spec tasks
+  }else{
     bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
     signal_commit_done( );

@@ -365,8 +365,15 @@ static inline header * get_header (size_t size, int *which) {
 void *dm_malloc (const size_t size) {
     if(size == 0)
         return NULL;
+		int pass_throughs = 0;
     get_lock();
     //get the right header
+		malloc_begin:
+		pass_throughs++;
+		if(pass_throughs >= 3){
+			release_lock();
+			BOP_abort_spec("dmmalloc ran out of memory");
+		}
     size_t alloc_size = ALIGN (size + HSIZE);
     int which = -2;
     header *block = get_header (alloc_size, &which);
@@ -379,9 +386,9 @@ void *dm_malloc (const size_t size) {
             	//huge block always use system malloc
 	            block = sys_malloc (alloc_size);
 	            if (block == NULL) {
-	                release_lock();
 									BOP_abort_spec("System malloc couldn't support large allocation size");
-	                return NULL;
+									assert(task_status == UNDY); //sanity
+									goto malloc_begin; //if abort spec returns, we are now the understudy. Try again (should pass)
 	            }
 	            //don't need to add to free list, just set information
 	            block->allocated.blocksize = alloc_size;
@@ -389,9 +396,10 @@ void *dm_malloc (const size_t size) {
 	            release_lock();
 	            return PAYLOAD (block);
 					}else{
-						//not sequential
+						//not sequential, and allocating a too-large block
 						BOP_abort_spec("Tried to allocate larger than is supported in PPR");
-						return NULL;
+						assert(task_status == UNDY); //sanity
+						goto malloc_begin; //try again
 					}
         } else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
@@ -400,16 +408,17 @@ void *dm_malloc (const size_t size) {
             block = dm_split (which);
             ASSERTBLK(block);
         } else if (SEQUENTIAL) {
+						//grow the allocated region
 #ifndef NDEBUG
             if (index_bigger (which) != -1)
                 missed_splits++;
 #endif
             grow (1);
-            block = headers[which];
-            block->allocated.blocksize = sizes[which];
-            assert (block != NULL);
+            goto malloc_begin;
         } else {
-						BOP_abort_spec("NOT ENOUGH MEMORY");
+						BOP_abort_spec("No way to meet requirement. Generic error.");
+						assert(task_status == UNDY); //sanity
+						goto malloc_begin; //try again
             //bop_abort
         }
     } else
