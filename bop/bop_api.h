@@ -166,7 +166,7 @@ void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 #define BOP_use( addr, size )
 #define BOP_promise( addr, size )
 
-#define bop_msg(level, string, arg) printf( string, arg )
+#define bop_msg(level, pass...) printf( pass )
 
 #define BOP_abort_spec( msg )
 #define BOP_abort_next_spec( msg )
