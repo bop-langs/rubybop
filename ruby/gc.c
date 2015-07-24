@@ -7249,6 +7249,7 @@ aligned_malloc(size_t alignment, size_t size)
     else {
         return NULL;
     }
+//Definition makes sure that ruby's implementation of memalign is used
 #elif defined(HAVE_MEMALIGN)
     res = memalign(alignment, size);
 #else
