@@ -15,6 +15,7 @@
 #include "ruby/st.h"
 #include "ruby/re.h"
 #include "ruby/io.h"
+#include "../bop/bop_ports.h"
 #include "ruby/thread.h"
 #include "ruby/util.h"
 #include "ruby/debug.h"
@@ -7248,6 +7249,7 @@ aligned_malloc(size_t alignment, size_t size)
     else {
         return NULL;
     }
+//Definition makes sure that ruby's implementation of memalign is used
 #elif defined(HAVE_MEMALIGN)
     res = memalign(alignment, size);
 #else
@@ -9016,3 +9018,8 @@ Init_GC(void)
 	OBJ_FREEZE(opts);
     }
 }
+
+bop_port_t rubyheap_port = {
+    .ppr_group_init = zero_out_frees
+    
+};
