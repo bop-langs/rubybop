@@ -41,6 +41,7 @@ static int bopgroup;
 static int monitor_process_id = 0;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
+static bool errored = false;
 
 void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
@@ -480,6 +481,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if(getpid() == monitor_process_id){
     bop_msg(1, "Monitor process exiting main loop because of SIGUSR2 (error)", siginfo->si_pid);
     is_monitoring = false;
+    errored = true;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
     abort( );
@@ -551,6 +553,7 @@ static void wait_process() {
     }
     unblock_wait();
   }
+  my_exit ||= errored;
   errno = 0;
   //handle remaining processes. Above may not have gotten everything
   block_wait();
