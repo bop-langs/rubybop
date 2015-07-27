@@ -44,4 +44,5 @@ before_script: #before tests run
 
 #test script
 script:
-  - rake test
+  - rake bop_test
+  - rake ruby_test
