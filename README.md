@@ -14,6 +14,16 @@ Build Status: [![Build Status](https://travis-ci.org/dcompiler/rubybop.svg?branc
 2. Run `rake test` to ensure everything is working (optional).
 3. Run `rake install`. May require `sudo`.
 
+###Unsupported Operations
+Rubybop currently does not support:
+- Terminal input (which is needed for IRB)
+- Ruby's exec calls (use the system call instead. Similar semantics)
+- Ruby's signal handlers are not installed as they are needed for the bop library.
+- Functions to change the process group id of ruby processes. Again, these need to stay the same for library.
+
+In addition, all ruby code that was executed with the GVL is now forced to use the GVL. The __only__ exception to this rule is IO, since Ruby is too slow if IO requires locks.
+
+
 Any issues installing should be reported here.
 Note: There is currently no working IRB (interactive ruby interpreter).
 
