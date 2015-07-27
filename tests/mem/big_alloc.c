@@ -16,8 +16,9 @@ unsigned int max_ppr = 1 << 20;
 
 int main(int argc, char ** argv)
 {
+  unsigned int alloc_size = max_ppr + 100;
   write(1, "dm max size is %u\n", max_ppr);
-
+  write(1, "Allocation size for test %u\n", alloc_size);
   int num_arrays = 5;
   int * some_arrays[num_arrays];
   void * raw;
@@ -25,7 +26,7 @@ int main(int argc, char ** argv)
   for(ind = 0; ind < num_arrays; ind++){
     BOP_ppr_begin(1);
       sleep(2);
-      raw = malloc(max_ppr + 50); //something larger
+      raw = malloc(alloc_size); //something larger
       some_arrays[ind] = raw;
       some_arrays[ind][0] = ind;
       write(1, "allocation %d at : %p\n", ind, raw);

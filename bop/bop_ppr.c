@@ -158,28 +158,21 @@ bool waiting = false;
 void temp_sigint(int sigo){
   waiting = true;
 }
+extern void io_on_malloc_rescue(void);
 //if malloc cannot meet a request, it calls this funcion
 void BOP_malloc_rescue(char * msg){
   bop_msg(2, "Bop trying to save malloc-requesting process.  Failure: %s", msg);
   if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
     bop_msg(1, "ERROR. Malloc failed while logically sequential");
   }else if( task_status == MAIN || (task_status == SPEC && spec_order == 0)){
-      bop_msg(1, "Changing pid %d (mode %s)", getpid(),
+      bop_msg(3, "Changing pid %d (mode %s)", getpid(),
           task_status == MAIN ? "Main" : "SPEC");
-      task_status = UNDY;
-      //'undy wins the race'
-      bop_msg(1, "Changing sigint handler");
-      /**This is ugly. Here's why:
-        Sending kill signal to own process doesn't mean the signal handler will
-        be called before kill returns. So loop doing nothing until it has been called.
-        The loop of no-ops ensures it won't get optimized out*/
-      signal(SIGINT, temp_sigint);
-      kill(monitor_group, SIGINT);
-      while(!waiting){
-        nop(); //loop can't get optimized out
-      }
-      bop_msg(1, "restore sigint");
-      signal( SIGINT, SigBopExit ); //user-process
+      // //'undy wins the race'
+      bop_msg(4, "Changing sigint handler");
+      task_status = SEQ;
+      bop_mode = SERIAL;
+      // io_on_malloc_rescue();
+      return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
     abort(); //for exit!
@@ -285,7 +278,9 @@ int spawn_undy( void ) {
     return FALSE;
   }
 }
+void undy_on_create(){
 
+}
 /* It won't return if not correct. */
 static void _ppr_check_correctness( void ) {
   if ( task_status != MAIN )

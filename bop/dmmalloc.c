@@ -109,7 +109,7 @@
 								PGS(6) + PGS(7) + PGS(8) + PGS(9) + PGS(10) + \
 								PGS(11) + PGS(12) + PGS(13) + PGS(14) + PGS(15) + PGS(16))
 //BOP macros & structures
-#define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
+#define SEQUENTIAL (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
 typedef struct {
     header *start[NUM_CLASSES];
