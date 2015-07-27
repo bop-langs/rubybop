@@ -54,7 +54,7 @@ void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
 static void __attribute__((noreturn)) end_clean(void); //exit if children errored or call abort
 static int  cleanup_children(void); //returns the value that end_clean would call with _exit (or 0 if would have aborted)
-
+void SigBopExit( int signo );
 //exec pipe
 
 static void _ppr_group_init( void ) {
@@ -178,17 +178,22 @@ void BOP_malloc_rescue(char * msg){
       task_status = UNDY;
       //'undy wins the race'
       bop_msg(1, "Changing sigint handler");
-      void* x = signal(SIGINT, temp_sigint);
+      /**This is ugly. Here's why:
+        Sending kill signal to own process doesn't mean the signal handler will
+        be called before kill returns. So loop doing nothing until it has been called.
+        The loop of no-ops ensures it won't get optimized out*/
+      signal(SIGINT, temp_sigint);
       kill(monitor_group, SIGINT);
       while(!waiting){
-        __asm__("nop;");
+        nop(); //loop can't get optimized out
       }
       bop_msg(1, "restore sigint");
-      signal(SIGINT, x); //resore
+      signal( SIGINT, SigBopExit ); //user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
     abort(); //for exit!
   }
+  abort(); //my sanity
 }
 void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
