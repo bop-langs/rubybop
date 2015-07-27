@@ -1788,7 +1788,7 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
     //TODO sever the heap so that this actually works...
     bop_msg(5, "newobj:%s\n", obj_info(obj));
-    if(is_sequential?()) bop_msg(4, "newobj:%s\n", obj_info(obj));
+    if(is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
     //BOP_obj_use_promise(obj);
     return obj;
 }

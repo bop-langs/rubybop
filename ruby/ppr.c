@@ -25,7 +25,7 @@ extern void BOP_promise(void*, size_t);
 
 static int recurse = 1;
 
-void is_sequential?(){
+void is_sequential(){
   return SEQUENTIAL;
 }
 
