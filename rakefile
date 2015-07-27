@@ -91,6 +91,6 @@ task :uninstall do
   sh 'make -C ruby uninstall'
 end
 task :debug do
-  Rake::Task[:bop_debug]
-  Rake::Task[:ruby]
+  Rake::Task[:bop_debug].invoke
+  Rake::Task[:ruby].invoke
 end
