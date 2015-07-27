@@ -10,6 +10,8 @@
 //SEARCH BRIAN in the repo to see which files were edited in MRI
 //TODO get this to work
 //extern bop_port_t ruby_monitor;
+extern bop_port_t rubyheap_port;
+
 extern int _BOP_ppr_begin();
 extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
@@ -277,6 +279,7 @@ Init_PPR() {
     //TODO get this uncommented
     //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
+    register_port(&rubyheap_port, "RubyHeap Port");
 }
 
 void

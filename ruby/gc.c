@@ -31,8 +31,19 @@
 #include <sys/types.h>
 #include <assert.h>
 //Undefine various functions to use the subset malloc functions supported by DM malloc
-#undef HAVE_POSIX_MEMALIGN
+
 #undef HAVE_MEMALIGN
+#undef HAVE_POSIX_MEMALIGN
+
+
+
+#ifdef HAVE_MEMALIGN
+#error "HAVE_MEMALIGN is defined"
+#endif
+
+#ifdef HAVE_POSIX_MEMALIGN
+#error "HAVE_POSIX_MEMALIGN is defined"
+#endif
 
 #undef rb_data_object_alloc
 
@@ -790,6 +801,18 @@ void zero_out_frees()
     return;
 }
 
+void frees_restore()
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    struct heap_page *worker;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    while (worker)
+    {
+	worker->free_slots = worker->old_free_slots;
+	worker = worker->next;
+    }
+    return;   
+}
 
 struct RZombie {
     struct RBasic basic;
@@ -9020,6 +9043,6 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = zero_out_frees
-    
+    .ppr_group_init = zero_out_frees,
+    .task_group_commit = frees_restore
 };
