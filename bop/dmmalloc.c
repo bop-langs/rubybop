@@ -162,6 +162,7 @@ static int multi_splits = 0;
 static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
+unsigned int max_ppr = SIZE_C(NUM_CLASSES);
 
 /** x86 assembly code for computing the log2 of a value.
 		This is much faster than math.h log2*/
@@ -365,7 +366,7 @@ extern void BOP_malloc_rescue(char *);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
 	header * block = NULL;
-	int which, pass_throughs = 0;
+	int which;
 	size_t alloc_size;
 	if(size == 0)
 	return NULL;
@@ -374,14 +375,6 @@ void *dm_malloc (const size_t size) {
 	get_lock();
 	//get the right header
  malloc_begin:
-	pass_throughs++;
-	if(pass_throughs >= 3){
-		release_lock();
-		BOP_abort_spec("dmmalloc ran out of memory");
-	}else if(pass_throughs != 1 && has_returned){
-		//we went through this before
-		// bop_msg(1, "DM MALLOC IS TRYING AGAIN, size %u", size);
-	}
 	which = -2;
 	block = get_header (alloc_size, &which);
 	assert (which != -2);
@@ -393,7 +386,7 @@ void *dm_malloc (const size_t size) {
 				//huge block always use system malloc
 				block = sys_malloc (alloc_size);
 				if (block == NULL) {
-					//ERROR: ran out of system memory
+					//ERROR: ran out of system memory. malloc rescue won't help
 					return NULL;
 				}
 				//don't need to add to free list, just set information
