@@ -41,6 +41,7 @@ static int bopgroup;
 static int monitor_process_id = 0;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
+static bool errored = false;
 
 void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
@@ -159,18 +160,28 @@ void temp_sigint(int sigo){
   waiting = true;
 }
 extern void io_on_malloc_rescue(void);
+int spawn_undy(void);
 //if malloc cannot meet a request, it calls this funcion
 void BOP_malloc_rescue(char * msg){
   bop_msg(2, "Bop trying to save malloc-requesting process.  Failure: %s", msg);
   if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
     bop_msg(1, "ERROR. Malloc failed while logically sequential");
-  }else if( task_status == MAIN || (task_status == SPEC && spec_order == 0)){
+  }else if(task_status == MAIN || (task_status == SPEC && spec_order == 0)){
       bop_msg(3, "Changing pid %d (mode %s)", getpid(),
           task_status == MAIN ? "Main" : "SPEC");
       // //'undy wins the race'
       bop_msg(4, "Changing sigint handler");
-      task_status = SEQ;
-      bop_mode = SERIAL;
+      int now_undy = spawn_undy();
+      if(!now_undy){
+        //die
+        bop_msg(1, "Aborting malloc failing proc.");
+        abort();
+      }else{
+        bop_msg(1, "New saved undy returning.");
+        return;
+      }
+      // task_status = SEQ;
+      // bop_mode = SERIAL;
       // io_on_malloc_rescue();
       return;//user-process
   }else{
@@ -238,7 +249,7 @@ void post_ppr_undy( void ) {
 
   // indicate the success of the understudy
   kill(0, SIGUSR2);
-  //kill(-monitor_group, SIGUSR1); //TODO why is this here????? main requires a special signal?
+  kill(-monitor_group, SIGUSR1); //TODO why is this here????? main requires a special signal?
 
   undy_succ_fini( );
 
@@ -338,7 +349,7 @@ void ppr_task_commit( void ) {
   /* Earlier spec aborted further tasks */
   if ( spec_order >= partial_group_get_size( ) ) {
   	  bop_msg( 4, "ppr task outside group size" );
-  	  cleanup_children();
+  	  exit(cleanup_children());
       //abort( ); //error
   }
 
@@ -363,7 +374,18 @@ void ppr_task_commit( void ) {
 
   end_clean();//abort( );
 }
-
+void _BOP_group_over(int id){
+  if(ppr_static_id != id){
+    bop_msg(4, "Mis-matched ppr ids. Continuing");
+  }else if(task_status == SPEC){
+    bop_msg(4, "Speculative process extended past PPR region. Aborting");
+    abort();
+  }else{
+    bop_msg(4, "Valid state while hitting BOP_group_over. Continuing & Returning to SEQ mode");
+    task_status = SEQ;
+    bop_mode = SERIAL;
+  }
+}
 void _BOP_ppr_end(int id) {
   bop_msg(1, "\t end ppr (pid %d)", getpid());
   if (ppr_pos == GAP || ppr_static_id != id)  {
@@ -480,6 +502,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if(getpid() == monitor_process_id){
     bop_msg(1, "Monitor process exiting main loop because of SIGUSR2 (error)", siginfo->si_pid);
     is_monitoring = false;
+    errored = true;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
     abort( );
@@ -551,6 +574,7 @@ static void wait_process() {
     }
     unblock_wait();
   }
+  my_exit = my_exit || errored;
   errno = 0;
   //handle remaining processes. Above may not have gotten everything
   block_wait();

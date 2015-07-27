@@ -2,7 +2,6 @@
 #include "bop_api.h"
 #include "bop_ports.h"
 #include "external/malloc.h"
-#define assert(x)
 static mspace io_mspace = NULL;
 
 typedef struct {
