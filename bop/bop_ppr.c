@@ -19,15 +19,7 @@
 #include "bop_ppr_sync.h"
 #include "utils.h"
 
-#define VISUALIZE(s)
-
-#define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
-#define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
-#define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
-#define CLOSE(x) if(close(x)) {abort();}
 #define OWN_GROUP() if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
-#define READ_PORT(pipe) pipe[0]
-#define WRITE_PORT(pipe) pipe[1]
 
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
@@ -95,7 +87,6 @@ int _BOP_ppr_begin(int id) {
   ppr_pos_t old_pos = ppr_pos;
   ppr_pos = PPR;
   ppr_index ++;
-  VISUALIZE("!");
 
   switch (task_status) {
   case UNDY:
@@ -379,7 +370,6 @@ void ppr_task_commit( void ) {
 }
 
 void _BOP_ppr_end(int id) {
-  VISUALIZE("?");
   bop_msg(1, "\t end ppr (pid %d)", getpid());
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
