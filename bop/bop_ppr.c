@@ -574,7 +574,7 @@ static void wait_process() {
     }
     unblock_wait();
   }
-  my_exit = my_exit || errored;
+  // my_exit = my_exit || errored; TODO enable. This is being fixed seperately
   errno = 0;
   //handle remaining processes. Above may not have gotten everything
   block_wait();
