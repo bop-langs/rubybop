@@ -180,9 +180,7 @@ void BOP_malloc_rescue(char * msg){
         bop_msg(1, "New saved undy returning.");
         return;
       }
-      // task_status = SEQ;
-      // bop_mode = SERIAL;
-      // io_on_malloc_rescue();
+      io_on_malloc_rescue();
       return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
@@ -383,7 +381,7 @@ void _BOP_group_over(int id){
   }else{
     bop_msg(4, "Valid state while hitting BOP_group_over. Continuing & Returning to SEQ mode");
     task_status = SEQ;
-    bop_mode = SERIAL;
+    bop_mode = PARALLEL;
   }
 }
 void _BOP_ppr_end(int id) {
@@ -569,7 +567,7 @@ static void wait_process() {
   int my_exit = 0; //success
   while (is_monitoring) {
     block_wait();
-    if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
+    if (((child = waitpid(monitor_group, &status, WNOHANG | WUNTRACED)) != -1)) {
       my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
     }
     unblock_wait();
@@ -582,7 +580,7 @@ static void wait_process() {
     my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
   }
   unblock_wait();
-  if(errno != ECHILD){
+  if(errno && errno != ECHILD){
     perror("Error in wait_process. errno != ECHILD. Monitor process endings");
     _exit(EXIT_FAILURE);
   }
@@ -669,7 +667,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
     default:
       monitor_group = -fd; //child will set up its monitor_group variable
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
-
       //forward SIGINT to children/monitor group
       signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
       is_monitoring = true; //the real monitor process is the only one to actually loop
@@ -726,7 +723,6 @@ char* status_name(){
 }
 static void BOP_fini(void) {
   bop_msg(3, "An exit is reached in %s mode", status_name());
-
   switch (task_status) {
   case SPEC:
     BOP_abort_spec_2(true, "SPEC reached an exit");  /* will abort */
