@@ -553,7 +553,7 @@ static void wait_process() {
     }
     unblock_wait();
   }
-  my_exit ||= errored;
+  my_exit = my_exit || errored;
   errno = 0;
   //handle remaining processes. Above may not have gotten everything
   block_wait();
