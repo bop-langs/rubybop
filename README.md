@@ -12,7 +12,7 @@ Build Status: [![Build Status](https://travis-ci.org/dcompiler/rubybop.svg?branc
   * autoconf
 1. Run `rake`
 2. Run `rake test` to ensure everything is working (optional).
-3. Run `rake install`.
+3. Run `rake install`. May require `sudo`.
 
 Any issues installing should be reported here.
 Note: There is currently no working IRB (interactive ruby interpreter).
