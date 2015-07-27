@@ -87,9 +87,9 @@
 #ifndef DM_BLOCK_SIZE
 #define DM_BLOCK_SIZE 200
 #endif
-#define BLKS_1 DM_BLOCK_SIZE
-#define BLKS_2 DM_BLOCK_SIZE
-#define BLKS_3 DM_BLOCK_SIZE
+#define BLKS_1 (DM_BLOCK_SIZE * 10)
+#define BLKS_2 (DM_BLOCK_SIZE * 10)
+#define BLKS_3 (DM_BLOCK_SIZE * 10)
 #define BLKS_4 DM_BLOCK_SIZE
 #define BLKS_5 DM_BLOCK_SIZE
 #define BLKS_6 DM_BLOCK_SIZE
@@ -224,8 +224,8 @@ void carve () {
  		int tasks = BOP_get_group_size();
 		//printf("In carve, task %d\n", tasks);
 		regions = dm_malloc (tasks * sizeof (ppr_list));
+		grow(tasks / 1.5);
     assert (tasks >= 2);
-    grow(tasks / 1.5);
     //if (regions != NULL) //remove old regions information
     //    dm_free (regions);		//don't need old bounds anymore
 
@@ -276,7 +276,7 @@ void malloc_promise() {
         BOP_promise(head, head->allocated.blocksize); //playload matters
     for(head = freedlist; head != NULL; head = CAST_H(head->allocated.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
-    memcpy(counts, promise_counts, sizeof(counts));
+    memcpy(promise_counts, counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
     //malloc_merge_counts(0);
 }
