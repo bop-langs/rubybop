@@ -31,8 +31,14 @@
 #include <sys/types.h>
 #include <assert.h>
 //Undefine various functions to use the subset malloc functions supported by DM malloc
-#undef HAVE_POSIX_MEMALIGN
-#undef HAVE_MEMALIGN
+
+#ifdef HAVE_MEMALIGN
+#error "HAVE_MEMALIGN is defined"
+#endif
+
+#ifdef HAVE_POSIX_MEMALIGN
+#error "HAVE_POSIX_MEMALIGN is defined"
+#endif
 
 #undef rb_data_object_alloc
 
