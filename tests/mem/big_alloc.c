@@ -7,30 +7,16 @@
 
 #include "bop_api.h"
 
-//Alignment based on word size
-#if __WORDSIZE == 64
-#define ALIGNMENT 8
-#elif __WORDSIZE == 32
-#define ALIGNMENT 4
+#define write(x , y...) printf(y)
+#ifdef BOP
+extern unsigned int max_ppr;
 #else
-#error "need 32 or 64 bit word size"
+unsigned int max_ppr = 1 << 20;
 #endif
-
-
-#define NUM_CLASSES 16
-#define CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + CLASS_OFFSET)
-#define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define SIZE_C(k) ALIGN((1 << (k + CLASS_OFFSET)))	//allows for iterative spliting
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
-
-#define write(x, y...) bop_msg(0, y)
-// #define write(x , y...) printf(y)
 
 int main(int argc, char ** argv)
 {
-  unsigned int dm_max_size = SIZE_C(NUM_CLASSES);
-  write(1, "dm max size is %u\n", dm_max_size );
+  write(1, "dm max size is %u\n", max_ppr);
 
   int num_arrays = 5;
   int * some_arrays[num_arrays];
@@ -39,7 +25,7 @@ int main(int argc, char ** argv)
   for(ind = 0; ind < num_arrays; ind++){
     BOP_ppr_begin(1);
       sleep(2);
-      raw = malloc(dm_max_size + 50); //something larger
+      raw = malloc(max_ppr + 50); //something larger
       some_arrays[ind] = raw;
       some_arrays[ind][0] = ind;
       write(1, "allocation %d at : %p\n", ind, raw);
