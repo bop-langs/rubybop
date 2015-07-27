@@ -24,6 +24,12 @@ task :bop do
   end
 end
 
+task :bop_debug do
+  cd "bop" do
+    sh 'make debug'
+  end
+end
+
 task :ruby_test => :ruby do
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
