@@ -25,6 +25,10 @@ extern void BOP_promise(void*, size_t);
 
 static int recurse = 1;
 
+void is_sequential?(){
+  return SEQUENTIAL;
+}
+
 void BOP_obj_use(VALUE obj){
   if (recurse){
     int size = 0;
