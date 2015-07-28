@@ -336,7 +336,7 @@ static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
 	header * list_current,  * prev;
 	for(list_current = freedlist, prev = NULL; list_current;
-			prev = list_current,	list_current = CASH_H(list_current->free.next)){
+			prev = list_current,	list_current = CAST_H(list_current->free.next)){
 		if(list_current->allocated.blocksize >= size){
 			//remove and return
 			if(prev == NULL){
@@ -349,6 +349,7 @@ static inline header * extract_header_freed(size_t size){
 			}
 		}
 	}
+	return NULL;
 }
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
