@@ -583,7 +583,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
-    if(SEQUENTIAL || remove_from_alloc_list (free_header))
+    if(SEQUENTIAL)
         free_now (free_header);
     else
         add_next_list(&freedlist, free_header);
