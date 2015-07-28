@@ -108,6 +108,7 @@
 #define GROW_S (PGS(1) + PGS(2) + PGS(3) + PGS(4) + PGS(5)+ \
 								PGS(6) + PGS(7) + PGS(8) + PGS(9) + PGS(10) + \
 								PGS(11) + PGS(12) + PGS(13) + PGS(14) + PGS(15) + PGS(16))
+#define FREEDLIST_IND -10
 //BOP macros & structures
 #define SEQUENTIAL (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
@@ -135,8 +136,8 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
 static int counts[NUM_CLASSES] = {[0 ... (NUM_CLASSES - 1)] = 0};
 static int promise_counts[NUM_CLASSES]; //the merging PPR tasks promises these values, which are the then handled by the surving PPR task. The surviving task copies the counts OR (on abort) adds the total counts that the PPR task got, which is constant for all tasks
 
-header* allocatedList= NULL; //list of items allocated during PPR-mode
-header* freedlist= NULL; //list of items freed during PPR-mode
+header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
+header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info of an allocated block
 
 header* ends[NUM_CLASSES]; //end of lists in PPR region
 
@@ -331,35 +332,43 @@ static inline void grow (const int tasks) {
     *end_byte = '\0'; //write an arbitary value
 #endif
 }
-// Get the head of the free list. This uses get_index and additional logic for PPR execution
-static inline header * get_header (size_t size, int *which) {
-    header* found = NULL;
-    //requested allocation is too big
-    if (size > MAX_SIZE) {
-        *which = -1;
-        return NULL;
-    } else {
-        *which = get_index (size);
-        found = headers[*which];
-    }
-    //clean up
-		//if(found == NULL || (!SEQUENTIAL && (CAST_SH(found) == -1 || CAST_SH(found) == ends[*which]->free.next))){
-		//	bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
-		//	return NULL;
-		//}
-    //if (found == NULL || (!SEQUENTIAL && CAST_SH(found) == ends[*which]->free.next))
-    //    return NULL;
-		if(ends[*which]==NULL){
-			//NOTE this should automatically return null if it goes out of its memory range
-			//TODO make sure this is the case
-		}
-		else{
-			if(!SEQUENTIAL && (CAST_SH(found) == ends[*which]->free.next)){
-				bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
-				return NULL;
+static inline header * extract_header_freed(size_t size){
+	//find an free'd block that is large enough for size. Also removes from the list
+	header * list_current, prev;
+	for(list_current = freedlist, prev = NULL; list_current;
+			prev = list_current,	list_current = list_current->free.next){
+		if(list_current->allocated.blocksize >= size){
+			//remove and return
+			if(prev == NULL){
+				//list_current head of list
+				freedlist = NULL;
+				return list_current;
+			}else{
+				prev->allocated.next = list_current->allocated.next;
+				return list_current;
+			}
 		}
 	}
-    return found;
+}
+// Get the head of the free list. This uses get_index and additional logic for PPR execution
+static inline header * get_header (size_t size, int *which) {
+	header* found = NULL;
+	//requested allocation is too big
+	if (size > MAX_SIZE) {
+		*which = -1;
+		return NULL;
+	} else {
+		*which = get_index (size);
+		found = headers[*which];
+	}
+	if(!SEQUENTIAL && ( ! ends[*which] != NULL || CAST_SH(found) == ends[*which]->free.next)){
+		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+		//try to allocate from the freed list. Slower
+		found =  extract_header_freed(size);
+		if(!found)
+			*which = FREEDLIST_IND;
+	}
+	return found;
 }
 int has_returned = 0;
 extern void BOP_malloc_rescue(char *);
@@ -413,18 +422,23 @@ void *dm_malloc (const size_t size) {
 			goto malloc_begin;
 		} else {
 			BOP_malloc_rescue("Need to grow the lists in non-sequential");
+			//grow will happen at the next pass through...
 			goto malloc_begin; //try again
 			//bop_abort
 		}
 	} else
-	block->allocated.blocksize = sizes[which];
-	ASSERTBLK(block);
-	//actually allocate the block
-	headers[which] = CAST_H (block->free.next);	//remove from free list
-	counts[which]--;
+
 	if(!SEQUENTIAL)
-	add_next_list(&allocatedList, block);
-	ASSERT_VALID_COUNT(which);
+		add_next_list(&allocatedList, block);
+
+	//actually allocate the block
+	if(which != FREEDLIST_IND){
+		block->allocated.blocksize = sizes[which];
+		// ASSERTBLK(block); unneed
+		headers[which] = CAST_H (block->free.next);	//remove from free list
+		ASSERT_VALID_COUNT(which);
+		counts[which]--;
+	}
  checks:
 	ASSERTBLK(block);
 	release_lock();
