@@ -354,20 +354,24 @@ static inline header * extract_header_freed(size_t size){
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
+	int temp;
 	//requested allocation is too big
 	if (size > MAX_SIZE) {
 		if(which != NULL)
 			*which = -1;
 		return NULL;
 	} else {
-		*which = get_index (size);
-		found = headers[*which];
+		temp = get_index (size);
+		if(which != NULL)
+			*which = temp;
+		found = headers[temp];
 	}
-	if(!SEQUENTIAL && (ends[*which] != NULL || CAST_SH(found) == ends[*which]->free.next)){
+	if ( !SEQUENTIAL &&
+		( (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) || ! found) ){
 		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
 		//try to allocate from the freed list. Slower
 		found =  extract_header_freed(size);
-		if(!found && which != NULL)
+		if(found && which != NULL)
 			*which = FREEDLIST_IND;
 	}
 	return found;
@@ -408,7 +412,7 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR");
 				goto malloc_begin; //try again
 			}
-		} else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+		} else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
 			splits++;
 #endif
@@ -496,9 +500,11 @@ static inline header* dm_split (int which) {
         multi_splits++;
     split_gave_head[which] += larger - which;
 #endif
+		assert (which < NUM_CLASSES);
     while (which < larger) {
         //update the headers
         split = CAST_H ((CHARP (split) + sizes[which - 1])); //which - 1 since only half of the block is used here. which -1 === size / 2
+				// bop_msg(1, "Split addr %p val %c", split, *((char*) split));
 				memset (split, 0, HSIZE);
 				CHECK_EMPTY(which);
 				if(SEQUENTIAL){
