@@ -356,7 +356,8 @@ static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
 	//requested allocation is too big
 	if (size > MAX_SIZE) {
-		*which = -1;
+		if(which != NULL)
+			*which = -1;
 		return NULL;
 	} else {
 		*which = get_index (size);
@@ -366,7 +367,7 @@ static inline header * get_header (size_t size, int *which) {
 		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
 		//try to allocate from the freed list. Slower
 		found =  extract_header_freed(size);
-		if(!found)
+		if(!found && which != NULL)
 			*which = FREEDLIST_IND;
 	}
 	return found;
@@ -407,7 +408,7 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR");
 				goto malloc_begin; //try again
 			}
-		} else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+		} else if (which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
 			splits++;
 #endif
@@ -453,7 +454,7 @@ static inline int index_bigger (int which) {
         return -1;
     which++;
     while (which < NUM_CLASSES) {
-        if (headers[which] != NULL)
+        if (get_header(sizes[which], NULL) != NULL)
             return which;
         which++;
     }
@@ -476,8 +477,8 @@ static inline header* dm_split (int which) {
     header *split = CAST_H((CHARP (block) + sizes[which]));	//cut in half
     assert (block != split);
     //split-specific info sets
-    headers[which] = split;	// was null
-    headers[larger] = CAST_H (headers[larger]->free.next);
+    headers[which] = split;	// was null PPR Safe
+    headers[larger] = CAST_H (headers[larger]->free.next); //PPR Safe
     //remove split up block
     block->allocated.blocksize = sizes[which];
 
@@ -491,17 +492,23 @@ static inline header* dm_split (int which) {
     assert (block->allocated.blocksize != 0);
     which++;
 #ifndef NDEBUG
-    if (headers[which] == NULL && which != larger)
+    if (get_header(sizes[which], NULL) == NULL && which != larger)
         multi_splits++;
-    split_gave_head[which]+= larger - which;
+    split_gave_head[which] += larger - which;
 #endif
     while (which < larger) {
         //update the headers
-        split = CAST_H ((CHARP (split) + sizes[which - 1]));
-        memset (split, 0, HSIZE);
-        CHECK_EMPTY(which);
-        headers[which] = split;
-        counts[which] = 1;
+        split = CAST_H ((CHARP (split) + sizes[which - 1])); //which - 1 since only half of the block is used here. which -1 === size / 2
+				memset (split, 0, HSIZE);
+				CHECK_EMPTY(which);
+				if(SEQUENTIAL){
+					headers[which] = split;
+					counts[which] = 1;
+				}else{
+					//go through dm_free
+					split->allocated.blocksize = sizes[which];
+					dm_free(split);
+				}
         which++;
     }
     return block;
