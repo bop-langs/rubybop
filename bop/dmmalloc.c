@@ -334,9 +334,9 @@ static inline void grow (const int tasks) {
 }
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
-	header * list_current, prev;
+	header * list_current,  * prev;
 	for(list_current = freedlist, prev = NULL; list_current;
-			prev = list_current,	list_current = list_current->free.next){
+			prev = list_current,	list_current = CASH_H(list_current->free.next)){
 		if(list_current->allocated.blocksize >= size){
 			//remove and return
 			if(prev == NULL){
@@ -361,7 +361,7 @@ static inline header * get_header (size_t size, int *which) {
 		*which = get_index (size);
 		found = headers[*which];
 	}
-	if(!SEQUENTIAL && ( ! ends[*which] != NULL || CAST_SH(found) == ends[*which]->free.next)){
+	if(!SEQUENTIAL && (ends[*which] != NULL || CAST_SH(found) == ends[*which]->free.next)){
 		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
 		//try to allocate from the freed list. Slower
 		found =  extract_header_freed(size);
