@@ -21,6 +21,8 @@ matrix:
     env: BOP_GroupSize=4
   - compiler: clang
     env: BOP_GroupSize=4
+  - compiler: clang
+    env: BOP_UndyFinish=0
 #dependencies for the ruby language
 
 sudo: false

@@ -21,7 +21,7 @@
 #endif
 
 #define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
-#define SPEC_VISUALIZE(s) if(!SEQUENTIAL) bop_msg(3, s)
+#define SPEC_VISUALIZE(s) if(!SEQUENTIAL) bop_msg(5, s)
 
 
 #define TABLESIZE 100000
@@ -68,6 +68,9 @@ static long long fc=0LL;
 
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
+
+//Warning: Unsupported functions are currently ignored unless UNSUPPORTED_MALLOC is defined at compile time
+#ifdef UNSUPPORTED_MALLOC
 //unsupported malloc operations are aborted immediately
 void* memalign(size_t size, size_t boundary) {
     printf("\nUNSUPPORTED OPERATION memalign\n");
@@ -77,8 +80,8 @@ int posix_memalign (void **memptr, size_t alignment, size_t size) {
     printf("\nUNSUPPORTED OPERATION posix_memalign\n");
     abort();
 }
-void* aligned_alloc(size_t size, size_t boundary) {
-    printf("\nUNSUPPORTED OPERATION: aligned_alloc\n");
+void* aligned_malloc(size_t size, size_t boundary) {
+    printf("\nUNSUPPORTED OPERATION: aligned_malloc\n");
     abort();
 }
 void* valloc(size_t size) {
@@ -89,7 +92,7 @@ struct mallinfo mallinfo() {
     printf("\nUNSUPPORTED OPERATION: mallinfo\n");
     abort();
 }
-
+#endif
 void* malloc(size_t s) {
     SPEC_VISUALIZE("+");
     VISUALIZE("+");
