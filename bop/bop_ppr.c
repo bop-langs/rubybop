@@ -453,25 +453,12 @@ void print_backtrace(void){
   bop_msg(1, "\nEND BACKTRACE");
 }
 void ErrorKillAll(int signo){
+  //don't need to reap children. We know that it's an erroring-exit,
+  //intecept the call, allert monitor process, execute def behavior
   bop_msg(1, "ERROR CAUGHT %d", signo);
-  kill(monitor_process_id, SIGUSR2); //if this process was going to deliver the signal, deliver the signal.
-  int kids = cleanup_children();
-  if(task_status == UNDY || task_status == SEQ){
-    _exit(kids);
-  }else
-    _exit(0);
-    /*
-    if(task_status == UNDY || task_status == SEQ){
-      bop_msg(1, "Sending shutdown signal to monitor process");
-      //one of these fail, then the overall execution will fail
-      print_backtrace();
-
-      signal(SIGABRT, SIG_DFL);
-      kill(monitor_group, SIGABRT);
-    }else{
-      bop_msg(1, "Not termintating all because of invalid task state. ppid %d", getppid());
-    }
-    */
+  kill(monitor_process_id, SIGUSR2);
+  signal(signo, SIG_DFL);
+  raise(signo);
 }
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
@@ -536,6 +523,10 @@ int report_child(pid_t child, int status){
   }else{
     msg = "Child %d exit unkown status = %d";
     val = status;
+  }
+  if(child == -monitor_group){
+    //edge case: first child is dead, monitor wind down
+    is_monitoring = false;
   }
   if(val != -1)
     bop_msg(1, msg, child, val);
