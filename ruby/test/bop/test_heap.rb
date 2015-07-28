@@ -11,6 +11,9 @@ class RaceTest
 end
 
 
-
-inst = RaceTest.new(5)
-inst.printNo
+$i = 0
+while  ($i <= 5000)
+  inst = RaceTest.new($i)
+  inst.printNo
+  $i += 1
+end
