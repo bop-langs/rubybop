@@ -62,5 +62,6 @@ rb_call_inits(void)
     CALL(version);
     CALL(vm_trace);
     CALL(PPR);
+    CALL(Ordered);
 }
 #undef CALL
