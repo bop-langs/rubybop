@@ -31,7 +31,7 @@
 
 
 //debug macros
-#ifdef CHECK_COUNTS2342
+#ifdef CHECK_COUNTS
 #define ASSERT_VALID_COUNT(which) \
 	if(which != -1 && SEQUENTIAL){\
 		if(!((headers[(which)] == NULL && counts[(which)] == 0)  || \
@@ -73,13 +73,11 @@
 #define ASSERTBLK(head) assert ((head)->allocated.blocksize > 0);
 
 //class size macros
-#define NUM_CLASSES 12
+#define NUM_CLASSES 16
 #define CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + CLASS_OFFSET)
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
 #define SIZE_C(k) ALIGN((1 << (k + CLASS_OFFSET)))	//allows for iterative spliting
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-//grow macros
 
 
 /*NOTE DM_BLOCK_SIZE is only assessed at library compile time, so this is not visible for the user to change
@@ -89,9 +87,9 @@
 #ifndef DM_BLOCK_SIZE
 #define DM_BLOCK_SIZE 200
 #endif
-#define BLKS_1 DM_BLOCK_SIZE
-#define BLKS_2 DM_BLOCK_SIZE
-#define BLKS_3 DM_BLOCK_SIZE
+#define BLKS_1 (DM_BLOCK_SIZE * 10)
+#define BLKS_2 (DM_BLOCK_SIZE * 10)
+#define BLKS_3 (DM_BLOCK_SIZE * 10)
 #define BLKS_4 DM_BLOCK_SIZE
 #define BLKS_5 DM_BLOCK_SIZE
 #define BLKS_6 DM_BLOCK_SIZE
@@ -101,17 +99,17 @@
 #define BLKS_10 DM_BLOCK_SIZE
 #define BLKS_11 DM_BLOCK_SIZE
 #define BLKS_12 DM_BLOCK_SIZE
+#define BLKS_13 (DM_BLOCK_SIZE / 5)
+#define BLKS_14 (DM_BLOCK_SIZE / 6)
+#define BLKS_15 (DM_BLOCK_SIZE / 7)
+#define BLKS_16 (DM_BLOCK_SIZE / 8)
 
-#define GROW_S ((BLKS_1 * SIZE_C(1)) + (BLKS_2 * SIZE_C(2)) + \
-				(BLKS_3 * SIZE_C(3)) + (BLKS_4 * SIZE_C(4)) + \
-				(BLKS_5 * SIZE_C(5)) + (BLKS_6 * SIZE_C(6)) + \
-				(BLKS_7 * SIZE_C(7)) + (BLKS_8 * SIZE_C(8)) + \
-				(BLKS_9 * SIZE_C(9)) + (BLKS_10 * SIZE_C(10)) +\
-				(BLKS_11 * SIZE_C(11)) + (BLKS_12 * SIZE_C(12)) )
-
+#define PGS(x) (((BLKS_##x) * SIZE_C(x)))
+#define GROW_S (PGS(1) + PGS(2) + PGS(3) + PGS(4) + PGS(5)+ \
+								PGS(6) + PGS(7) + PGS(8) + PGS(9) + PGS(10) + \
+								PGS(11) + PGS(12) + PGS(13) + PGS(14) + PGS(15) + PGS(16))
 //BOP macros & structures
-#define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
-
+#define SEQUENTIAL (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
 typedef struct {
     header *start[NUM_CLASSES];
@@ -126,13 +124,15 @@ header *headers[NUM_CLASSES];	//current heads of free lists
 
 const unsigned int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
                                           SIZE_C (5), SIZE_C (6), SIZE_C (7), SIZE_C (8),
-                                          SIZE_C (9), SIZE_C (10), SIZE_C (11), SIZE_C (12)
+                                          SIZE_C (9), SIZE_C (10), SIZE_C (11), SIZE_C (12),
+																					SIZE_C(13), SIZE_C(14), SIZE_C(15), SIZE_C(16)
                                         };
 const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, BLKS_6,
-                                       BLKS_7, BLKS_8, BLKS_9, BLKS_10, BLKS_11, BLKS_12
+                                       BLKS_7, BLKS_8, BLKS_9, BLKS_10, BLKS_11, BLKS_12,
+																			 BLKS_13, BLKS_14, BLKS_15, BLKS_16
                                      };
 
-static int counts[NUM_CLASSES] = {0,0,0,0,0,0,0,0,0,0,0,0};
+static int counts[NUM_CLASSES] = {[0 ... (NUM_CLASSES - 1)] = 0};
 static int promise_counts[NUM_CLASSES]; //the merging PPR tasks promises these values, which are the then handled by the surving PPR task. The surviving task copies the counts OR (on abort) adds the total counts that the PPR task got, which is constant for all tasks
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode
@@ -162,6 +162,7 @@ static int multi_splits = 0;
 static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
+unsigned int max_ppr = SIZE_C(NUM_CLASSES);
 
 /** x86 assembly code for computing the log2 of a value.
 		This is much faster than math.h log2*/
@@ -223,8 +224,8 @@ void carve () {
  		int tasks = BOP_get_group_size();
 		//printf("In carve, task %d\n", tasks);
 		regions = dm_malloc (tasks * sizeof (ppr_list));
+		grow(tasks / 1.5);
     assert (tasks >= 2);
-    grow(tasks / 1.5);
     //if (regions != NULL) //remove old regions information
     //    dm_free (regions);		//don't need old bounds anymore
 
@@ -275,7 +276,7 @@ void malloc_promise() {
         BOP_promise(head, head->allocated.blocksize); //playload matters
     for(head = freedlist; head != NULL; head = CAST_H(head->allocated.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
-    memcpy(counts, promise_counts, sizeof(counts));
+    memcpy(promise_counts, counts, sizeof(counts));
     BOP_promise(promise_counts, sizeof(counts));
     //malloc_merge_counts(0);
 }
@@ -360,72 +361,75 @@ static inline header * get_header (size_t size, int *which) {
 	}
     return found;
 }
-
+int has_returned = 0;
+extern void BOP_malloc_rescue(char *);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
-    if(size == 0)
-        return NULL;
-    get_lock();
-    //get the right header
-    size_t alloc_size = ALIGN (size + HSIZE);
-    int which = -2;
-    header *block = get_header (alloc_size, &which);
-    assert (which != -2);
-    //ASSERT_VALID_COUNT(which);
-    if (block == NULL) {
-        //no item in list. Either correct list is empty OR huge block
-        if (alloc_size > MAX_SIZE) {
-						if(SEQUENTIAL){
-            	//huge block always use system malloc
-	            block = sys_malloc (alloc_size);
-	            if (block == NULL) {
-	                release_lock();
-									BOP_abort_spec("System malloc couldn't support large allocation size");
-	                return NULL;
-	            }
-	            //don't need to add to free list, just set information
-	            block->allocated.blocksize = alloc_size;
-	            ASSERTBLK(block);
-	            release_lock();
-	            return PAYLOAD (block);
-					}else{
-						//not sequential
-						BOP_abort_spec("Tried to allocate larger than is supported in PPR");
-						return NULL;
-					}
-        } else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
+	header * block = NULL;
+	int which;
+	size_t alloc_size;
+	if(size == 0)
+	return NULL;
+
+	alloc_size = ALIGN (size + HSIZE); //same regardless of task_status
+	get_lock();
+	//get the right header
+ malloc_begin:
+	which = -2;
+	block = get_header (alloc_size, &which);
+	assert (which != -2);
+	//ASSERT_VALID_COUNT(which);
+	if (block == NULL) {
+		//no item in list. Either correct list is empty OR huge block
+		if (alloc_size > MAX_SIZE) {
+			if(SEQUENTIAL){
+				//huge block always use system malloc
+				block = sys_malloc (alloc_size);
+				if (block == NULL) {
+					//ERROR: ran out of system memory. malloc rescue won't help
+					return NULL;
+				}
+				//don't need to add to free list, just set information
+				block->allocated.blocksize = alloc_size;
+				goto checks;
+			}else{
+				//not sequential, and allocating a too-large block. Might be able to rescue
+				BOP_malloc_rescue("Large allocation in PPR");
+				goto malloc_begin; //try again
+			}
+		} else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
-            splits++;
+			splits++;
 #endif
-            block = dm_split (which);
-            ASSERTBLK(block);
-        } else if (SEQUENTIAL) {
+			block = dm_split (which);
+			ASSERTBLK(block);
+		} else if (SEQUENTIAL) {
+			//grow the allocated region
 #ifndef NDEBUG
-            if (index_bigger (which) != -1)
-                missed_splits++;
+			if (index_bigger (which) != -1)
+			missed_splits++;
 #endif
-            grow (1);
-            block = headers[which];
-            block->allocated.blocksize = sizes[which];
-            assert (block != NULL);
-        } else {
-						BOP_abort_spec("NOT ENOUGH MEMORY");
-            //bop_abort
-        }
-    } else
-        block->allocated.blocksize = sizes[which];
-		if(block == NULL)
-			return NULL; //there was no possible way to correcly allocate the block
-		ASSERTBLK(block);
-    //actually allocate the block
-    headers[which] = CAST_H (block->free.next);	//remove from free list
-    counts[which]--;
-    if(!SEQUENTIAL)
-        add_next_list(&allocatedList, block);
-    ASSERT_VALID_COUNT(which);
-    ASSERTBLK(block);
-    release_lock();
-    return PAYLOAD (block);
+			grow (1);
+			goto malloc_begin;
+		} else {
+			BOP_malloc_rescue("Need to grow the lists in non-sequential");
+			goto malloc_begin; //try again
+			//bop_abort
+		}
+	} else
+	block->allocated.blocksize = sizes[which];
+	ASSERTBLK(block);
+	//actually allocate the block
+	headers[which] = CAST_H (block->free.next);	//remove from free list
+	counts[which]--;
+	if(!SEQUENTIAL)
+	add_next_list(&allocatedList, block);
+	ASSERT_VALID_COUNT(which);
+ checks:
+	ASSERTBLK(block);
+	release_lock();
+	has_returned = 1;
+	return PAYLOAD (block);
 }
 
 // Compute the index of the next lagest index > which st the index has a non-null headers

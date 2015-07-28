@@ -2,9 +2,8 @@
 #include "bop_api.h"
 #include "bop_ports.h"
 #include "external/malloc.h"
-
 static mspace io_mspace = NULL;
-
+#define assert(x)
 typedef struct {
   size_t alloc;
   size_t used;
@@ -14,7 +13,13 @@ typedef struct {
 static output_buffer *output_buffers = NULL;
 static output_buffer undy_buffer = { 0, 0, NULL };
 static unsigned num_buffers = 0;
-
+static inline int all_buffs_empty(){
+  int x;
+  for(x = 0; x < num_buffers; x++)
+    if(output_buffers[x].used != 0)
+      return 1;
+  return 0;
+}
 int BOP_printf(const char *format, ...)
 {
   va_list v, v2;
@@ -118,7 +123,7 @@ static void io_group_init( void ) {
   assert(io_mspace != NULL);
 
   /* Create a set of output buffers */
-  assert(output_buffers == NULL);
+  assert(output_buffers == NULL || all_buffs_empty());
   output_buffers = mspace_calloc(io_mspace, num_buffers, sizeof(output_buffer));
   assert(output_buffers != NULL);
 
@@ -162,7 +167,12 @@ static void io_undy_succ( void ) {
 
   free_all_buffers( );
 }
-
+void io_on_malloc_rescue(){
+  free_all_buffers();
+  undy_buffer.alloc = 0;
+  undy_buffer.used = 0;
+  undy_buffer.data = NULL;
+}
 bop_port_t bop_io_port = {
   .ppr_group_init       = io_group_init,
   .task_group_succ_fini = io_group_succ,
