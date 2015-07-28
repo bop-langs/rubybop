@@ -250,6 +250,9 @@ void carve () {
                 regions[r].end[index] = CAST_H (temp->free.prev);
 								//FIXME last task gets null ends...
             }
+						else{
+							regions[r].end[index] = NULL;
+						}
         }
     }
 }
