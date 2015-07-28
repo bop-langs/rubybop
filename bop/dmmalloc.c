@@ -84,6 +84,7 @@
  *Don't try to use this in compiling a bop program, it will not work
  *I examined getting this to work like BOP_Verbose and Group_Size, but it would likely cause more of a slowdown
  *then it is worth*/
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #ifndef DM_BLOCK_SIZE
 #define DM_BLOCK_SIZE 200
 #endif
@@ -99,10 +100,10 @@
 #define BLKS_10 DM_BLOCK_SIZE
 #define BLKS_11 DM_BLOCK_SIZE
 #define BLKS_12 DM_BLOCK_SIZE
-#define BLKS_13 (DM_BLOCK_SIZE / 5)
-#define BLKS_14 (DM_BLOCK_SIZE / 6)
-#define BLKS_15 (DM_BLOCK_SIZE / 7)
-#define BLKS_16 (DM_BLOCK_SIZE / 8)
+#define BLKS_13 MAX((DM_BLOCK_SIZE / 5), 1)
+#define BLKS_14 MAX((DM_BLOCK_SIZE / 6), 1)
+#define BLKS_15 MAX((DM_BLOCK_SIZE / 7), 1)
+#define BLKS_16 MAX((DM_BLOCK_SIZE / 8), 1)
 
 #define PGS(x) (((BLKS_##x) * SIZE_C(x)))
 #define GROW_S (PGS(1) + PGS(2) + PGS(3) + PGS(4) + PGS(5)+ \
@@ -247,7 +248,7 @@ void carve () {
             if (r != tasks - 1) {
                 //the last task has no tail, use the same as seq. exectution
                 assert (temp != (header*) -1);
-                regions[r].end[index] = CAST_H (temp->free.prev);
+                regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
 								//FIXME last task gets null ends...
             }
         }
