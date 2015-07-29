@@ -524,10 +524,10 @@ int report_child(pid_t child, int status){
     msg = "Child %d exit unkown status = %d";
     val = status;
   }
-  if(child == -monitor_group){
-    //edge case: first child is dead, monitor wind down
-    is_monitoring = false;
-  }
+  // if(child == -monitor_group){
+  //   //edge case: first child is dead, monitor wind down
+  //   is_monitoring = false;
+  // }
   if(val != -1)
     bop_msg(1, msg, child, val);
   else
