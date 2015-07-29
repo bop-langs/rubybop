@@ -120,14 +120,14 @@ ppr_promise(VALUE ppr, VALUE obj)
 }
 
 static VALUE
-ppr_yield()
+ppr_yield(VALUE val)
 {
     //set_rheap_null();
     BOP_ppr_begin(1);
         rb_gc_disable();
         //set_rheap_null();
         bop_msg(3,"yielding block...");
-        rb_yield(0);
+        rb_yield(val);
         rb_gc_enable();
     BOP_ppr_end(1);
     return Qnil;
@@ -264,7 +264,7 @@ Init_PPR() {
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
     rb_define_singleton_method(rb_cPPR, "use", ppr_use, 1);
     rb_define_singleton_method(rb_cPPR, "promise", ppr_promise, 1);
-    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 0);
+    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 1);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
     //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
