@@ -139,7 +139,7 @@ static int promise_counts[NUM_CLASSES]; //the merging PPR tasks promises these v
 header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info of an allocated block
 
-header* ends[NUM_CLASSES]; //end of lists in PPR region
+header* regions[spec_order].end[NUM_CLASSES]; //end of lists in PPR region
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -248,7 +248,7 @@ void carve () {
                 //the last task has no tail, use the same as seq. exectution
                 assert (temp != (header*) -1);
                 regions[r].end[index] = CAST_H (temp->free.prev);
-								//FIXME last task gets null ends...
+								//FIXME last task gets null regions[spec_order].end...
             }
 						else{
 							regions[r].end[index] = NULL;
@@ -265,7 +265,7 @@ void initialize_group () {
     int ind;
     for (ind = 0; ind < NUM_CLASSES; ind++) {
 
-        ends[ind] = my_list.end[ind];
+        regions[spec_order].end[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
     }
 }
@@ -370,8 +370,8 @@ static inline header * get_header (size_t size, int *which) {
 		found = headers[temp];
 	}
 	if ( !SEQUENTIAL &&
-		( (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) || ! found) ){
-		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+		( (regions[spec_order].end[temp] != NULL && CAST_SH(found) == regions[spec_order].end[temp]->free.next) || ! found) ){
+		bop_msg(2, "Area where get_header needs regions[spec_order].end defined:\n value of regions[spec_order].end[which]: %p\n value of which: %d", regions[spec_order].end[*which], *which);
 		//try to allocate from the freed list. Slower
 		found =  extract_header_freed(size);
 		if(found && which != NULL)
