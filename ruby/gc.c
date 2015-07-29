@@ -1708,6 +1708,7 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
 } while (0)
 
 extern void bop_msg(int, const char*, ...);
+extern void BOP_record_write(void* ,size_t);
 
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
@@ -1788,8 +1789,8 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
     //TODO sever the heap so that this actually works...
     bop_msg(5, "newobj:%s\n", obj_info(obj));
-    if(is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
-    //BOP_obj_use_promise(obj);
+    if(!is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
+    //BOP_record_write(obj, sizeof(obj));
     return obj;
 }
 

@@ -62,10 +62,10 @@
  *then it is worth*/
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #ifndef DM_BLOCK_SIZE
-#define DM_BLOCK_SIZE 200
+#define DM_BLOCK_SIZE 2000
 #endif
-#define BLKS_1 (DM_BLOCK_SIZE * 10)
-#define BLKS_2 (DM_BLOCK_SIZE * 10)
+#define BLKS_1 (DM_BLOCK_SIZE * 1000)
+#define BLKS_2 (DM_BLOCK_SIZE * 100)
 #define BLKS_3 (DM_BLOCK_SIZE * 10)
 #define BLKS_4 DM_BLOCK_SIZE
 #define BLKS_5 DM_BLOCK_SIZE
@@ -73,13 +73,13 @@
 #define BLKS_7 DM_BLOCK_SIZE
 #define BLKS_8 DM_BLOCK_SIZE
 #define BLKS_9 DM_BLOCK_SIZE
-#define BLKS_10 DM_BLOCK_SIZE
-#define BLKS_11 DM_BLOCK_SIZE
-#define BLKS_12 DM_BLOCK_SIZE
-#define BLKS_13 MAX((DM_BLOCK_SIZE / 5), 1)
-#define BLKS_14 MAX((DM_BLOCK_SIZE / 6), 1)
-#define BLKS_15 MAX((DM_BLOCK_SIZE / 7), 1)
-#define BLKS_16 MAX((DM_BLOCK_SIZE / 8), 1)
+#define BLKS_10 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_11 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_12 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_13 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_14 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_15 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_16 MAX((DM_BLOCK_SIZE / 10), 1)
 
 #define PGS(x) (((BLKS_##x) * SIZE_C(x)))
 #define GROW_S (PGS(1) + PGS(2) + PGS(3) + PGS(4) + PGS(5)+ \
@@ -115,6 +115,8 @@ header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info o
 
 header* ends[NUM_CLASSES] = {[0 ... NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
 
+static int number_of_mallocs = 0;
+static int number_of_frees = 0;
 //helper prototypes
 static inline int get_index (size_t);
 static inline void grow (int);
@@ -286,7 +288,7 @@ static inline void grow (const int tasks) {
     int blocks[NUM_CLASSES];
 		int * counts = count_lists(true); //we have the lock
     for(class_index = 0; class_index < NUM_CLASSES; class_index++) {
-        blocks_left = tasks * goal_counts[class_index] - counts[class_index];
+        blocks_left = tasks * goal_counts[class_index];
         blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
         growth += blocks[class_index] * sizes[class_index];
     }
@@ -353,7 +355,8 @@ static inline header * get_header (size_t size, int *which) {
 	}
 	if ( !SEQUENTIAL &&
 		( (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) || ! found) ){
-		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+		bop_msg(2, "Out of space in normal list, attempting to allocate from the free list");
+		bop_msg(3, "Total number of mallocs: %d \tfrees: %d", number_of_mallocs, number_of_frees);
 		//try to allocate from the freed list. Slower
 		found =  extract_header_freed(size);
 		if(found && which != NULL)
@@ -411,6 +414,7 @@ void *dm_malloc (const size_t size) {
 			grow (1);
 			goto malloc_begin;
 		} else {
+			bop_msg(3, "Total number of mallocs: %d \tfrees: %d", number_of_mallocs, number_of_frees);
 			BOP_malloc_rescue("Need to grow the lists in non-sequential");
 			//grow will happen at the next pass through...
 			goto malloc_begin; //try again
@@ -431,6 +435,7 @@ void *dm_malloc (const size_t size) {
 	ASSERTBLK(block);
 	release_lock();
 	has_returned = 1;
+	number_of_mallocs++;
 	return PAYLOAD (block);
 }
 
@@ -555,6 +560,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
  *	A free is queued to be free'd at BOP commit time otherwise.
 */
 void dm_free (void *ptr) {
+	number_of_frees++;
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
     if(SEQUENTIAL || remove_from_alloc_list (free_header))
