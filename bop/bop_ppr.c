@@ -372,6 +372,9 @@ void ppr_task_commit( void ) {
 
   end_clean();//abort( );
 }
+void BOP_this_group_over(){
+  _BOP_group_over(ppr_static_id);
+}
 void _BOP_group_over(int id){
   if(ppr_static_id != id){
     bop_msg(4, "Mis-matched ppr ids. Continuing");
