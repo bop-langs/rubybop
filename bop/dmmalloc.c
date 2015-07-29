@@ -30,30 +30,6 @@
 #endif
 
 
-//debug macros
-#ifdef CHECK_COUNTS
-#define ASSERT_VALID_COUNT(which) \
-	if(which != -1 && SEQUENTIAL){\
-		if(!((headers[(which)] == NULL && counts[(which)] == 0)  || \
-			 (headers[(which)] != NULL && counts[(which)] > 0))){\
-			 printf("\n%s:%d: invalid counts on which= %d counts[which]=%d headers[which]=%p\n",\
-			 	__FILE__, __LINE__, which, counts[which], headers[which]);\
-			 abort();\
-		}\
-	}
-#define CHECK_EMPTY(which)\
-	if(which != -1 && SEQUENTIAL){\
-		if(!(headers[(which)] == NULL && counts[(which)] == 0)){\
-			 printf("\n%s:%d: non-empty which= %d counts[which]=%d headers[which]=%p\n",\
-			 	__FILE__, __LINE__, which, counts[which], headers[which]);\
-			 abort();\
-		}\
-	}
-#else
-#define ASSERT_VALID_COUNT(which)
-#define CHECK_EMPTY(which)
-#endif
-
 #ifdef NDEBUG
 #define PRINT(msg) printf("dmmalloc: %s at %s:%d\n", msg, __FILE__, __LINE__)
 #else
@@ -84,6 +60,7 @@
  *Don't try to use this in compiling a bop program, it will not work
  *I examined getting this to work like BOP_Verbose and Group_Size, but it would likely cause more of a slowdown
  *then it is worth*/
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #ifndef DM_BLOCK_SIZE
 #define DM_BLOCK_SIZE 200
 #endif
@@ -99,10 +76,10 @@
 #define BLKS_10 DM_BLOCK_SIZE
 #define BLKS_11 DM_BLOCK_SIZE
 #define BLKS_12 DM_BLOCK_SIZE
-#define BLKS_13 (DM_BLOCK_SIZE / 5)
-#define BLKS_14 (DM_BLOCK_SIZE / 6)
-#define BLKS_15 (DM_BLOCK_SIZE / 7)
-#define BLKS_16 (DM_BLOCK_SIZE / 8)
+#define BLKS_13 MAX((DM_BLOCK_SIZE / 5), 1)
+#define BLKS_14 MAX((DM_BLOCK_SIZE / 6), 1)
+#define BLKS_15 MAX((DM_BLOCK_SIZE / 7), 1)
+#define BLKS_16 MAX((DM_BLOCK_SIZE / 8), 1)
 
 #define PGS(x) (((BLKS_##x) * SIZE_C(x)))
 #define GROW_S (PGS(1) + PGS(2) + PGS(3) + PGS(4) + PGS(5)+ \
@@ -132,9 +109,6 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
                                        BLKS_7, BLKS_8, BLKS_9, BLKS_10, BLKS_11, BLKS_12,
 																			 BLKS_13, BLKS_14, BLKS_15, BLKS_16
                                      };
-
-static int counts[NUM_CLASSES] = {[0 ... (NUM_CLASSES - 1)] = 0};
-static int promise_counts[NUM_CLASSES]; //the merging PPR tasks promises these values, which are the then handled by the surving PPR task. The surviving task copies the counts OR (on abort) adds the total counts that the PPR task got, which is constant for all tasks
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info of an allocated block
@@ -217,18 +191,35 @@ static inline void get_lock() {/*Do nothing*/}
 static inline void release_lock() {/*Do nothing*/}
 #endif //use locks
 /** Bop-related functionss*/
-
+static int reg_counts[NUM_CLASSES];
 /** Divide up the currently allocated groups into regions.
 	Insures that each task will have a percentage of a sequential goal*/
-void carve () {
 
- 		int tasks = BOP_get_group_size();
-		//printf("In carve, task %d\n", tasks);
+static int* count_lists(bool has_lock){ //param unused
+	static int counts[NUM_CLASSES];
+	int i, loc_count;
+	if( ! has_lock)
+		get_lock();
+	header * head;
+	for(i = 0; i < NUM_CLASSES; i++){
+		loc_count = 0;
+		for(head = headers[i]; head; head = CAST_H(head->free.next))
+			loc_count ++;
+		counts[i] = loc_count;
+	}
+	if( ! has_lock )
+		release_lock();
+	return counts;
+}
+void carve () {
+		int tasks = BOP_get_group_size();
+		if( regions != NULL)
+			free_now(HEADER(regions)); //free now b/c have lock, and SEQ
 		regions = dm_malloc (tasks * sizeof (ppr_list));
-		grow(tasks / 1.5);
+		get_lock();
+		int * counts = count_lists(true);
+		grow(tasks / 1.5); //need to already have the lock
     assert (tasks >= 2);
-    //if (regions != NULL) //remove old regions information
-    //    dm_free (regions);		//don't need old bounds anymore
 
     int index, count, j, r;
     header *current_headers[NUM_CLASSES];
@@ -238,6 +229,7 @@ void carve () {
     //actually split the lists
     for (index = 0; index < NUM_CLASSES; index++) {
         count = counts[index] /= tasks;
+				reg_counts[index] = count;
         for (r = 0; r < tasks; r++) {
             regions[r].start[index] = current_headers[index];
             for (j = 0; j < count && temp; j++) {
@@ -247,24 +239,20 @@ void carve () {
             if (r != tasks - 1) {
                 //the last task has no tail, use the same as seq. exectution
                 assert (temp != (header*) -1);
-                regions[r].end[index] = CAST_H (temp->free.prev);
-								//FIXME last task gets null ends...
+                regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
             }
-						else{
-							regions[r].end[index] = NULL;
-						}
         }
     }
+		release_lock();
 }
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
-		bop_msg(2,"Initializing task...");
+		bop_msg(2,"DM Malloc initializing spec task %d", spec_order);
 	  int group_num = spec_order;
     ppr_list my_list = regions[group_num];
     int ind;
     for (ind = 0; ind < NUM_CLASSES; ind++) {
-
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
     }
@@ -280,15 +268,6 @@ void malloc_promise() {
         BOP_promise(head, head->allocated.blocksize); //playload matters
     for(head = freedlist; head != NULL; head = CAST_H(head->allocated.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
-    memcpy(promise_counts, counts, sizeof(counts));
-    BOP_promise(promise_counts, sizeof(counts));
-    malloc_merge_counts(0);
-}
-void malloc_merge_counts(bool aborted) {
-    int index;
-    const int * array = aborted ? goal_counts : promise_counts;
-    for(index = 0; index < NUM_CLASSES; index++)
-        counts[index] += array[index];
 }
 
 /** Standard malloc library functions */
@@ -302,7 +281,7 @@ static inline void grow (const int tasks) {
     //compute the number of blocks to allocate
     size_t growth = HSIZE;
     int blocks[NUM_CLASSES];
-
+		int * counts = count_lists(true); //we have the lock
     for(class_index = 0; class_index < NUM_CLASSES; class_index++) {
         blocks_left = tasks * goal_counts[class_index] - counts[class_index];
         blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
@@ -396,7 +375,6 @@ void *dm_malloc (const size_t size) {
 	which = -2;
 	block = get_header (alloc_size, &which);
 	assert (which != -2);
-	//ASSERT_VALID_COUNT(which);
 	if (block == NULL) {
 		//no item in list. Either correct list is empty OR huge block
 		if (alloc_size > MAX_SIZE) {
@@ -445,8 +423,6 @@ void *dm_malloc (const size_t size) {
 		block->allocated.blocksize = sizes[which];
 		// ASSERTBLK(block); unneed
 		headers[which] = CAST_H (block->free.next);	//remove from free list
-		ASSERT_VALID_COUNT(which);
-		counts[which]--;
 	}
  checks:
 	ASSERTBLK(block);
@@ -477,8 +453,6 @@ static inline header* dm_split (int which) {
     split_attempts[which]++;
     split_gave_head[which]++;
 #endif
-    CHECK_EMPTY(which);
-
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = CAST_H((CHARP (block) + sizes[which]));	//cut in half
@@ -491,10 +465,6 @@ static inline header* dm_split (int which) {
 
     block->free.next = CAST_SH (split);
     split->free.next = split->free.prev = NULL;
-
-		assert(counts[which]==0);
-    counts[which] = 2; //for when the count is decremented by dm_malloc
-    counts[larger]--;
 
     assert (block->allocated.blocksize != 0);
     which++;
@@ -509,10 +479,8 @@ static inline header* dm_split (int which) {
         split = CAST_H ((CHARP (split) + sizes[which - 1])); //which - 1 since only half of the block is used here. which -1 === size / 2
 				// bop_msg(1, "Split addr %p val %c", split, *((char*) split));
 				memset (split, 0, HSIZE);
-				CHECK_EMPTY(which);
 				if(SEQUENTIAL){
 					headers[which] = split;
-					counts[which] = 1;
 				}else{
 					//go through dm_free
 					split->allocated.blocksize = sizes[which];
@@ -586,7 +554,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
-    if(SEQUENTIAL)
+    if(SEQUENTIAL || remove_from_alloc_list (free_header))
         free_now (free_header);
     else
         add_next_list(&freedlist, free_header);
@@ -610,14 +578,12 @@ static inline void free_now (header * head) {
         //empty free_stack
         head->free.next = head->free.prev = NULL;
         headers[which] = head;
-        counts[which]++;
         release_lock();
         return;
     }
     free_stack->free.prev = CAST_SH (head);
     head->free.next = CAST_SH (free_stack);
     headers[which] = head;
-    counts[which]++;
     release_lock();
 }
 inline size_t dm_malloc_usable_size(void* ptr) {
@@ -668,6 +634,7 @@ static inline void add_next_list (header** list_head, header * item) {
 void dm_print_info (void) {
 #ifndef NDEBUG
     setlocale(LC_ALL, "");
+		int * counts = count_lists(true); //we don't actually have the lock, but don't care about thread saftey here
     int i;
     printf("******DM Debug info******\n");
     printf ("Grow count: %'d\n", grow_count);
