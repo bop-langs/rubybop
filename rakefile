@@ -7,7 +7,7 @@ task :ruby => :bop do
       sh 'autoconf'
       sh './configure --disable-install-doc'
     end
-    sh 'make'
+    sh 'make -j4' #make can run in parrallel. Big improvement in compile time
   end
 end
 
