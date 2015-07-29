@@ -175,7 +175,7 @@ void BOP_malloc_rescue(char * msg){
       if(!now_undy){
         //die
         bop_msg(1, "Aborting malloc failing proc.");
-        abort();
+        _exit(0);
       }else{
         bop_msg(1, "New saved undy returning.");
         return;
@@ -184,9 +184,9 @@ void BOP_malloc_rescue(char * msg){
       return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
-    abort(); //for exit!
+    _exit(0); //for exit!
   }
-  abort(); //my sanity
+  _exit(0); //my sanity
 }
 void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
@@ -203,7 +203,7 @@ void BOP_abort_spec_2(bool really_abort, const char* msg){
     partial_group_set_size( spec_order );
     signal_commit_done( );
     if(really_abort)
-      end_clean(); //abort();  /* die silently, but reap children*/
+      end_clean(); //_exit(0);  /* die silently, but reap children*/
     else
       bop_msg(2, "WARNING: Not calling abort to preserve exit values");
   }
@@ -241,7 +241,7 @@ void post_ppr_undy( void ) {
   bop_msg(3,"Understudy finishes and wins the race");
   if(!bop_undy_active){
  	  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
-  	abort();
+  	_exit(0);
   	return; //doesn't actually happen
   }
 
@@ -499,7 +499,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 
 void SigBopExit( int signo ){
   bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
-  abort(); //done. No cleanup, just end the process now
+  _exit(0); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
  *
@@ -605,7 +605,7 @@ void end_clean(){
   if(exit_code)
     _exit(exit_code);
   else
-    abort();
+    _exit(0);
 }
 
 static void BOP_fini(void);
@@ -665,7 +665,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
       signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
       is_monitoring = true; //the real monitor process is the only one to actually loop
       wait_process(); //never returns
-      abort(); /* Should never get here */
+      _exit(0); /* Should never get here */
     }
 
     /* the child process continues */

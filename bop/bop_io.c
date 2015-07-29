@@ -40,7 +40,7 @@ int BOP_printf(const char *format, ...)
     assert( output_buffers != NULL );
     buf = &output_buffers[BOP_spec_order() - 1]; /* - main */
   default:
-    abort(); //never reaches here
+    _exit(0); //never reaches here
   }
   assert(buf->data != NULL);
 
