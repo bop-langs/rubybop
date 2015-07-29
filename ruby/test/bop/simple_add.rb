@@ -11,6 +11,8 @@ $arrays.each_with_index do |arr, spec_group|
     arr.each{|n| $partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
   }
 end
+
+PPR.over
 puts "partial sums as follows"
 puts $partial_sums
 puts "final sum"

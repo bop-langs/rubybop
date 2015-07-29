@@ -374,12 +374,12 @@ void ppr_task_commit( void ) {
 }
 void _BOP_group_over(int id){
   if(ppr_static_id != id){
-    bop_msg(4, "Mis-matched ppr ids. Continuing");
+    bop_msg(3, "Mis-matched ppr ids. Continuing");
   }else if(task_status == SPEC){
-    bop_msg(4, "Speculative process extended past PPR region. Aborting");
-    abort();
+    bop_msg(3, "Speculative process extended past PPR region. Aborting");
+    exit(0);
   }else{
-    bop_msg(4, "Valid state while hitting BOP_group_over. Continuing & Returning to SEQ mode");
+    bop_msg(3, "Valid state while hitting BOP_group_over. Continuing & Returning to SEQ mode");
     task_status = SEQ;
     bop_mode = PARALLEL;
   }

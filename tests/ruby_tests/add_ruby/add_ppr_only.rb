@@ -33,6 +33,7 @@ class BOP_add
 
 
     end #end while
+    PPR.over
     puts "#{Process.pid}: The sum is #{($sum/1000.0)} thousand (#{$sum.to_f}) "
 
   end #end main
