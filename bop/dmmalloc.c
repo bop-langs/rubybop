@@ -113,7 +113,7 @@ const int goal_counts[NUM_CLASSES] = { BLKS_1, BLKS_2, BLKS_3, BLKS_4, BLKS_5, B
 header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info of an allocated block
 
-header* ends[NUM_CLASSES]; //end of lists in PPR region
+header* ends[NUM_CLASSES] = {[0 ... NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -212,38 +212,38 @@ static int* count_lists(bool has_lock){ //param unused
 	return counts;
 }
 void carve () {
-		int tasks = BOP_get_group_size();
-		if( regions != NULL)
-			free_now(HEADER(regions)); //free now b/c have lock, and SEQ
-		regions = dm_malloc (tasks * sizeof (ppr_list));
-		get_lock();
-		int * counts = count_lists(true);
-		grow(tasks / 1.5); //need to already have the lock
-    assert (tasks >= 2);
+	int tasks = BOP_get_group_size();
+	if( regions != NULL)
+	free_now(HEADER(regions)); //free now b/c have lock, and SEQ
+	regions = dm_malloc (tasks * sizeof (ppr_list));
+	get_lock();
+	int * counts = count_lists(true);
+	grow(tasks / 1.5); //need to already have the lock
+	assert (tasks >= 2);
 
-    int index, count, j, r;
-    header *current_headers[NUM_CLASSES];
-    header *temp = (header*) -1;
-    for (index = 0; index < NUM_CLASSES; index++)
-        current_headers[index] = CAST_H (headers[index]);
-    //actually split the lists
-    for (index = 0; index < NUM_CLASSES; index++) {
-        count = counts[index] /= tasks;
-				reg_counts[index] = count;
-        for (r = 0; r < tasks; r++) {
-            regions[r].start[index] = current_headers[index];
-            for (j = 0; j < count && temp; j++) {
-                temp = CAST_H (current_headers[index]->free.next);
-            }
-            current_headers[index] = temp;
-            if (r != tasks - 1) {
-                //the last task has no tail, use the same as seq. exectution
-                assert (temp != (header*) -1);
-                regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
-            }
-        }
-    }
-		release_lock();
+	int index, count, j, r;
+	header *current_headers[NUM_CLASSES];
+	header *temp = (header*) -1;
+	for (index = 0; index < NUM_CLASSES; index++)
+	current_headers[index] = CAST_H (headers[index]);
+	//actually split the lists
+	for (index = 0; index < NUM_CLASSES; index++) {
+		count = counts[index] /= tasks;
+		reg_counts[index] = count;
+		for (r = 0; r < tasks - 1; r++) {
+			regions[r].start[index] = current_headers[index];
+			for (j = 0; j < count && temp; j++) {
+				temp = CAST_H (current_headers[index]->free.next);
+			}
+			current_headers[index] = temp;
+			//the last task has no tail, use the same as seq. exectution
+			assert (temp != (header*) -1);
+			regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
+		}
+		assert(r == tasks - 1);
+		regions[r].end[index] = NULL;
+	}
+	release_lock();
 }
 
 /**set the range of values to be used by this PPR task*/
