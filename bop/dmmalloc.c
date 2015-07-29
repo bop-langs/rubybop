@@ -97,7 +97,7 @@ typedef struct {
 ppr_list *regions = NULL;
 
 //header info
-header *headers[NUM_CLASSES];	//current heads of free lists
+header *headers[NUM_CLASSES] = {[0 ... NUM_CLASSES - 1] = NULL};	//current heads of free lists
 
 
 const unsigned int sizes[NUM_CLASSES] = { SIZE_C (1), SIZE_C (2), SIZE_C (3), SIZE_C (4),
@@ -230,18 +230,21 @@ void carve () {
 	for (index = 0; index < NUM_CLASSES; index++) {
 		count = counts[index] /= tasks;
 		reg_counts[index] = count;
-		for (r = 0; r < tasks - 1; r++) {
+		for (r = 0; r < tasks; r++) {
 			regions[r].start[index] = current_headers[index];
 			for (j = 0; j < count && temp; j++) {
 				temp = CAST_H (current_headers[index]->free.next);
 			}
 			current_headers[index] = temp;
 			//the last task has no tail, use the same as seq. exectution
-			assert (temp != (header*) -1);
-			regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
+			if(r < tasks - 1){
+				assert (temp != (header*) -1);
+				regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
+			}else{
+				assert(r == tasks - 1);
+				regions[r].end[index] = NULL;
+			}
 		}
-		assert(r == tasks - 1);
-		regions[r].end[index] = NULL;
 	}
 	release_lock();
 }
