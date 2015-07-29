@@ -256,6 +256,10 @@ VALUE ppr;
 
 static VALUE rb_cPPR, rb_cOrdered;
 
+extern BOP_this_group_over();
+void ppr_over(){
+  BOP_this_group_over();
+}
 
 void
 Init_PPR() {
@@ -270,6 +274,7 @@ Init_PPR() {
     //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
     rb_define_singleton_method(rb_cPPR, "abort_spec", ppr_abort_spec, 1);
     rb_define_singleton_method(rb_cPPR, "abort_next_spec", ppr_abort_next_spec, 1);
+    rb_define_singleton_method(rb_cPPR, "over", ppr_over, 0);
 
     rb_define_singleton_method(rb_cPPR, "puts", ppr_puts, 1);
     rb_define_singleton_method(rb_cPPR, "verbose", verbose, 1);
