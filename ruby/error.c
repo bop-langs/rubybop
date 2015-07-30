@@ -44,13 +44,14 @@ extern const char ruby_description[];
 static const char REPORTBUG_MSG[] =
 	"[NOTE]\n" \
 	"You may have encountered a bug in the Ruby interpreter" \
+	", with the BOP library" \
 	" or extension libraries.\n" \
 	"Bug reports are welcome.\n" \
 	""
 #if defined __APPLE__
 	"Don't forget to include the above Crash Report log file.\n"
 #endif
-	"For details: http://www.ruby-lang.org/bugreport.html\n\n" \
+	"Please submit issues to the Rubybops repository, http://www.github.com/dcompiler/rubybop \n\n" \
     ;
 
 static const char *
