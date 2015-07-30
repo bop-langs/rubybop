@@ -789,7 +789,7 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 //Iterates through heap pages and sets each free slot to zero
 //
 
-void dettach_free_list(rb_objspace_t *objspace);
+void detach_free_list(rb_objspace_t *objspace);
 
 void zero_out_frees()
 {
@@ -811,8 +811,9 @@ void zero_out_frees()
 }
 
 struct heap_page *old_free_page_list;
+void show_heap_pages();
 
-void dettach_free_list(rb_objspace_t *objspace)
+void detach_free_list(rb_objspace_t *objspace)
 {
 
 }
@@ -829,6 +830,20 @@ void frees_restore()
 	worker = worker->next;
     }
     return;
+}
+
+void show_heap_pages()
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    bop_msg(3, "Iterating through heap pages");
+    int i = 0;
+    struct heap_page *worker;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    while (worker)
+    {
+	bop_msg(3, "Heap page %i: %x\n", i, worker);
+	i++;
+    }
 }
 
 struct RZombie {
@@ -1509,6 +1524,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	else {
     //abort();
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
+	    show_heap_pages();
 	}
     }
     if (hi < heap_allocated_pages) {

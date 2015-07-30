@@ -266,13 +266,12 @@ void initialize_group () {
 
 /** Merge
 1) Promise everything in both allocated and free list
-2) Integrate counts based off of abort
 */
 void malloc_promise() {
     header* head;
     for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
         BOP_promise(head, head->allocated.blocksize); //playload matters
-    for(head = freedlist; head != NULL; head = CAST_H(head->allocated.next))
+    for(head = freedlist; head != NULL; head = CAST_H(head->free.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
 }
 
