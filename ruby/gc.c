@@ -9076,6 +9076,6 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
-    .ppr_task_init = zero_out_frees,
+    .ppr_group_init = zero_out_frees,
     .task_group_commit = frees_restore
 };
