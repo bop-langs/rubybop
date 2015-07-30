@@ -36,6 +36,6 @@ PPR{
   instSimple.printNo
   instComplex = RaceTestComplexNo.new($i)
   instComplex.printNo
-  $i += 1
 }
+$i += 1
 end
