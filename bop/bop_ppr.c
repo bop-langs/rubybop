@@ -112,9 +112,9 @@ int _BOP_ppr_begin(int id) {
       if (bop_mode == SERIAL) _ppr_task_init( );
       return 0;
     }
-
+    block_wait();
     int fid = fork( );
-
+    unblock_wait();
     if (fid == -1) {
       bop_msg (2, "OS unable to fork more tasks" );
       if ( task_status == MAIN) {
