@@ -806,6 +806,7 @@ void zero_out_frees()
 }
 
 struct heap_page *old_free_page_list;
+void show_heap_pages();
 
 void detach_free_list(rb_objspace_t *objspace)
 {
@@ -825,6 +826,18 @@ void frees_restore()
 	worker = worker->next;
     }
     return;
+}
+
+void show_heap_pages()
+{
+    int i = 0;
+    struct heap_page *worker;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    while (worker)
+    {
+	printf("Heap page %i: %x\n", i, worker);
+	i++;
+    }
 }
 
 struct RZombie {
@@ -1504,6 +1517,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	}
 	else {
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
+	    show_heap_pages();
 	}
     }
     if (hi < heap_allocated_pages) {
