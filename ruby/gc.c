@@ -798,6 +798,16 @@ void zero_out_frees()
 	worker->free_slots = 0;
 	worker = worker->next;
     }
+    dettach_free_list(objspace);
+    return;
+}
+
+struct heap_page *old_free_page_list;
+
+void dettach_free_list(rb_objspace_t *objspace)
+{
+    old_free_page_list = objspace->eden_heap.free_pages;
+    objspace->eden_heap.free_pages = NULL;
     return;
 }
 
