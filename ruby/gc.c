@@ -800,23 +800,16 @@ void zero_out_frees()
     {
 	worker->old_free_slots = worker->free_slots;
 	worker->free_slots = 0;
-
-  worker->oldfreelist = worker->freelist;
-  worker->freelist = 0;
-
+	worker->oldfreelist = worker->freelist;
+	worker->freelist = 0;
 	worker = worker->next;
     }
-    //dettach_free_list(objspace);
     return;
 }
 
 struct heap_page *old_free_page_list;
 void show_heap_pages();
 
-void detach_free_list(rb_objspace_t *objspace)
-{
-
-}
 
 void frees_restore()
 {
@@ -826,7 +819,7 @@ void frees_restore()
     while (worker)
     {
 	worker->free_slots = worker->old_free_slots;
-  worker->freelist = worker->oldfreelist;
+	worker->freelist = worker->oldfreelist;
 	worker = worker->next;
     }
     return;
