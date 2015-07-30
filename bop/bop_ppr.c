@@ -621,7 +621,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
-  action.sa_flags &= (SA_SIGINFO | SA_RESTART); //ie only SA_SIGINFO and SA_RESTART
+  action.sa_flags = SA_SIGINFO; //ie only SA_SIGINFO and SA_RESTART
   action.sa_sigaction = (void *) SigUsr1;
   sigaction(SIGUSR1, &action, NULL);
   action.sa_sigaction = (void *) SigUsr2;
