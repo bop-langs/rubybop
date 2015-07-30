@@ -449,7 +449,7 @@ typedef struct mark_stack {
     size_t unused_cache_size;
 } mark_stack_t;
 
-typedef struct rb_heap_struct {s
+typedef struct rb_heap_struct {
     RVALUE *freelist;
 
     struct heap_page *free_pages;
@@ -798,7 +798,7 @@ void zero_out_frees()
 {
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
-    old_free_pages = objspace->free_pages;
+    objspace->eden_heap.old_free_pages = objspace->eden_heap.free_pages;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
@@ -818,6 +818,7 @@ void frees_restore()
 {
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
+    objspace->eden_heap.free_pages = objspace->eden_heap.old_free_pages;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
