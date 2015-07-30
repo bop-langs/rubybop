@@ -46,7 +46,7 @@
 #define CHARP(p) (((char*) (p)))
 #define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))
 #define PTR_MATH(ptr, d) ((CHARP(ptr)) + d)
-#define ASSERTBLK(head) assert ((head)->allocated.blocksize > 0);
+#define ASSERTBLK(head) bop_assert ((head)->allocated.blocksize > 0);
 
 //class size macros
 #define NUM_CLASSES 16
@@ -157,13 +157,13 @@ void dm_check(void* payload) {
 }
 static inline size_t align(size_t size, size_t alignment) {
     int log = LOG(alignment);
-    assert(alignment == (1 << log));
+    bop_assert(alignment == (1 << log));
     return (((size) + (alignment-1)) & ~(alignment-1));
 }
 /**Get the index corresponding to the given size. If size > MAX_SIZE, then return -1*/
 static inline int get_index (size_t size) {
-    assert (size == ALIGN (size));
-    assert (size >= HSIZE);
+    bop_assert (size == ALIGN (size));
+    bop_assert (size >= HSIZE);
     //Space is too big.
     if (size > MAX_SIZE)
         return -1;			//too big
@@ -172,9 +172,9 @@ static inline int get_index (size_t size) {
 
     if (index == -1 || sizes[index] < size)
         index++;
-    assert (index >= 0 && index < NUM_CLASSES);
-    assert (sizes[index] >= size); //this size class is large enough
-    assert (index == 0 || sizes[index - 1] < size); //using the minimal valid size class
+    bop_assert (index >= 0 && index < NUM_CLASSES);
+    bop_assert (sizes[index] >= size); //this size class is large enough
+    bop_assert (index == 0 || sizes[index - 1] < size); //using the minimal valid size class
     return index;
 }
 /**Locking functions*/
@@ -219,7 +219,7 @@ void carve () {
 	get_lock(); //now locked
 	int * counts = count_lists(true);
 	grow(tasks); //need to already have the lock
-	assert (tasks >= 2);
+	bop_assert (tasks >= 2);
 
 	int index, count, j, r;
 	header *current_headers[NUM_CLASSES];
@@ -239,10 +239,10 @@ void carve () {
 			current_headers[index] = temp;
 			// the last task has no tail, use the same as seq. exectution
 			if(r < tasks - 1){
-				assert (temp != (header*) -1);
+				bop_assert (temp != (header*) -1);
 				regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
 			}else{
-				assert(r == tasks - 1);
+				bop_assert(r == tasks - 1);
 				regions[r].end[index] = NULL;
 			}
 		}
@@ -259,7 +259,7 @@ void initialize_group () {
     for (ind = 0; ind < NUM_CLASSES; ind++) {
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
-				assert(headers[ind] != ends[ind]); //
+				bop_assert(headers[ind] != ends[ind]); //
 				// bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
     }
 }
@@ -294,7 +294,7 @@ static inline void grow (const int tasks) {
         growth += blocks[class_index] * sizes[class_index];
     }
     char *space_head = sys_calloc (growth, 1);	//system malloc, use byte-sized type
-    assert (space_head != NULL);	//ran out of sys memory
+    bop_assert (space_head != NULL);	//ran out of sys memory
     header *head;
     for (class_index = 0; class_index < NUM_CLASSES; class_index++) {
         size = sizes[class_index];
@@ -385,7 +385,7 @@ void *dm_malloc (const size_t size) {
  malloc_begin:
 	which = -2;
 	block = get_header (alloc_size, &which);
-	assert (which != -2);
+	bop_assert (which != -2);
 	if (block == NULL) {
 		//no item in list. Either correct list is empty OR huge block
 		if (alloc_size > MAX_SIZE) {
@@ -473,7 +473,7 @@ static inline header* dm_split (int which) {
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = CAST_H((CHARP (block) + sizes[which]));	//cut in half
-    assert (block != split);
+    bop_assert (block != split);
     //split-specific info sets
     headers[which] = split;	// was null PPR Safe
     headers[larger] = CAST_H (headers[larger]->free.next); //PPR Safe
@@ -483,14 +483,14 @@ static inline header* dm_split (int which) {
     block->free.next = CAST_SH (split);
     split->free.next = split->free.prev = NULL;
 
-    assert (block->allocated.blocksize != 0);
+    bop_assert (block->allocated.blocksize != 0);
     which++;
 #ifndef NDEBUG
     if (get_header(sizes[which], NULL) == NULL && which != larger)
         multi_splits++;
     split_gave_head[which] += larger - which;
 #endif
-		assert (which < NUM_CLASSES);
+		bop_assert (which < NUM_CLASSES);
     while (which < larger) {
         //update the headers
         split = CAST_H ((CHARP (split) + sizes[which - 1])); //which - 1 since only half of the block is used here. which -1 === size / 2
@@ -553,7 +553,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
         size_t copySize = MIN(size_cache, new_size) - HSIZE;
         payload = memcpy (payload, PAYLOAD(old_head), copySize);	//copy memory, don't copy the header
         new_head = HEADER(payload);
-        assert (new_index == -1 || new_head->allocated.blocksize == sizes[new_index]);
+        bop_assert (new_index == -1 || new_head->allocated.blocksize == sizes[new_index]);
         old_head->allocated.blocksize = size_cache;
         ASSERTBLK(old_head);
         dm_free (ptr);
@@ -581,7 +581,7 @@ static inline void free_now (header * head) {
     int which;
     size_t size = head->allocated.blocksize;
     ASSERTBLK(head);
-    assert (size >= HSIZE && size == ALIGN (size));	//size is aligned, ie right value was written
+    bop_assert (size >= HSIZE && size == ALIGN (size));	//size is aligned, ie right value was written
     //test for system block
     if (size > MAX_SIZE && SEQUENTIAL) {
         sys_free(head);
@@ -590,7 +590,7 @@ static inline void free_now (header * head) {
     //synchronised region
     get_lock();
     header *free_stack = get_header (size, &which);
-    assert (sizes[which] == size);	//should exactly align
+    bop_assert (sizes[which] == size);	//should exactly align
     if (free_stack == NULL) {
         //empty free_stack
         head->free.next = head->free.prev = NULL;

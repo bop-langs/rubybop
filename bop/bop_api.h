@@ -100,6 +100,7 @@ mem_range_t *BOP_check_access(void* addr);
 void bop_set_verbose( int );
 int bop_get_verbose( void );
 void bop_msg(int level, const char * msg, ...);
+#define bop_assert(x) if(!(x)) {bop_msg(0, ("assertions %s failed, %s, %d, %s"), #x, __FILE__, __LINE__, __func__); exit(1);}
 
 /* For collecting statistics */
 typedef struct {
