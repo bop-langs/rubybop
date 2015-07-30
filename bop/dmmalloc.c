@@ -78,8 +78,8 @@
 #define BLKS_12 MAX((DM_BLOCK_SIZE / 10), 1)
 #define BLKS_13 MAX((DM_BLOCK_SIZE / 10), 1)
 #define BLKS_14 MAX((DM_BLOCK_SIZE / 10), 1)
-#define BLKS_15 MAX((DM_BLOCK_SIZE / 10), 1)
-#define BLKS_16 MAX((DM_BLOCK_SIZE / 10), 1)
+#define BLKS_15 MAX((DM_BLOCK_SIZE / 100), 1)
+#define BLKS_16 MAX((DM_BLOCK_SIZE / 100), 1)
 
 #define PGS(x) (((BLKS_##x) * SIZE_C(x)))
 #define GROW_S (PGS(1) + PGS(2) + PGS(3) + PGS(4) + PGS(5)+ \
@@ -117,6 +117,7 @@ header* ends[NUM_CLASSES] = {[0 ... NUM_CLASSES - 1] = NULL}; //end of lists in 
 
 static int number_of_mallocs = 0;
 static int number_of_frees = 0;
+static int number_of_carves = 0;
 //helper prototypes
 static inline int get_index (size_t);
 static inline void grow (int);
@@ -214,6 +215,7 @@ static int* count_lists(bool has_lock){ //param unused
 	return counts;
 }
 void carve () {
+	number_of_carves++;
 	int tasks = BOP_get_group_size();
 	if( regions != NULL)
 	free_now(HEADER(regions)); //free now b/c have lock, and SEQ
@@ -227,17 +229,18 @@ void carve () {
 	header *current_headers[NUM_CLASSES];
 	header *temp = (header*) -1;
 	for (index = 0; index < NUM_CLASSES; index++)
-	current_headers[index] = CAST_H (headers[index]);
+		current_headers[index] = CAST_H (headers[index]);
 	//actually split the lists
 	for (index = 0; index < NUM_CLASSES; index++) {
 		count = counts[index] /= tasks;
 		reg_counts[index] = count;
 		for (r = 0; r < tasks; r++) {
 			regions[r].start[index] = current_headers[index];
-			for (j = 0; j < count && temp; j++) {
+			for (j = 0; (j < count) && temp; j++) {
 				temp = CAST_H (current_headers[index]->free.next);
+				current_headers[index] = temp;
+
 			}
-			current_headers[index] = temp;
 			//the last task has no tail, use the same as seq. exectution
 			if(r < tasks - 1){
 				assert (temp != (header*) -1);
