@@ -288,7 +288,7 @@ Init_PPR() {
     //TODO get this uncommented
     //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
-    // register_port(&rubyheap_port, "RubyHeap Port");
+    register_port(&rubyheap_port, "RubyHeap Port");
 }
 
 void

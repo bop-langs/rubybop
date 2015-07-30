@@ -381,9 +381,7 @@ void _BOP_group_over(int id){
     bop_msg(3, "Speculative process extended past PPR region. Aborting");
     exit(0);
   }else{
-    bop_msg(3, "Valid state while hitting BOP_group_over. Continuing & Returning to SEQ mode");
-    task_status = SEQ;
-    bop_mode = PARALLEL;
+    bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");
   }
 }
 void BOP_this_group_over(){

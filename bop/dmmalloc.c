@@ -234,7 +234,7 @@ void carve () {
 			regions[r].start[index] = current_headers[index];
 			temp = CAST_H (current_headers[index]->free.next);
 			for (j = 0; j < count && temp; j++) {
-				temp = temp->free.next;
+				temp = CAST_H(temp->free.next);
 			}
 			current_headers[index] = temp;
 			// the last task has no tail, use the same as seq. exectution
