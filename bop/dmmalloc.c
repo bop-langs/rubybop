@@ -52,7 +52,7 @@
 #define NUM_CLASSES 16
 #define CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + CLASS_OFFSET)
 #define MAX_SIZE sizes[NUM_CLASSES - 1]
-#define SIZE_C(k) ALIGN((1 << (k + CLASS_OFFSET)))	//allows for iterative spliting
+#define SIZE_C(k) (ALIGN((1 << (k + CLASS_OFFSET))))	//allows for iterative spliting
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 
@@ -138,6 +138,7 @@ static int split_attempts[NUM_CLASSES];
 static int split_gave_head[NUM_CLASSES];
 #endif
 unsigned int max_ppr = SIZE_C(NUM_CLASSES);
+size_t max_ppr_request = (ALIGN(SIZE_C(NUM_CLASSES) - HSIZE));
 
 /** x86 assembly code for computing the log2 of a value.
 		This is much faster than math.h log2*/
