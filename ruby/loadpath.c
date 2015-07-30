@@ -15,6 +15,7 @@
 /* Define RUBY_REVISION to avoid revision.h inclusion via version.h. */
 #define RUBY_REVISION 0
 #include "version.h"
+#define EXEC_NAME rubybop
 
 #ifndef RUBY_ARCH
 #define RUBY_ARCH RUBY_PLATFORM
@@ -29,13 +30,13 @@
 #ifndef RUBY_EXEC_PREFIX
 #error RUBY_EXEC_PREFIX must be defined
 #endif
-#define RUBY_LIB_PREFIX RUBY_EXEC_PREFIX"/lib/ruby"
+#define RUBY_LIB_PREFIX RUBY_EXEC_PREFIX"/lib/rubybop"
 #endif
 #ifndef RUBY_SITE_LIB
-#define RUBY_SITE_LIB RUBY_LIB_PREFIX"/site_ruby"
+#define RUBY_SITE_LIB RUBY_LIB_PREFIX"/site_rubybop"
 #endif
 #ifndef RUBY_VENDOR_LIB
-#define RUBY_VENDOR_LIB RUBY_LIB_PREFIX"/vendor_ruby"
+#define RUBY_VENDOR_LIB RUBY_LIB_PREFIX"/vendor_rubybop"
 #endif
 
 typedef char ruby_lib_version_string[(int)sizeof(RUBY_LIB_VERSION) - 2];
@@ -89,4 +90,3 @@ const char ruby_initial_load_paths[] =
     RUBY_ARCH_LIB_FOR(RUBY_ARCH) "\0"
 #endif
     "";
-

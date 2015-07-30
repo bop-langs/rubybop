@@ -201,6 +201,7 @@ void BOP_abort_next_spec( char *msg ) {
 }
 
 static int undy_ppr_count;
+extern int bop_undy_active;
 
 void post_ppr_undy( void ) {
   undy_ppr_count ++;
@@ -214,6 +215,12 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
+  if(!bop_undy_active){
+ 	bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
+  	abort();
+  	return; //doesn't actually happen
+  }
+
   // indicate the success of the understudy
   kill(0, SIGUSR2);
   kill(-monitor_group, SIGUSR1); //main requires a special signal?
@@ -227,7 +234,6 @@ void post_ppr_undy( void ) {
 
 /* Return true if it is UNDY (or SEQ in the rare case). */
 int spawn_undy( void ) {
-
   int fid = fork( );
   switch( fid ) {
   case -1:
@@ -385,12 +391,14 @@ void _BOP_ppr_end(int id) {
 
 */
 void MonitorInteruptFwd(int signo){
-  bop_msg(3, "forwarding SIGINT to children of pgrp %d", monitor_group);
-  assert(signo == SIGINT);
+  bop_msg(3, "forwarding signal '%s' to children of pgrp %d", strsignal(signo), monitor_group);
   assert(getpid() == monitor_process_id);
-
-  kill(monitor_group, SIGINT);
-  is_monitoring = false; //stop monitoring
+  kill(monitor_group, signo);
+  is_monitoring = is_monitoring && signo == SIGINT; //stop monitoring
+  if(signo == SIGINT){
+    while(waitpid((pid_t) -1, NULL, WUNTRACED) != -1);
+    _exit(0);
+  }
 }
 void print_backtrace(void){
   bop_msg(1, "\nBACKTRACE pid = %d parent pid %d", getpid(), getppid());
@@ -462,8 +470,8 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 }
 
 void SigBopExit( int signo ){
-  bop_msg( 3,"Program exits (%d).  Cleanse remaining processes. ", signo );
-  exit(cleanup_children());
+  bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
+  abort(); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
  *
@@ -586,12 +594,11 @@ void __attribute__ ((constructor)) BOP_init(void) {
   action.sa_sigaction = (void *) SigUsr2;
   sigaction(SIGUSR2, &action, NULL);
 
-
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
-
-
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
+  bop_undy_active = get_int_from_env("BOP_UndyFinish", 0, 1, 1);
+
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
   msg_init();

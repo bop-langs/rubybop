@@ -5,14 +5,24 @@ compiler:
 os:
   - linux
   - osx
-
+env:
+  - BOP_UndyFinish=1 #normal behavior
+  - BOP_UndyFinish=0 #force PPR tasks to finish
+  - BOP_GroupSize=4 #normal understudy, more PPR tasks
 matrix:
   fast_finish: true
   allow_failures:
   - os: osx #mac is unstable for the time being
-  exclude: #gcc/osx causes issues
+  - env: BOP_UndyFinish=0
+  exclude:
   - os: osx
-    compiler: gcc
+    env: BOP_UndyFinish=0
+  - os: osx
+    env: BOP_GroupSize=4
+  - compiler: clang
+    env: BOP_GroupSize=4
+  - compiler: clang
+    env: BOP_UndyFinish=0
 #dependencies for the ruby language
 
 sudo: false

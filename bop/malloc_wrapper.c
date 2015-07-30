@@ -21,7 +21,7 @@
 #endif
 
 #define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
-#define SPEC_VISUALIZE(s) if(!SEQUENTIAL) bop_msg(3, s)
+#define SPEC_VISUALIZE(s) if(!SEQUENTIAL) bop_msg(5, s)
 
 
 #define TABLESIZE 100000

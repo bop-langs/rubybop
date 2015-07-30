@@ -95,5 +95,8 @@ if show
   env.each {|k,v| puts "#{k}=#{v}"}
   puts Shellwords.join(cmd)
 end
-
-exec(*cmd)
+warn 'tool/runruby uses system ruby! not bop!'
+flat = "'#{cmd.join(" ")}'".gsub('\'', "")
+flat = flat.gsub('./miniruby', 'ruby')
+flat = flat.gsub('./ruby', 'ruby')
+system flat

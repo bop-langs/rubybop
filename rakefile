@@ -11,6 +11,12 @@ task :ruby => :bop do
   end
 end
 
+task :smoke_test do
+  cd 'ruby' do
+    sh 'make check' if File.exists? 'Makefile'
+  end
+end
+
 task :bop do
   #build bop
   cd "bop" do
@@ -18,10 +24,16 @@ task :bop do
   end
 end
 
+task :bop_debug do
+  cd "bop" do
+    sh 'make debug'
+  end
+end
+
 task :ruby_test => :ruby do
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
-		sh './ruby --disable-gems ./bootstraptest/runner.rb' do |ok, res|
+		sh './rubybop --disable-gems ./bootstraptest/runner.rb' do |ok, res|
 			if ! ok then
          fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
@@ -69,4 +81,16 @@ end
 task :again do
 	Rake::Task[:clean].invoke
 	Rake::Task[:default].invoke
+end
+task :install => :ruby do
+  cd "ruby" do
+    sh 'make install' do |ok, res| end
+  end
+end
+task :uninstall do
+  sh 'make -C ruby uninstall'
+end
+task :debug do
+  Rake::Task[:bop_debug].invoke
+  Rake::Task[:ruby].invoke
 end

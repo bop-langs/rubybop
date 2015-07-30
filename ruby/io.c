@@ -986,7 +986,7 @@ rb_write_internal2(int fd, const void *buf, size_t count)
     iis.buf = buf;
     iis.capa = count;
 
-    return (ssize_t)rb_thread_call_without_gvl2(internal_write_func2, &iis,
+    return (ssize_t)rb_thread_call_without_gvl2_par(internal_write_func2, &iis,
 						RUBY_UBF_IO, NULL);
 }
 
@@ -1029,7 +1029,7 @@ io_flush_buffer_sync2(void *arg)
     VALUE result = io_flush_buffer_sync(arg);
 
     /*
-     * rb_thread_call_without_gvl2 uses 0 as interrupted.
+     * rb_thread_call_without_gvl2_par uses 0 as interrupted.
      * So, we need to avoid to use 0.
      */
     return !result ? (void*)1 : (void*)result;
@@ -1048,7 +1048,7 @@ io_flush_buffer_async2(VALUE arg)
     rb_io_t *fptr = (rb_io_t *)arg;
     VALUE ret;
 
-    ret = (VALUE)rb_thread_call_without_gvl2(io_flush_buffer_sync2, fptr,
+    ret = (VALUE)rb_thread_call_without_gvl2_par(io_flush_buffer_sync2, fptr,
 					     RUBY_UBF_IO, NULL);
 
     if (!ret) {
@@ -4207,7 +4207,7 @@ maygvl_close(int fd, int keepgvl)
      * close() may block for certain file types (NFS, SO_LINGER sockets,
      * inotify), so let other threads run.
      */
-    return (int)(intptr_t)rb_thread_call_without_gvl(nogvl_close, &fd, RUBY_UBF_IO, 0);
+    return (int)(intptr_t)rb_thread_call_without_gvl_par(nogvl_close, &fd, RUBY_UBF_IO, 0);
 }
 
 static void*
@@ -4224,7 +4224,7 @@ maygvl_fclose(FILE *file, int keepgvl)
     if (keepgvl)
 	return fclose(file);
 
-    return (int)(intptr_t)rb_thread_call_without_gvl(nogvl_fclose, file, RUBY_UBF_IO, 0);
+    return (int)(intptr_t)rb_thread_call_without_gvl_par(nogvl_fclose, file, RUBY_UBF_IO, 0);
 }
 
 static void free_io_buffer(rb_io_buffer_t *buf);
@@ -5420,7 +5420,7 @@ static inline int
 rb_sysopen_internal(struct sysopen_struct *data)
 {
     int fd;
-    fd = (int)(VALUE)rb_thread_call_without_gvl(sysopen_func, data, RUBY_UBF_IO, 0);
+    fd = (int)(VALUE)rb_thread_call_without_gvl_par(sysopen_func, data, RUBY_UBF_IO, 0);
     if (0 <= fd)
         rb_update_max_fd(fd);
     return fd;
@@ -10587,7 +10587,7 @@ copy_stream_body(VALUE arg)
     rb_fd_set(src_fd, &stp->fds);
     rb_fd_set(dst_fd, &stp->fds);
 
-    rb_thread_call_without_gvl(nogvl_copy_stream_func, (void*)stp, RUBY_UBF_IO, 0);
+    rb_thread_call_without_gvl_par(nogvl_copy_stream_func, (void*)stp, RUBY_UBF_IO, 0);
     return Qnil;
 }
 

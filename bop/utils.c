@@ -55,6 +55,16 @@ int BOP_get_verbose( void ) {
   return bop_verbose;
 }
 
+int bop_undy_active = 1;
+
+void BOP_set_undy_active(int x){
+ assert (x ==0 || x == 1);
+ bop_undy_active = x;
+} 
+int BOP_get_undy_active(){
+ return bop_undy_active;
+}
+
 extern char in_ordered_region;  // bop_ordered.c
 extern int errno;
 char *strerror(int errnum);

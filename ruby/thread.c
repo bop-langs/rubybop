@@ -1255,36 +1255,43 @@ blocking_region_end(rb_thread_t *th, struct rb_blocking_region_buffer *region)
 	th->status = region->prev_status;
     }
 }
-
 static void *
 call_without_gvl(void *(*func)(void *), void *data1,
 		 rb_unblock_function_t *ubf, void *data2, int fail_if_interrupted)
 {
-    void *val = 0;
-
-    rb_thread_t *th = GET_THREAD();
-    int saved_errno = 0;
-
-    th->waiting_fd = -1;
-    if (ubf == RUBY_UBF_IO || ubf == RUBY_UBF_PROCESS) {
-	ubf = ubf_select;
-	data2 = th;
-    }
-
-    BLOCKING_REGION({
-	val = func(data1);
-	saved_errno = errno;
-    }, ubf, data2, fail_if_interrupted);
-
-    if (!fail_if_interrupted) {
-	RUBY_VM_CHECK_INTS_BLOCKING(th);
-    }
-
-    errno = saved_errno;
-
-    return val;
+  //TODO ensure that this thread has the GVL or block until it does
+  return func (data1);
+  //The original source is in call_without_gvl_par
 }
+//scary actual (threaded) concurrency.
+static void *
+call_without_gvl_par(void *(*func)(void *), void *data1,
+		 rb_unblock_function_t *ubf, void *data2, int fail_if_interrupted)
+{
+  void *val = 0;
 
+  rb_thread_t *th = GET_THREAD();
+  int saved_errno = 0;
+
+  th->waiting_fd = -1;
+  if (ubf == RUBY_UBF_IO || ubf == RUBY_UBF_PROCESS) {
+ubf = ubf_select;
+data2 = th;
+  }
+
+  BLOCKING_REGION({
+val = func(data1);
+saved_errno = errno;
+  }, ubf, data2, fail_if_interrupted);
+
+  if (!fail_if_interrupted) {
+RUBY_VM_CHECK_INTS_BLOCKING(th);
+  }
+
+  errno = saved_errno;
+
+  return val;
+}
 /*
  * rb_thread_call_without_gvl - permit concurrent/parallel execution.
  * rb_thread_call_without_gvl2 - permit concurrent/parallel execution
@@ -1370,6 +1377,7 @@ call_without_gvl(void *(*func)(void *), void *data1,
  * * ruby_xmalloc(), ruby_xrealloc(), ruby_xfree() -
  *   they will work without GVL, and may acquire GVL when GC is needed.
  */
+//These original functions are now forced to use the GVL, ie sequential
 void *
 rb_thread_call_without_gvl2(void *(*func)(void *), void *data1,
 			    rb_unblock_function_t *ubf, void *data2)
@@ -1383,6 +1391,25 @@ rb_thread_call_without_gvl(void *(*func)(void *data), void *data1,
 {
     return call_without_gvl(func, data1, ubf, data2, FALSE);
 }
+/**WARNING
+ * these functions are actually running in parallel using THREADS. BOP is not
+ * bop is not designed for this and should be used with EXTREME CAUTION.
+ * The only reason that these functions are included is for io to eventually be supported.
+ * There is no reason to use these functions otherwise*/
+void *
+rb_thread_call_without_gvl2_par(void *(*func)(void *), void *data1,
+			    rb_unblock_function_t *ubf, void *data2)
+{
+    return call_without_gvl_par(func, data1, ubf, data2, TRUE);
+}
+
+void *
+rb_thread_call_without_gvl_par(void *(*func)(void *data), void *data1,
+			    rb_unblock_function_t *ubf, void *data2)
+{
+    return call_without_gvl_par(func, data1, ubf, data2, FALSE);
+}
+//Its ok. The thread code is over now.
 
 VALUE
 rb_thread_io_blocking_region(rb_blocking_function_t *func, void *data1, int fd)
