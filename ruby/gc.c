@@ -830,12 +830,14 @@ void frees_restore()
 
 void show_heap_pages()
 {
+    rb_objspace_t *objspace = &rb_objspace;
+    printf("Iterating through heap pages");
     int i = 0;
     struct heap_page *worker;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
-	printf("Heap page %i: %x\n", i, worker);
+	bop_msg(3, "Heap page %i: %x\n", i, worker);
 	i++;
     }
 }
