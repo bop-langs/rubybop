@@ -7,8 +7,15 @@
 
 #include "bop_api.h"
 
-// #define write(x , y, z...) printf("%d:"#y"\n", getpid(), z)
+#if 1
+#define write(x , y, z...) printf("%d:"#y"\n", getpid(), z)
+#else
+#ifdef BOP
 #define write(x, y...) bop_msg(0, y)
+#else
+#define #define write(x, y, z...) printf("%d:"#y"\n", getpid(), z)
+#endif
+#endif
 
 #ifdef BOP
 extern unsigned int max_ppr;
