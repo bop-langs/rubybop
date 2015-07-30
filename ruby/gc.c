@@ -449,10 +449,11 @@ typedef struct mark_stack {
     size_t unused_cache_size;
 } mark_stack_t;
 
-typedef struct rb_heap_struct {
+typedef struct rb_heap_struct {s
     RVALUE *freelist;
 
     struct heap_page *free_pages;
+    struct heap_page *old_free_pages;
     struct heap_page *using_page;
     struct heap_page *pages;
     struct heap_page *sweep_pages;
@@ -791,10 +792,13 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 
 void detach_free_list(rb_objspace_t *objspace);
 
+
+
 void zero_out_frees()
 {
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
+    old_free_pages = objspace->free_pages;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
@@ -807,7 +811,6 @@ void zero_out_frees()
     return;
 }
 
-struct heap_page *old_free_page_list;
 void show_heap_pages();
 
 
@@ -834,7 +837,7 @@ void show_heap_pages()
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
-	bop_msg(3, "Heap page %i: %x\n", i, worker);
+	bop_msg(3, "Heap page %i: %x", i, worker);
 	i++;
 	worker = worker->next;
     }
