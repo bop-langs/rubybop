@@ -841,7 +841,7 @@ void show_heap_pages()
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
-	bop_msg(3, "Heap page %i: %x\n", i, worker);
+	bop_msg(3, "Heap page %i: %p", i, worker);
 	i++;
     }
 }
@@ -1523,8 +1523,8 @@ heap_page_allocate(rb_objspace_t *objspace)
 	}
 	else {
     //abort();
+      show_heap_pages();
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
-	    show_heap_pages();
 	}
     }
     if (hi < heap_allocated_pages) {
@@ -9081,6 +9081,6 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
-    .ppr_task_init = zero_out_frees,
+    .ppr_group_init = zero_out_frees,
     .task_group_commit = frees_restore
 };
