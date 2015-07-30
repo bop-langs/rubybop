@@ -1679,6 +1679,7 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
+      //BOP_record_write(p, sizeof(p)); //TODO doesnt work 
 	    return (VALUE)p;
 	}
 	else {
