@@ -214,11 +214,11 @@ static int* count_lists(bool has_lock){ //param unused
 void carve () {
 	int tasks = BOP_get_group_size();
 	if( regions != NULL)
-	free_now(HEADER(regions)); //free now b/c have lock, and SEQ
-	regions = dm_malloc (tasks * sizeof (ppr_list));
-	get_lock();
+		dm_free(HEADER(regions)); //dm_free -> don't have lock
+	regions = dm_calloc (tasks, sizeof (ppr_list));
+	get_lock(); //now locked
 	int * counts = count_lists(true);
-	grow(tasks / 1.5); //need to already have the lock
+	grow(tasks); //need to already have the lock
 	assert (tasks >= 2);
 
 	int index, count, j, r;
@@ -228,15 +228,16 @@ void carve () {
 	current_headers[index] = CAST_H (headers[index]);
 	//actually split the lists
 	for (index = 0; index < NUM_CLASSES; index++) {
-		count = counts[index] /= tasks;
+		count = counts[index] / tasks;
 		reg_counts[index] = count;
 		for (r = 0; r < tasks; r++) {
 			regions[r].start[index] = current_headers[index];
+			temp = CAST_H (current_headers[index]->free.next);
 			for (j = 0; j < count && temp; j++) {
-				temp = CAST_H (current_headers[index]->free.next);
+				temp = temp->free.next;
 			}
 			current_headers[index] = temp;
-			//the last task has no tail, use the same as seq. exectution
+			// the last task has no tail, use the same as seq. exectution
 			if(r < tasks - 1){
 				assert (temp != (header*) -1);
 				regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
@@ -258,6 +259,8 @@ void initialize_group () {
     for (ind = 0; ind < NUM_CLASSES; ind++) {
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
+				assert(headers[ind] != ends[ind]); //
+				// bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
     }
 }
 
@@ -339,30 +342,35 @@ static inline header * extract_header_freed(size_t size){
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
-	int temp;
+	int temp = -1;
 	//requested allocation is too big
 	if (size > MAX_SIZE) {
-		if(which != NULL)
-			*which = -1;
-		return NULL;
+		found = NULL;
+		temp = -1;
+		goto write_back;
 	} else {
 		temp = get_index (size);
-		if(which != NULL)
-			*which = temp;
 		found = headers[temp];
+		//don't jump to the end. need next conditional
 	}
 	if ( !SEQUENTIAL &&
 		( (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) || ! found) ){
 		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
 		//try to allocate from the freed list. Slower
 		found =  extract_header_freed(size);
-		if(found && which != NULL)
-			*which = FREEDLIST_IND;
+		if(found)
+			temp = FREEDLIST_IND;
+		else
+			temp = -1;
+		//don't need go to. just falls through
 	}
+	write_back:
+	if(which != NULL)
+		*which = temp;
 	return found;
 }
 int has_returned = 0;
-extern void BOP_malloc_rescue(char *);
+extern void BOP_malloc_rescue(char *, size_t);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
 	header * block = NULL;
@@ -393,7 +401,7 @@ void *dm_malloc (const size_t size) {
 				goto checks;
 			}else{
 				//not sequential, and allocating a too-large block. Might be able to rescue
-				BOP_malloc_rescue("Large allocation in PPR");
+				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
 		} else if (SEQUENTIAL && which < NUM_CLASSES - 1 && index_bigger (which) != -1) {
@@ -411,13 +419,12 @@ void *dm_malloc (const size_t size) {
 			grow (1);
 			goto malloc_begin;
 		} else {
-			BOP_malloc_rescue("Need to grow the lists in non-sequential");
+			BOP_malloc_rescue("Need to grow the lists in non-sequential", alloc_size);
 			//grow will happen at the next pass through...
 			goto malloc_begin; //try again
 			//bop_abort
 		}
-	} else
-
+	}
 	if(!SEQUENTIAL)
 		add_next_list(&allocatedList, block);
 
@@ -432,6 +439,13 @@ void *dm_malloc (const size_t size) {
 	release_lock();
 	has_returned = 1;
 	return PAYLOAD (block);
+}
+void print_headers(){
+	int ind;
+	// grow(1); //ek
+	for(ind = 0; ind < NUM_CLASSES; ind++){
+		bop_msg(1, "headers[%d] = %p get_header = %p", ind, headers[ind], get_header(sizes[ind], NULL));
+	}
 }
 
 // Compute the index of the next lagest index > which st the index has a non-null headers
