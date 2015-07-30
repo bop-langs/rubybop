@@ -836,6 +836,7 @@ void show_heap_pages()
     {
 	bop_msg(3, "Heap page %i: %x\n", i, worker);
 	i++;
+	worker = worker->next;
     }
     return;
 }
