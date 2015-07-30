@@ -837,6 +837,7 @@ void show_heap_pages()
 	bop_msg(3, "Heap page %i: %x\n", i, worker);
 	i++;
     }
+    return;
 }
 
 struct RZombie {
@@ -1516,8 +1517,8 @@ heap_page_allocate(rb_objspace_t *objspace)
 	}
 	else {
     //abort();
-	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	    show_heap_pages();
+	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
     if (hi < heap_allocated_pages) {
