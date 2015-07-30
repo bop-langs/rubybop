@@ -260,6 +260,7 @@ void post_ppr_undy( void ) {
 
 /* Return true if it is UNDY (or SEQ in the rare case). */
 int spawn_undy( void ) {
+  pid_t caller = getpid();
   int fid = fork( );
   switch( fid ) {
   case -1:
@@ -275,7 +276,7 @@ int spawn_undy( void ) {
     spec_order = -1;
     //assert( setpgid(0, bopgroup) == 0 );
     assert (getpgrp() == -monitor_group);
-    bop_msg(3,"Understudy starts pid %d pgrp %d", getpid(), getpgrp());
+    bop_msg(3,"Understudy starts pid %d pgrp %d parent: %d", getpid(), getpgrp(), caller);
 
     signal_undy_created( fid );
 
@@ -379,7 +380,7 @@ void _BOP_group_over(int id){
     bop_msg(3, "Mis-matched ppr ids. Continuing");
   }else if(task_status == SPEC){
     bop_msg(3, "Speculative process extended past PPR region. Aborting");
-    exit(0);
+    _exit(0);
   }else{
     bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");
   }
@@ -388,7 +389,7 @@ void BOP_this_group_over(){
   _BOP_group_over(ppr_static_id);
 }
 void _BOP_ppr_end(int id) {
-  bop_msg(1, "\t end ppr (pid %d)", getpid());
+  bop_msg(1, "Reached PPR end (pid %d)", getpid());
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
@@ -499,7 +500,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 
 void SigBopExit( int signo ){
   bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
-  abort(); //done. No cleanup, just end the process now
+  _exit(0); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
  *
