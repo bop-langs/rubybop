@@ -214,7 +214,7 @@ static int* count_lists(bool has_lock){ //param unused
 void carve () {
 	int tasks = BOP_get_group_size();
 	if( regions != NULL)
-		dm_free(HEADER(regions)); //dm_free -> don't have lock
+		dm_free(regions); //dm_free -> don't have lock
 	regions = dm_calloc (tasks, sizeof (ppr_list));
 	get_lock(); //now locked
 	int * counts = count_lists(true);
