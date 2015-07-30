@@ -4,7 +4,7 @@ compiler:
   - clang
 os:
   - linux
-  - osx
+  #- osx
 env:
   - BOP_UndyFinish=1 #normal behavior
   - BOP_UndyFinish=0 #force PPR tasks to finish
