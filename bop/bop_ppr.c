@@ -48,6 +48,8 @@ static void __attribute__((noreturn)) wait_process(void);
 static void __attribute__((noreturn)) end_clean(void); //exit if children errored or call abort
 static int  cleanup_children(void); //returns the value that end_clean would call with _exit (or 0 if would have aborted)
 void SigBopExit( int signo );
+static void block_wait(void);
+static void unblock_wait(void);
 //exec pipe
 
 static void _ppr_group_init( void ) {
@@ -261,7 +263,9 @@ void post_ppr_undy( void ) {
 /* Return true if it is UNDY (or SEQ in the rare case). */
 int spawn_undy( void ) {
   pid_t caller = getpid();
+  block_wait();
   int fid = fork( );
+  unblock_wait();
   switch( fid ) {
   case -1:
     bop_msg(3,"OS cannot fork more process.");
@@ -567,7 +571,6 @@ static void wait_process() {
     }
     unblock_wait();
   }
-  my_exit = my_exit || errored; // TODO enable. This is being fixed seperately
   errno = 0;
   //handle remaining processes. Above may not have gotten everything
   block_wait();
@@ -579,6 +582,7 @@ static void wait_process() {
     perror("Error in wait_process. errno != ECHILD. Monitor process endings");
     _exit(EXIT_FAILURE);
   }
+  my_exit = my_exit || errored;
   my_exit = my_exit ? 1 : 0;
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
@@ -646,8 +650,9 @@ void __attribute__ ((constructor)) BOP_init(void) {
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
     monitor_process_id = getpid();
+    block_wait();
     int fd = fork();
-
+    unblock_wait();
     switch (fd) {
     case -1:
       perror("fork() for timer process");
