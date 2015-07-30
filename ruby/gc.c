@@ -681,6 +681,7 @@ struct heap_page {
     struct heap_page *free_next;
     RVALUE *start;
     RVALUE *freelist;
+    RVALUE *oldfreelist;
     struct heap_page *next;
 
 #if USE_RGENGC
@@ -799,9 +800,13 @@ void zero_out_frees()
     {
 	worker->old_free_slots = worker->free_slots;
 	worker->free_slots = 0;
+
+  worker->oldfreelist = worker->freelist;
+  worker->freelist = 0;
+
 	worker = worker->next;
     }
-    dettach_free_list(objspace);
+    //dettach_free_list(objspace);
     return;
 }
 
@@ -809,9 +814,7 @@ struct heap_page *old_free_page_list;
 
 void dettach_free_list(rb_objspace_t *objspace)
 {
-    old_free_page_list = objspace->eden_heap.free_pages;
-    objspace->eden_heap.free_pages = NULL;
-    return;
+
 }
 
 void frees_restore()
@@ -822,6 +825,7 @@ void frees_restore()
     while (worker)
     {
 	worker->free_slots = worker->old_free_slots;
+  worker->freelist = worker->oldfreelist;
 	worker = worker->next;
     }
     return;
@@ -1503,6 +1507,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	    hi = mid;
 	}
 	else {
+    //abort();
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
@@ -1692,7 +1697,7 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
-      //BOP_record_write(p, sizeof(p)); //TODO doesnt work 
+      //BOP_record_write(p, sizeof(p)); //TODO doesnt work
 	    return (VALUE)p;
 	}
 	else {
