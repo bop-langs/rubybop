@@ -515,9 +515,14 @@ int report_child(pid_t child, int status){
   if(WIFEXITED(status)){
     msg = "Child %d exited with value %d";
     rval = val = WEXITSTATUS(status);
-  }else if(WIFSIGNALED(status)){
+  }
+	 //Have it return true if the signal that kill the process is either SIGABRT or SIGSEGV
+	 else if(WIFSIGNALED(status)){
     msg = "Child %d was terminated by signal %d";
     val =  WTERMSIG(status);
+		if (WTERMSIG(status) == SIGABRT || WTERMSIG(status) == SIGSEGV){
+			rval = 1;
+		}
   }else if(WIFSTOPPED(status)){
     msg = "Child %d was stopped by signal %d";
     val = WSTOPSIG(status);
