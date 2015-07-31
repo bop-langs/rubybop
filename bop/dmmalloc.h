@@ -43,6 +43,15 @@ void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 #define DM_BLOCK_SIZE 200
 #endif
 
+//Alignment based on word size
+#if __WORDSIZE == 64
+#define ALIGNMENT 8
+#elif __WORDSIZE == 32
+#define ALIGNMENT 4
+#else
+#error "need 32 or 64 bit word size"
+#endif
+
 //alignement/ header macros
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
@@ -59,7 +68,7 @@ void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 #define DM_CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + DM_CLASS_OFFSET)
 #define MAX_SIZE SIZE_C(DM_NUM_CLASSES)
 #define SIZE_C(k) (ALIGN((1 << (k + DM_CLASS_OFFSET))))	//allows for iterative spliting
-
+#define MAX_PPR_REQUEST (ALIGN(MAX_SIZE - HSIZE)) /* MAX_SIZE - HSIZE is probably fine... */
 
 
 #endif
