@@ -3645,7 +3645,7 @@ rb_fork_ruby(int *status)
 
 #endif
 
-#if defined(HAVE_WORKING_FORK) && !defined(CANNOT_FORK_WITH_PTHREAD)
+#if 0 && defined(HAVE_WORKING_FORK) && !defined(CANNOT_FORK_WITH_PTHREAD)
 /*
  *  call-seq:
  *     Kernel.fork  [{ block }]   -> fixnum or nil
@@ -3671,7 +3671,6 @@ rb_fork_ruby(int *status)
  *  Note that fork(2) is not available on some platforms like Windows and NetBSD 4.
  *  Therefore you should use spawn() instead of fork().
  */
-
 static VALUE
 rb_f_fork(VALUE obj)
 {
@@ -4380,7 +4379,7 @@ proc_getpgrp(void)
 #endif
 
 
-#if defined(HAVE_SETPGID) || (defined(HAVE_SETPGRP) && defined(SETPGRP_VOID))
+#if 0 && defined(HAVE_SETPGID) || (defined(HAVE_SETPGRP) && defined(SETPGRP_VOID))
 /*
  *  call-seq:
  *     Process.setpgrp   -> 0
@@ -4426,7 +4425,7 @@ proc_getpgid(VALUE obj, VALUE pid)
 #endif
 
 
-#ifdef HAVE_SETPGID
+#if 0 & defined(HAVE_SETPGID)
 /*
  *  call-seq:
  *     Process.setpgid(pid, integer)   -> 0
@@ -7514,8 +7513,8 @@ InitVM_process(void)
 #define rb_intern(str) rb_intern_const(str)
     rb_define_virtual_variable("$?", rb_last_status_get, 0);
     rb_define_virtual_variable("$$", get_pid, 0);
-  	//rb_define_global_function("exec", rb_f_exec, -1);
-    // rb_define_global_function("fork", rb_f_fork, 0);
+  	rb_define_global_function("exec", rb_f_exec, -1);
+    rb_define_global_function("fork", rb_f_fork, 0);
     rb_define_global_function("exit!", rb_f_exit_bang, -1);
     rb_define_global_function("system", rb_f_system, -1);
     // rb_define_global_function("spawn", rb_f_spawn, -1);
