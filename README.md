@@ -1,5 +1,5 @@
 # rubybop
-Safe parallel Ruby language based on BOP
+Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rubybop-introduction/)
 
 [Ruby Version 2.2 commit c5a6913](https://github.com/ruby/ruby/tree/c5a691323201ace5f5299b6914c8e1709918c521)
 
