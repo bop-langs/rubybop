@@ -14,7 +14,7 @@ extern char in_ordered_region;
 #define BF_BOREC	(1<<(BF_BASE+4))  // has a borec record
 #define BF_SUBOBJ	(1<<(BF_BASE+5))  // whether to monitor sub-objs
 
-/* begin generated
+#if 0 //begin generated
 def gen str
   $output += str
 end
@@ -65,7 +65,8 @@ end
 
 puts $output
 # manual changes: bop_scan_obj(VALUE) and BOP_promise(obj, sizeof_rvalue())
- */
+#endif //end generated
+
 #define obj_clear_bf(obj)  (RBASIC(obj)->flags)&=~(BF_NEW|BF_USE|BF_MOD|BF_BOREC|BF_SUBOBJ|BF_META)
 #define obj_ppr_new_p(obj) (RBASIC(obj)->flags)&BF_NEW
 #define obj_use_p(obj) (RBASIC(obj)->flags)&BF_USE
