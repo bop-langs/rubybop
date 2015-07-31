@@ -99,14 +99,14 @@ static inline int llog2(const int x) {
             );
     return y;
 }
-const FORCE_INLINE size_t size_of_klass(int klass){
-	return SIZE_C(klass);
+const FORCE_INLINE size_t size_of_klass(int klass_index){
+	return SIZE_C(klass_index + 1);
 }
 const FORCE_INLINE int goal_blocks(int klass){
 	switch(klass){
-		case 1 ... 4:
+		case 0 ... 3:
 			return DM_BLOCK_SIZE * 10;
-		case 5 ... 12:
+		case 4 ... 12:
 			return DM_BLOCK_SIZE;
 		case 13 ... 16:
 			return MAX(DM_BLOCK_SIZE / (klass - 8), 1);
@@ -290,7 +290,7 @@ static inline void grow (const int tasks) {
     }
 #ifndef NDEBUG //sanity check, make sure the last byte is allocated
     header* check = headers[DM_NUM_CLASSES - 1];
-    char* end_byte = ((char*) check) + MAX_SIZE;
+    char* end_byte = ((char*) check) + MAX_SIZE - 1;
     *end_byte = '\0'; //write an arbitary value
 #endif
 }
