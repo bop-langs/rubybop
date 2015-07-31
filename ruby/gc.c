@@ -1602,9 +1602,9 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 static void
 heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    struct heap *page = heap_page_create(objspace);
-    heap_add_page(objspace, heap, page);
-    heap_add_freepage(objspace, heap, page);
+    struct heap *page = (struct heap *)heap_page_create(objspace);
+    heap_add_page(objspace, heap, (struct heap_page *) page);
+    heap_add_freepage(objspace, heap, (struct heap_page *) page);
 }
 
 static void
