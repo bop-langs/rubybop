@@ -29,17 +29,19 @@ task :bop_debug do
     sh 'make debug'
   end
 end
-
-task :ruby_test => :ruby do
+task :ruby_test_run do
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
-		sh './rubybop --disable-gems ./bootstraptest/runner.rb' do |ok, res|
-			if ! ok then
+    sh './rubybop --disable-gems ./bootstraptest/runner.rb' do |ok, res|
+      if ! ok then
          fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
     end
   end
-	puts "Finished running all tests"
+  puts "All ruby tests passed"
+end
+task :ruby_test => :ruby do
+  Rake::Task[:ruby_test_run].invoke
 end
 
 task :bop_test => :bop do

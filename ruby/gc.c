@@ -30,6 +30,7 @@
 #include <setjmp.h>
 #include <sys/types.h>
 #include <assert.h>
+#include "../bop/dmmalloc.h"
 //Undefine various functions to use the subset malloc functions supported by DM malloc
 
 #undef HAVE_MEMALIGN
@@ -140,10 +141,10 @@ rb_gc_guarded_ptr_val(volatile VALUE *ptr, VALUE val)
 #endif
 
 #ifndef GC_MALLOC_LIMIT_MIN
-#define GC_MALLOC_LIMIT_MIN (16 * 1024 * 1024 /* 16MB */)
+#define GC_MALLOC_LIMIT_MIN (MAX_PPR_REQUEST / 4) //2^24
 #endif
 #ifndef GC_MALLOC_LIMIT_MAX
-#define GC_MALLOC_LIMIT_MAX (32 * 1024 * 1024 /* 32MB */)
+#define GC_MALLOC_LIMIT_MAX (MAX_PPR_REQUEST) //2^15
 #endif
 #ifndef GC_MALLOC_LIMIT_GROWTH_FACTOR
 #define GC_MALLOC_LIMIT_GROWTH_FACTOR 1.4
