@@ -20,16 +20,6 @@
 #define LOG(x) log2(x)
 #endif
 
-//Alignment based on word size
-#if __WORDSIZE == 64
-#define ALIGNMENT 8
-#elif __WORDSIZE == 32
-#define ALIGNMENT 4
-#else
-#error "need 32 or 64 bit word size"
-#endif
-
-
 #ifdef NDEBUG
 #define PRINT(msg) printf("dmmalloc: %s at %s:%d\n", msg, __FILE__, __LINE__)
 #else

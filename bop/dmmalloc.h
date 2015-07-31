@@ -37,6 +37,14 @@ void initialize_group(); //set end pointers for this ppr task
 void malloc_merge(void);
 void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 
+//Alignment based on word size
+#if __WORDSIZE == 64
+#define ALIGNMENT 8
+#elif __WORDSIZE == 32
+#define ALIGNMENT 4
+#else
+#error "need 32 or 64 bit word size"
+#endif
 
 //malloc config macros
 #ifndef DM_BLOCK_SIZE
