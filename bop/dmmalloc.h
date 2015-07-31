@@ -36,4 +36,30 @@ void initialize_group(); //set end pointers for this ppr task
 //data accessors for merge time
 void malloc_merge(void);
 void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
+
+
+//malloc config macros
+#ifndef DM_BLOCK_SIZE
+#define DM_BLOCK_SIZE 200
+#endif
+
+//alignement/ header macros
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
+#define HSIZE (ALIGN((sizeof(header))))
+#define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
+#define CAST_SH(h) ((union header *) (h))
+#define CAST_H(h) ((header*) (h))
+#define CHARP(p) (((char*) (p)))
+#define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))
+#define PTR_MATH(ptr, d) ((CHARP(ptr)) + d)
+#define ASSERTBLK(head) bop_assert ((head)->allocated.blocksize > 0);
+
+//class size macros
+#define DM_NUM_CLASSES 16
+#define DM_CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + DM_CLASS_OFFSET)
+#define MAX_SIZE SIZE_C(DM_NUM_CLASSES)
+#define SIZE_C(k) (ALIGN((1 << (k + DM_CLASS_OFFSET))))	//allows for iterative spliting
+
+
+
 #endif
