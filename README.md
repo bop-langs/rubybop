@@ -21,7 +21,8 @@ Master  | Latest
 
 ###Unsupported Operations
 Rubybop currently does not support:
-- Terminal input (which is needed for IRB)
+- Terminal input (eg gets)
+- IRB (to be named IRBop) since it relies on the above. The included IRB (ruby/bin) script will not work with Rubybop, even if PPR{} calls are not used. Regular ruby will be required to install seperately.
 - Ruby's exec calls (use the system call instead. Similar semantics)
 - Ruby's signal handlers are not installed as they are needed for the bop library.
 - Functions to change the process group id of ruby processes. Again, these need to stay the same for library.
