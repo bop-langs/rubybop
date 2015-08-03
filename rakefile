@@ -11,7 +11,8 @@ task :ruby_setup do
 end
 task :miniruby => [:bop, :ruby_setup] do
   cd "ruby" do
-    sh 'make miniruby'    
+    sh 'rm -f miniruby'
+    sh 'make miniruby'
   end
 end
 task :ruby => [:bop, :ruby_setup] do
