@@ -469,7 +469,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if (task_status == UNDY) {
     bop_msg(3,"Understudy concedes the race (sender pid %d)", siginfo->si_pid);
     signal_undy_conceded( );
-    abort( ); //has no children. don't need to reap
+    _exit(0); //has no children. don't need to reap
   }
   if (task_status == SPEC || task_status == MAIN) {
     if ( spec_order == partial_group_get_size() - 1 ) return;
@@ -493,7 +493,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     errored = true;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
-    abort( );
+    _exit(0);
   }
 }
 
