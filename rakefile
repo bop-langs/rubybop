@@ -1,12 +1,22 @@
 task :default => :ruby
 test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
-task :ruby => :bop do
-  #build ruby
+
+task :ruby_setup do
   cd "ruby" do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
       sh './configure --disable-install-doc'
     end
+  end
+end
+task :miniruby => [:bop, :ruby_setup] do
+  cd "ruby" do
+    sh 'make miniruby'    
+  end
+end
+task :ruby => [:bop, :ruby_setup] do
+  #build ruby
+  cd "ruby" do
     sh 'make -j4' #make can run in parrallel. Big improvement in compile time
   end
 end
