@@ -74,23 +74,23 @@ static short initializing = 0;
 //unsupported malloc operations are aborted immediately
 void* memalign(size_t size, size_t boundary) {
     printf("\nUNSUPPORTED OPERATION memalign\n");
-    abort();
+    _exit(0);
 }
 int posix_memalign (void **memptr, size_t alignment, size_t size) {
     printf("\nUNSUPPORTED OPERATION posix_memalign\n");
-    abort();
+    _exit(0);
 }
 void* aligned_malloc(size_t size, size_t boundary) {
     printf("\nUNSUPPORTED OPERATION: aligned_malloc\n");
-    abort();
+    _exit(0);
 }
 void* valloc(size_t size) {
     printf("\nUNSUPPORTED OPERATION: valloc\n");
-    abort();
+    _exit(0);
 }
 struct mallinfo mallinfo() {
     printf("\nUNSUPPORTED OPERATION: mallinfo\n");
-    abort();
+    _exit(0);
 }
 #endif
 void* malloc(size_t s) {
@@ -175,7 +175,7 @@ static inline void calloc_init() {
 }
 void* tempcalloc(size_t s, size_t n) {
     if(s * n > CHARSIZE) {
-        abort();
+        _exit(0);
         return NULL;
     }
     int i;
@@ -245,7 +245,7 @@ static inline char* check_pointer(void* raw_pointer) {
         return "reallocd";
     }
     printf("Freed unallocated block: %p", raw_pointer);
-    abort();
+    _exit(0);
     return NULL;
 #else
     return "not tracking pointers";
