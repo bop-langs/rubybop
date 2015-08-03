@@ -809,10 +809,10 @@ void show_heap_pages();
 void zero_out_frees()
 {
     bop_msg(3, "Zeroing out frees");
-
+    rb_gc_disable();
     rb_objspace_t *objspace = &rb_objspace;
     rb_heap_t *heap = heap_eden;
-    heap_add_pages(objspace, heap, 1);
+    // heap_add_pages(objspace, heap, 1);
     struct heap_page* page = heap->free_pages;
     old_pages = page->free_next;
     page->free_next = NULL;
@@ -1877,8 +1877,8 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
     //TODO sever the heap so that this actually works...
-    bop_msg(5, "newobj:%s\n", obj_info(obj));
-    if(is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
+    bop_msg(5, "newobj:%s", obj_info(obj));
+    if(is_sequential()) bop_msg(4, "newobj:%s", obj_info(obj));
     //BOP_obj_use_promise(obj);
     //BOP_record_write(obj, sizeof(obj));
     return obj;
