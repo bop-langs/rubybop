@@ -1,4 +1,4 @@
-/**********************************************************************
+ /**********************************************************************
 
   gc.c -
 
@@ -791,11 +791,15 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 //
 
 void detach_free_list(rb_objspace_t *objspace);
+void heap_pages_statreport();
+
+
 
 
 
 void zero_out_frees()
 {
+    heap_pages_statreport();
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
     objspace->eden_heap.old_free_pages = objspace->eden_heap.free_pages;
@@ -811,6 +815,36 @@ void zero_out_frees()
 	worker = worker->next;
     }*/
     return;
+}
+
+void heap_pages_statreport()
+{
+    int eden_free_page_count = 0;
+    int tomb_free_page_count = 0;
+    int sorted_free_page_count = 0;
+    rb_objspace_t *objspace = &rb_objspace;
+    struct heap_page *worker = objspace->eden_heap.free_pages;
+    while (worker)
+    {
+	eden_free_page_count++;
+	worker = worker->next;
+    }
+    worker = objspace->tomb_heap.free_pages;
+    while (worker)
+    {
+	tomb_free_page_count++;
+	worker = worker->next;
+    }
+    worker = *(objspace->heap_pages.sorted);
+    while (worker)
+    {
+	sorted_free_page_count++;
+	worker = worker->free_next;
+    }
+    if (!(eden_free_page_count^tomb_free_page_count^sorted_free_page_count))
+    {
+	bop_msg(5, "WARNING: Count mismatch");
+    }
 }
 
 void show_heap_pages();
