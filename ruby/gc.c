@@ -1562,6 +1562,9 @@ heap_page_allocate(rb_objspace_t *objspace)
     return page;
 }
 
+
+
+//BOP: Resurrect tries to get pages from the tomb before deciding to allocate. This will cause PPR tasks to allocate to the same page as they both have the same addresses for heap tomb pages
 static struct heap_page *
 heap_page_resurrect(rb_objspace_t *objspace)
 {
