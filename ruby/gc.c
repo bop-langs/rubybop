@@ -1565,7 +1565,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	else {
 	    show_heap_pages();
       bop_msg(0, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
-      sleep(10);
+      bop_msg(0, "ERROR DEFINING HEAP PAGE");
       exit(1);
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
