@@ -123,11 +123,12 @@ static VALUE
 ppr_yield(VALUE val)
 {
     //set_rheap_null();
+    rb_gc_disable();
     BOP_ppr_begin(1);
-        //set_rheap_null();
         bop_msg(3,"yielding block...");
         rb_yield(val);
     BOP_ppr_end(1);
+    rb_gc_enable();
     return Qnil;
 }
 static VALUE

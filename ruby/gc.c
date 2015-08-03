@@ -795,24 +795,31 @@ extern void bop_msg(int, const char*, ...);
 static struct heap_page *heap_page_create(rb_objspace_t *objspace);
 static void heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
 static inline void heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
+static int heap_increment(rb_objspace_t *objspace, rb_heap_t *heap);
+static void heap_set_increment(rb_objspace_t *objspace, size_t additional_pages);
 
 static struct heap_page *old_pages;
+static int old_count = 0;
 
 
 void detach_free_list(rb_objspace_t *objspace);
 void show_heap_pages();
 void zero_out_frees()
 {
-    rb_gc_disable();
+    bop_msg(3, "Zeroing out frees");
+
     rb_objspace_t *objspace = &rb_objspace;
     rb_heap_t *heap = heap_eden;
-
-    struct heap_page *page = heap_page_create(objspace);
-    heap_add_page(objspace, heap, page);
-    heap_add_freepage(objspace, heap, page);
-    old_pages = page->free_next;
-    page->free_next = NULL;
-    assert(heap->free_pages == page);
+    //
+    // heap_set_increment(objspace, 5);
+    // assert(heap_increment(objspace, heap));
+    // struct heap_page* page = heap->free_pages;
+    //
+    // old_pages = page->free_next;
+    // page->free_next = NULL;
+    // old_count = heap_allocated_pages;
+    // heap_allocated_pages = 1;
+    // assert(heap->free_pages == page);
 
   //   struct heap_page *worker;
   //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
@@ -830,7 +837,7 @@ void zero_out_frees()
   //
 	// worker = worker->next;
   //   }
-    show_heap_pages();
+    //show_heap_pages();
     return;
 }
 
@@ -840,11 +847,14 @@ struct heap_page *old_free_page_list;
 
 void frees_restore()
 {
-    rb_objspace_t *objspace = &rb_objspace;
-
-    rb_heap_t *heap = heap_eden;
-    heap->free_pages->free_next = old_pages;
-    show_heap_pages();
+  show_heap_pages();
+    // rb_objspace_t *objspace = &rb_objspace;
+    //
+    // rb_heap_t *heap = heap_eden;
+    // heap->free_pages->free_next = old_pages;
+    // heap_allocated_pages += old_count;
+    //
+    // show_heap_pages();
   //   struct heap_page *worker;
   //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
   //   while (worker)
@@ -855,7 +865,6 @@ void frees_restore()
 	// worker = worker->next;
   //   }
   //
-    rb_gc_enable();
     return;
 }
 
@@ -1545,6 +1554,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	struct heap_page *mid_page;
 
 	mid = (lo + hi) / 2;
+  // bop_msg(0, "Before of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
 	mid_page = heap_pages_sorted[mid];
 	if (mid_page->body < page_body) {
 	    lo = mid + 1;
@@ -1554,10 +1564,14 @@ heap_page_allocate(rb_objspace_t *objspace)
 	}
 	else {
 	    show_heap_pages();
-      bop_msg(0, "Values of low: %d \t mid: %d \t high %d ", lo, mid, hi);
+      bop_msg(0, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
+      sleep(10);
+      exit(1);
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
+
+    bop_msg(0, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
     if (hi < heap_allocated_pages) {
 	MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
     }
