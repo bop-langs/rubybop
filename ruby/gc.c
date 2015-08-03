@@ -812,15 +812,13 @@ void zero_out_frees()
 
     rb_objspace_t *objspace = &rb_objspace;
     rb_heap_t *heap = heap_eden;
-    // heap_add_pages(objspace, heap, 1);
-    //
-    // struct heap_page* page = heap->free_pages;
-    //
-    // old_pages = page->free_next;
-    // page->free_next = NULL;
-    // old_count = heap_allocated_pages;
-    // heap_allocated_pages = 1;
-    // assert(heap->free_pages == page);
+    heap_add_pages(objspace, heap, 1);
+    struct heap_page* page = heap->free_pages;
+    old_pages = page->free_next;
+    page->free_next = NULL;
+    old_count = heap_allocated_pages;
+    heap_allocated_pages = 1;
+    assert(heap->free_pages == page);
 
   //   struct heap_page *worker;
   //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
@@ -845,11 +843,10 @@ void zero_out_frees()
 void frees_restore()
 {
   show_heap_pages();
-    // rb_objspace_t *objspace = &rb_objspace;
-    //
-    // rb_heap_t *heap = heap_eden;
-    // heap->free_pages->free_next = old_pages;
-    // heap_allocated_pages += old_count;
+    rb_objspace_t *objspace = &rb_objspace;
+    rb_heap_t *heap = heap_eden;
+    heap->free_pages->free_next = old_pages;
+    heap_allocated_pages += old_count;
     //
     // show_heap_pages();
   //   struct heap_page *worker;
@@ -1562,14 +1559,14 @@ heap_page_allocate(rb_objspace_t *objspace)
 	}
 	else {
 	    show_heap_pages();
-      bop_msg(0, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
-      bop_msg(0, "ERROR DEFINING HEAP PAGE");
+      bop_msg(3, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
+      bop_msg(2, "ERROR DEFINING HEAP PAGE");
       exit(1);
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
 
-    bop_msg(0, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
+    bop_msg(3, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
     if (hi < heap_allocated_pages) {
 	MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
     }
