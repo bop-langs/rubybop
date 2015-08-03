@@ -171,6 +171,7 @@ size_t max_ppr_request;
 #define BOP_abort_spec( msg )
 #define BOP_abort_next_spec( msg )
 #define BOP_abort_spec_group( msg )
+#define bop_assert(x) assert(x)
 
 #include <stdlib.h>
 
