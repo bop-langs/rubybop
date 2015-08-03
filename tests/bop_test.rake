@@ -95,7 +95,8 @@ desc "Compile non-BOP test(s)"
 task :orig # Prereqs to be added by bop_test
 
 task :boplib do
-  sh "cd #{$bop_src}; make debug"
+  sh "cd #{$bop_src}; make --silent debug"
+  puts 'bop library (re-) built'
 end
 
 desc "Remove object files"
@@ -112,10 +113,8 @@ task :default => :all
 
 desc "Force a rebuild"
 task :force do
-  cd '../bop' do
-    sh 'make -B'
-  end
   Rake::Task[:clean].invoke
+  Rake::task[:bop_lib].invoke
   Rake::Task[:all].invoke
 end
 

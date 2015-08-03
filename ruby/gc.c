@@ -453,6 +453,7 @@ typedef struct rb_heap_struct {
     RVALUE *freelist;
 
     struct heap_page *free_pages;
+    struct heap_page *old_free_pages;
     struct heap_page *using_page;
     struct heap_page *pages;
     struct heap_page *sweep_pages;
@@ -797,6 +798,7 @@ static void heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_
 static inline void heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
 static int heap_increment(rb_objspace_t *objspace, rb_heap_t *heap);
 static void heap_set_increment(rb_objspace_t *objspace, size_t additional_pages);
+static void heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t);
 
 static struct heap_page *old_pages;
 static int old_count = 0;
@@ -810,9 +812,8 @@ void zero_out_frees()
 
     rb_objspace_t *objspace = &rb_objspace;
     rb_heap_t *heap = heap_eden;
+    // heap_add_pages(objspace, heap, 1);
     //
-    // heap_set_increment(objspace, 5);
-    // assert(heap_increment(objspace, heap));
     // struct heap_page* page = heap->free_pages;
     //
     // old_pages = page->free_next;
@@ -840,10 +841,6 @@ void zero_out_frees()
     //show_heap_pages();
     return;
 }
-
-struct heap_page *old_free_page_list;
-
-
 
 void frees_restore()
 {
@@ -1364,6 +1361,7 @@ static void heap_page_free(rb_objspace_t *objspace, struct heap_page *page);
 void
 rb_objspace_free(rb_objspace_t *objspace)
 {
+  bop_msg(0, "objspace being freed");
     if (is_lazy_sweeping(heap_eden))
 	rb_bug("lazy sweeping underway when freeing object space");
 
@@ -1658,9 +1656,9 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 static void
 heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    struct heap *page = heap_page_create(objspace);
-    heap_add_page(objspace, heap, page);
-    heap_add_freepage(objspace, heap, page);
+    struct heap *page = (struct heap *)heap_page_create(objspace);
+    heap_add_page(objspace, heap, (struct heap_page *) page);
+    heap_add_freepage(objspace, heap, (struct heap_page *) page);
 }
 
 static void
@@ -7360,11 +7358,14 @@ aligned_malloc(size_t alignment, size_t size)
     void *res;
 
 #if defined __MINGW32__
+#error bop does not support the use of alligned malloc!
     res = __mingw_aligned_malloc(size, alignment);
 #elif defined _WIN32 && !defined __CYGWIN__
+#error bop does not support the use of alligned malloc!
     void *_aligned_malloc(size_t, size_t);
     res = _aligned_malloc(size, alignment);
 #elif defined(HAVE_POSIX_MEMALIGN)
+#error bop does not support the use of posix_memalign!
     if (posix_memalign(&res, alignment, size) == 0) {
         return res;
     }
@@ -7373,6 +7374,7 @@ aligned_malloc(size_t alignment, size_t size)
     }
 //Definition makes sure that ruby's implementation of memalign is used
 #elif defined(HAVE_MEMALIGN)
+#error bop does not support the use of memalign! Requires using regular malloc
     res = memalign(alignment, size);
 #else
     char* aligned;
@@ -8170,7 +8172,7 @@ wmap_size(VALUE self)
 //TODO: Currently, if a ruby process enters PPR mode, each task gets a copy of the heap and will try to allocate to the same virtual address.
 //Settings heaps to null should correct the issue, but stitching final heaps is still necessary to avoid space overhead
 
-
+/*
 rb_heap_t old_eden_heap;
 rb_heap_t old_tomb_heap;
 
@@ -8180,7 +8182,8 @@ void set_rheap_null()
     old_tomb_heap = rb_objspace.tomb_heap;
     memset(&(rb_objspace.eden_heap), 0, sizeof(rb_heap_t));
     memset(&(rb_objspace.tomb_heap), 0, sizeof(rb_heap_t));
-}
+    }
+*/
 
 /*
   ------------------------------ GC profiler ------------------------------

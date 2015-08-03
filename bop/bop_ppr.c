@@ -48,6 +48,8 @@ static void __attribute__((noreturn)) wait_process(void);
 static void __attribute__((noreturn)) end_clean(void); //exit if children errored or call abort
 static int  cleanup_children(void); //returns the value that end_clean would call with _exit (or 0 if would have aborted)
 void SigBopExit( int signo );
+static void block_wait(void);
+static void unblock_wait(void);
 //exec pipe
 
 static void _ppr_group_init( void ) {
@@ -110,9 +112,9 @@ int _BOP_ppr_begin(int id) {
       if (bop_mode == SERIAL) _ppr_task_init( );
       return 0;
     }
-
+    block_wait();
     int fid = fork( );
-
+    unblock_wait();
     if (fid == -1) {
       bop_msg (2, "OS unable to fork more tasks" );
       if ( task_status == MAIN) {
@@ -171,6 +173,7 @@ void BOP_malloc_rescue(char * msg, size_t size){
   }else if(task_status == MAIN || (task_status == SPEC && spec_order == 0)){
       bop_msg(3, "Changing pid %d (mode %s)", getpid(),
           task_status == MAIN ? "Main" : "SPEC");
+      io_on_malloc_rescue(); //before anything changes, but something will change
       // //'undy wins the race'
       bop_msg(4, "Changing sigint handler");
       int now_undy = spawn_undy();
@@ -182,7 +185,6 @@ void BOP_malloc_rescue(char * msg, size_t size){
         bop_msg(1, "New saved undy returning.");
         return;
       }
-      io_on_malloc_rescue();
       return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
@@ -260,7 +262,10 @@ void post_ppr_undy( void ) {
 
 /* Return true if it is UNDY (or SEQ in the rare case). */
 int spawn_undy( void ) {
+  pid_t caller = getpid();
+  block_wait();
   int fid = fork( );
+  unblock_wait();
   switch( fid ) {
   case -1:
     bop_msg(3,"OS cannot fork more process.");
@@ -275,7 +280,7 @@ int spawn_undy( void ) {
     spec_order = -1;
     //assert( setpgid(0, bopgroup) == 0 );
     assert (getpgrp() == -monitor_group);
-    bop_msg(3,"Understudy starts pid %d pgrp %d", getpid(), getpgrp());
+    bop_msg(3,"Understudy starts pid %d pgrp %d parent: %d", getpid(), getpgrp(), caller);
 
     signal_undy_created( fid );
 
@@ -379,7 +384,7 @@ void _BOP_group_over(int id){
     bop_msg(3, "Mis-matched ppr ids. Continuing");
   }else if(task_status == SPEC){
     bop_msg(3, "Speculative process extended past PPR region. Aborting");
-    exit(0);
+    _exit(0);
   }else{
     bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");
   }
@@ -388,7 +393,7 @@ void BOP_this_group_over(){
   _BOP_group_over(ppr_static_id);
 }
 void _BOP_ppr_end(int id) {
-  bop_msg(1, "\t end ppr (pid %d)", getpid());
+  bop_msg(1, "Reached PPR end (pid %d)", getpid());
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
@@ -499,7 +504,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 
 void SigBopExit( int signo ){
   bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
-  abort(); //done. No cleanup, just end the process now
+  _exit(0); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
  *
@@ -566,7 +571,6 @@ static void wait_process() {
     }
     unblock_wait();
   }
-  // my_exit = my_exit || errored; TODO enable. This is being fixed seperately
   errno = 0;
   //handle remaining processes. Above may not have gotten everything
   block_wait();
@@ -578,6 +582,7 @@ static void wait_process() {
     perror("Error in wait_process. errno != ECHILD. Monitor process endings");
     _exit(EXIT_FAILURE);
   }
+  my_exit = my_exit || errored;
   my_exit = my_exit ? 1 : 0;
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
@@ -620,7 +625,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
-  action.sa_flags &= (SA_SIGINFO | SA_RESTART); //ie only SA_SIGINFO and SA_RESTART
+  action.sa_flags = SA_SIGINFO; //ie only SA_SIGINFO and SA_RESTART
   action.sa_sigaction = (void *) SigUsr1;
   sigaction(SIGUSR1, &action, NULL);
   action.sa_sigaction = (void *) SigUsr2;
@@ -645,8 +650,9 @@ void __attribute__ ((constructor)) BOP_init(void) {
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
     monitor_process_id = getpid();
+    block_wait();
     int fd = fork();
-
+    unblock_wait();
     switch (fd) {
     case -1:
       perror("fork() for timer process");

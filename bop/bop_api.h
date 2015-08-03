@@ -69,10 +69,6 @@ int BOP_get_verbose(void);
 void BOP_set_group_size(int sz);
 void BOP_set_verbose(int x);
 
-void exec_cleanup(char*);
-
-// int sys_execv(const char *filename, char *const argv[]);
-// int sys_execve(const char *filename, char *const argv[], char *const envp[]);
 
 /* Byte granularity interface */
 void BOP_record_read(void* addr, size_t size);
@@ -150,6 +146,7 @@ void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 
 #define PAGESIZEX 12
 
+size_t max_ppr_request;
 #else
 
 /* original code */
