@@ -609,6 +609,7 @@ static inline void add_next_list (header** list_head, header * item) {
     else {
         item->allocated.next = CAST_SH(*list_head);
         *list_head = item;
+        assert(item != item->allocated.next);
     }
 }
 /**Print debug info*/
