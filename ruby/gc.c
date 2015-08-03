@@ -841,7 +841,7 @@ void heap_pages_statreport()
 	sorted_free_page_count++;
 	worker = worker->free_next;
     }
-    if (!(eden_free_page_count^tomb_free_page_count^sorted_free_page_count))
+    if ((eden_free_page_count^tomb_free_page_count^sorted_free_page_count))
     {
 	bop_msg(5, "WARNING: Count mismatch");
     }
