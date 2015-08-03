@@ -173,6 +173,7 @@ void BOP_malloc_rescue(char * msg, size_t size){
   }else if(task_status == MAIN || (task_status == SPEC && spec_order == 0)){
       bop_msg(3, "Changing pid %d (mode %s)", getpid(),
           task_status == MAIN ? "Main" : "SPEC");
+      io_on_malloc_rescue(); //before anything changes, but something will change
       // //'undy wins the race'
       bop_msg(4, "Changing sigint handler");
       int now_undy = spawn_undy();
@@ -184,7 +185,6 @@ void BOP_malloc_rescue(char * msg, size_t size){
         bop_msg(1, "New saved undy returning.");
         return;
       }
-      io_on_malloc_rescue();
       return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");

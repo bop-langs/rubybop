@@ -3,7 +3,7 @@
 #include "bop_ports.h"
 #include "external/malloc.h"
 static mspace io_mspace = NULL;
-#define assert(x)
+
 typedef struct {
   size_t alloc;
   size_t used;
@@ -169,9 +169,7 @@ static void io_undy_succ( void ) {
 }
 void io_on_malloc_rescue(){
   free_all_buffers();
-  undy_buffer.alloc = 0;
-  undy_buffer.used = 0;
-  undy_buffer.data = NULL;
+  io_group_init();
 }
 bop_port_t bop_io_port = {
   .ppr_group_init       = io_group_init,
