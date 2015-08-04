@@ -640,6 +640,7 @@ typedef struct rb_objspace {
     } rincgc;
 #endif
 #endif /* USE_RGENGC */
+  int bop_debug;
 } rb_objspace_t;
 
 
@@ -3185,32 +3186,34 @@ count_objects(int argc, VALUE *argv, VALUE os)
     return hash;
 }
 
-
+extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 
-static *rb_objspace_t bop_objspaces;
-
-static int old_count = 0;
+static rb_objspace_t **bop_objspaces;
+rb_objspace_t *sequential_objspace;
 
 void detach_free_list(rb_objspace_t *objspace);
 
 void initialize_objspaces(){
-
-  int n = get_group_size();
+  rb_gc_disable();
+  int n = BOP_get_group_size();
+  int i;
   for(i = 0; i < n; i++){
     bop_objspaces[i] = rb_objspace_alloc();
+    //TODO set values right
   }
-
 
 }
 
 void zero_out_frees()
 {
+    int BOP_task = spec_order;
     bop_msg(3, "Zeroing out frees");
-    rb_gc_disable();
-    rb_objspace_t *sequential_objspace = &rb_objspace;
-    rb_objspace_t *bop_objspace = rb_objspace_alloc();
-    memcpy(bop_objspace, sequential_objspace, sizeof(rb_objspace_t));
+    rb_objspace_t *sequential_objspace = GET_VM()->objspace;
+    memcpy(bop_objspaces[BOP_task], sequential_objspace, sizeof(rb_objspace_t));
+    bop_objspaces[BOP_task]->bop_debug = 1;
+    (GET_VM()->objspace) = bop_objspaces[BOP_task];
+    assert(GET_VM()->objspace->bop_debug == 1);
     /*INCOMPLETE
 
       bop_objspace->
@@ -3248,9 +3251,10 @@ void zero_out_frees()
 
 void frees_restore()
 {
-  show_heap_pages();
-    rb_objspace_t *objspace = &rb_objspace;
-    rb_heap_t *heap = heap_eden;
+  //show_heap_pages();
+  GET_VM()->objspace = sequential_objspace;
+  assert(GET_VM()->objspace->bop_debug == 0 );
+
 
     // heap->free_pages->free_next = old_pages;
     // heap_allocated_pages += old_count;
@@ -9143,6 +9147,7 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
+    .ppr_group_init = initialize_objspaces,
     .ppr_task_init = zero_out_frees,
     .task_group_commit = frees_restore
 };
