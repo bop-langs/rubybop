@@ -3190,13 +3190,14 @@ extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 
 static rb_objspace_t **bop_objspaces;
-rb_objspace_t *sequential_objspace;
+static rb_objspace_t *sequential_objspace;
 
 void detach_free_list(rb_objspace_t *objspace);
 
 void initialize_objspaces(){
   rb_gc_disable();
   int n = BOP_get_group_size();
+  bop_objspaces = calloc(n, sizeof(rb_objspace_t));
   int i;
   for(i = 0; i < n; i++){
     bop_objspaces[i] = rb_objspace_alloc();
@@ -3211,9 +3212,9 @@ void zero_out_frees()
     bop_msg(3, "Zeroing out frees");
     rb_objspace_t *sequential_objspace = GET_VM()->objspace;
     memcpy(bop_objspaces[BOP_task], sequential_objspace, sizeof(rb_objspace_t));
-    bop_objspaces[BOP_task]->bop_debug = 1;
+    bop_objspaces[BOP_task]->bop_debug = spec_order+1;
     (GET_VM()->objspace) = bop_objspaces[BOP_task];
-    assert(GET_VM()->objspace->bop_debug == 1);
+    assert(GET_VM()->objspace->bop_debug == spec_order+1);
     /*INCOMPLETE
 
       bop_objspace->
