@@ -240,7 +240,8 @@ void malloc_promise() {
 //Grow the managed space so that each size class as tasks * their goal block counts
 static inline void grow (const int tasks) {
     int class_index, blocks_left, size;
-    bop_debug("growing tasks = %d", tasks);
+    if(tasks > 1)
+      bop_debug("growing tasks = %d", tasks);
 #ifndef NDEBUG
     grow_count++;
 #endif
@@ -495,7 +496,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
     size_t new_size = ALIGN (gsize + HSIZE);
     int new_index = get_index (new_size);
     void *payload;		//what the programmer gets
-    if (new_index != -1 && size_of_klass(new_index) == old_head->allocated.blocksize) {
+    if (new_index != -1 && size_of_klass(new_index) <= old_head->allocated.blocksize) {
         return ptr;	//no need to update
     } else if (SEQUENTIAL() && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in SEQUENTIAL() mode for large->large blocks
