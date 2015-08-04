@@ -12,8 +12,8 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 BOPDIR = ../bop
 WRAPPER = $(BOPDIR)/dmmalloc.o $(BOPDIR)/malloc_wrapper.o $(BOPDIR)/sys_wrapper.o
 BOPFLAGS = -DBOP -pthread -Wno-declaration-after-statement
+BOPLIB = $(BOPDIR)/inst.a
 #### Start of system configuration section. ####
-.PHONY = $(RUBY_BASE_NAME) miniruby
 srcdir = @srcdir@
 top_srcdir = $(srcdir)
 hdrdir = $(srcdir)/include
@@ -75,7 +75,7 @@ LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ -ldl
 EXTLDFLAGS = @EXTLDFLAGS@
 XLDFLAGS = @XLDFLAGS@ $(EXTLDFLAGS)
 EXTLIBS =
-LIBS = @LIBS@ $(EXTLIBS) $(BOPDIR)/inst.a
+LIBS = @LIBS@ $(EXTLIBS) $(BOPLIB)
 MISSING = @LIBOBJS@ @ALLOCA@
 LDSHARED = @LIBRUBY_LDSHARED@
 DLDFLAGS = @LIBRUBY_DLDFLAGS@ $(XLDFLAGS) $(ARCH_FLAG)
@@ -215,7 +215,10 @@ all:
 # Prevent GNU make v3 from overflowing arg limit on SysV.
 .NOEXPORT:
 
-$(MINIRUBY)$(EXEEXT):
+$(BOPLIB) :
+	@make -C $(BOPDIR)
+
+$(MINIRUBY)$(EXEEXT): $(BOPLIB)
 		@-if test -f $@; then $(MV) -f $@ $@.old; $(RM) $@.old; fi
 		$(ECHO) linking $@
 		$(Q) $(PURIFY) $(CC) $(LDFLAGS) $(XLDFLAGS) $(NORMALMAINOBJ) $(MINIOBJS) $(COMMONOBJS) $(INITOBJS) $(MAINLIBS) $(LIBS) $(OUTFLAG)$@
