@@ -1,4 +1,4 @@
- /**********************************************************************
+/**********************************************************************
 
   gc.c -
 
@@ -453,7 +453,6 @@ typedef struct rb_heap_struct {
     RVALUE *freelist;
 
     struct heap_page *free_pages;
-    struct heap_page *old_free_pages;
     struct heap_page *using_page;
     struct heap_page *pages;
     struct heap_page *sweep_pages;
@@ -682,7 +681,6 @@ struct heap_page {
     struct heap_page *free_next;
     RVALUE *start;
     RVALUE *freelist;
-    RVALUE *oldfreelist;
     struct heap_page *next;
 
 #if USE_RGENGC
@@ -789,92 +787,28 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 //BOP
 //Iterates through heap pages and sets each free slot to zero
 //
-
-void detach_free_list(rb_objspace_t *objspace);
-void heap_pages_statreport();
-
-
-
-
-
 void zero_out_frees()
 {
-    heap_pages_statreport();
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
-    objspace->eden_heap.old_free_pages = objspace->eden_heap.free_pages;
-    //objspace->tomb_heap.old_free_pages = objspace->tomb_heap.free_pages;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
 	worker->old_free_slots = worker->free_slots;
 	worker->free_slots = 0;
-	worker->oldfreelist = worker->freelist;
-	worker->freelist = 0;
 	worker = worker->next;
     }
     return;
 }
-
-void heap_pages_statreport()
-{
-    int eden_free_page_count = 0;
-    int tomb_free_page_count = 0;
-    int sorted_free_page_count = 0;
-    rb_objspace_t *objspace = &rb_objspace;
-    struct heap_page *worker = objspace->eden_heap.free_pages;
-    while (worker)
-    {
-	eden_free_page_count++;
-	worker = worker->next;
-    }
-    worker = objspace->tomb_heap.free_pages;
-    while (worker)
-    {
-	tomb_free_page_count++;
-	worker = worker->next;
-    }
-    worker = *(objspace->heap_pages.sorted);
-    while (worker)
-    {
-	sorted_free_page_count++;
-	worker = worker->free_next;
-    }
-    if ((eden_free_page_count^tomb_free_page_count^sorted_free_page_count))
-    {
-	bop_msg(5, "WARNING: Count mismatch");
-    }
-}
-
-void show_heap_pages();
-
 
 void frees_restore()
 {
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
-    objspace->eden_heap.free_pages = objspace->eden_heap.old_free_pages;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
 	worker->free_slots = worker->old_free_slots;
-	worker->freelist = worker->oldfreelist;
-	worker = worker->next;
-    }
-    return;
-}
-
-void show_heap_pages()
-{
-    rb_objspace_t *objspace = &rb_objspace;
-    bop_msg(3, "Iterating through heap pages");
-    int i = 0;
-    struct heap_page *worker;
-    worker = *(struct heap_page **)objspace->heap_pages.sorted;
-    while (worker)
-    {
-	bop_msg(3, "Heap page %i: %x", i, worker);
-	i++;
 	worker = worker->next;
     }
     return;
@@ -1556,8 +1490,6 @@ heap_page_allocate(rb_objspace_t *objspace)
 	    hi = mid;
 	}
 	else {
-    //abort();
-	    show_heap_pages();
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
@@ -1597,9 +1529,6 @@ heap_page_allocate(rb_objspace_t *objspace)
     return page;
 }
 
-
-
-//BOP: Resurrect tries to get pages from the tomb before deciding to allocate. This will cause PPR tasks to allocate to the same page as they both have the same addresses for heap tomb pages
 static struct heap_page *
 heap_page_resurrect(rb_objspace_t *objspace)
 {
@@ -1616,7 +1545,6 @@ static struct heap_page *
 heap_page_create(rb_objspace_t *objspace)
 {
     struct heap_page *page = heap_page_resurrect(objspace);
-    //struct heap_page *page = NULL;
     const char *method = "recycle";
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
@@ -1641,9 +1569,9 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 static void
 heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    struct heap *page = (struct heap *)heap_page_create(objspace);
-    heap_add_page(objspace, heap, (struct heap_page *) page);
-    heap_add_freepage(objspace, heap, (struct heap_page *) page);
+    struct heap *page = heap_page_create(objspace);
+    heap_add_page(objspace, heap, page);
+    heap_add_freepage(objspace, heap, page);
 }
 
 static void
@@ -1751,7 +1679,6 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
-      //BOP_record_write(p, sizeof(p)); //TODO doesnt work
 	    return (VALUE)p;
 	}
 	else {
@@ -1781,7 +1708,7 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
 } while (0)
 
 extern void bop_msg(int, const char*, ...);
-extern void BOP_record_write(void *ptr, size_t size);
+extern void BOP_record_write(void* ,size_t);
 
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
@@ -1862,8 +1789,7 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
     //TODO sever the heap so that this actually works...
     bop_msg(5, "newobj:%s\n", obj_info(obj));
-    if(is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
-    //BOP_obj_use_promise(obj);
+    if(!is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
     //BOP_record_write(obj, sizeof(obj));
     return obj;
 }
@@ -8147,7 +8073,7 @@ wmap_size(VALUE self)
 //TODO: Currently, if a ruby process enters PPR mode, each task gets a copy of the heap and will try to allocate to the same virtual address.
 //Settings heaps to null should correct the issue, but stitching final heaps is still necessary to avoid space overhead
 
-/*
+
 rb_heap_t old_eden_heap;
 rb_heap_t old_tomb_heap;
 
@@ -8157,8 +8083,7 @@ void set_rheap_null()
     old_tomb_heap = rb_objspace.tomb_heap;
     memset(&(rb_objspace.eden_heap), 0, sizeof(rb_heap_t));
     memset(&(rb_objspace.tomb_heap), 0, sizeof(rb_heap_t));
-    }
-*/
+}
 
 /*
   ------------------------------ GC profiler ------------------------------
