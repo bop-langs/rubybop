@@ -69,10 +69,6 @@ int BOP_get_verbose(void);
 void BOP_set_group_size(int sz);
 void BOP_set_verbose(int x);
 
-void exec_cleanup(char*);
-
-// int sys_execv(const char *filename, char *const argv[]);
-// int sys_execve(const char *filename, char *const argv[], char *const envp[]);
 
 /* Byte granularity interface */
 void BOP_record_read(void* addr, size_t size);
@@ -100,6 +96,7 @@ mem_range_t *BOP_check_access(void* addr);
 void bop_set_verbose( int );
 int bop_get_verbose( void );
 void bop_msg(int level, const char * msg, ...);
+#define bop_assert(x) if(!(x)) {bop_msg(0, ("assertions %s failed, %s, %d, %s"), #x, __FILE__, __LINE__, __func__); exit(1);}
 
 /* For collecting statistics */
 typedef struct {
@@ -149,6 +146,7 @@ void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 
 #define PAGESIZEX 12
 
+size_t max_ppr_request;
 #else
 
 /* original code */
@@ -168,11 +166,12 @@ void *_BOP_realloc(void* mem, size_t newsize, char *file, unsigned line);
 #define BOP_use( addr, size )
 #define BOP_promise( addr, size )
 
-#define bop_msg(level, pass...) printf( pass )
+#define bop_msg(ignored, ...) printf( __VA_ARGS__ )
 
 #define BOP_abort_spec( msg )
 #define BOP_abort_next_spec( msg )
 #define BOP_abort_spec_group( msg )
+#define bop_assert(x) assert(x)
 
 #include <stdlib.h>
 

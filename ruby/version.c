@@ -78,6 +78,7 @@ void
 ruby_show_version(void)
 {
     PRINT(description);
+    puts(BOP_VERSION);
 #ifdef HAVE_MALLOC_CONF
     if (malloc_conf) printf("malloc_conf=%s\n", malloc_conf);
 #endif

@@ -23,11 +23,22 @@ extern void BOP_promise(void*, size_t);
 #define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
 #endif
 
-static int recurse = 1;
-
+#define OBJ_RW_SETS
+/**Return true if safe*/
+bool pre_bop_begin(){
+  if(!rb_thread_alone()){
+    //there are multiple threads happening. raise an error and no PPR!
+    rb_raise(rb_eThreadError, "Multiple ruby threads at pre-ppr. Not allowing PPR to take place.");
+    abort();
+    return false;
+  }
+  bop_msg(4, "Pre-ppr check is valid! Allowing to enter PPR region");
+  return true;
+}
 int is_sequential(){
   return SEQUENTIAL;
 }
+static int recurse = 1;
 
 void BOP_obj_use(VALUE obj){
   if (recurse){
@@ -35,8 +46,8 @@ void BOP_obj_use(VALUE obj){
     recurse = 0;
     size = rb_obj_memsize_of(obj);
     if(size!=0){
-      bop_msg(5, "Using object %p at address %p with size %d", (obj), &obj, size);
-      BOP_use(obj, size);
+      bop_msg(5, "Using object %p (%lu) at address %p with size %d", (void*) (obj), obj, &obj, size);
+      BOP_use((void*) obj, size);
     }
     recurse = 1;
   }
@@ -47,15 +58,15 @@ void BOP_obj_promise(VALUE obj){
     recurse = 0;
     size = rb_obj_memsize_of(obj);
     if(size!=0){
-      bop_msg(5, "Promising object %p at address %p with size %d", (obj), &obj, size);
-      BOP_promise(obj, size);
+      bop_msg(5, "Promising object %p (%lu) at address %p with size %d", (void*) (obj), obj, &obj, size);
+      BOP_promise((void*)obj, size);
     }
     recurse = 1;
   }
 }
 
 void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* function){
-  if(!SEQUENTIAL && (obj != NULL|| !FIXNUM_P(obj))){
+  if(!SEQUENTIAL && (obj != 0L || !FIXNUM_P(obj))){
     int size = rb_obj_memsize_of(obj);
     if (size > 0){
       bop_msg(1, "USE PROMISE \tfile: %s line: %d function: %s\t object: %016llx size: %d\t", file, line, function, obj, size);
@@ -123,13 +134,16 @@ static VALUE
 ppr_yield(VALUE val)
 {
     //set_rheap_null();
-    BOP_ppr_begin(1);
+    bool ppr_ok = pre_bop_begin();
+    if(ppr_ok)
+      BOP_ppr_begin(1);
         rb_gc_disable();
         //set_rheap_null();
         bop_msg(3,"yielding block...");
         rb_yield(val);
         rb_gc_enable();
-    BOP_ppr_end(1);
+    if(ppr_ok)
+      BOP_ppr_end(1);
     return Qnil;
 }
 static VALUE
@@ -145,33 +159,36 @@ ordered_yield()
 static VALUE
 ppr_start(VALUE start_val){
   int start_int = FIX2INT(start_val);
-  BOP_ppr_begin(start_val);
+  bool ppr_ok = pre_bop_begin();
+  if(ppr_ok)
+    BOP_ppr_begin(start_int);
       rb_gc_disable();
       //set_rheap_null();
       bop_msg(3,"yielding block...");
       rb_yield(0);
       rb_gc_enable();
-  BOP_ppr_end(start_val);
+  if(ppr_ok)
+    BOP_ppr_end(start_int);
   return Qnil;
 }
 
 static VALUE
 ordered_start(VALUE start_val){
   int start_int = FIX2INT(start_val);
-  BOP_ordered_begin(start_val);
+  BOP_ordered_begin(start_int);
       bop_msg(3,"yielding ordered block...");
       rb_yield(0);
-  BOP_ordered_end(start_val);
+  BOP_ordered_end(start_int);
   return Qnil;
 }
 
 
-
+/* TODO define Ruby method
 static VALUE
 ppr_info(ppr, obj)
 VALUE ppr, obj;
 {
-    char buf1[50], buf2[50], buf3[50], buf4[50];
+    char buf1[50], buf2[50], buf3[50];
     sprintf(buf1, "Value (hex): %lx", (unsigned long int) obj);
     sprintf(buf2, "Masked Value (hex): %lx", (unsigned long int) obj & 0xfffffffffffffffe);
     sprintf(buf3, "RShift Value (dec): %ld", ((unsigned long int) obj) >> 1);
@@ -180,7 +197,7 @@ VALUE ppr, obj;
     rb_funcall(ppr, rb_intern("puts"), 1, rb_str_new2(buf3));
 
     return Qnil;
-}
+}*/
 //TODO get these to work
 /*
 extern st_table *ppr_pot;
@@ -256,9 +273,10 @@ VALUE ppr;
 
 static VALUE rb_cPPR, rb_cOrdered;
 
-extern BOP_this_group_over();
-void ppr_over(){
+extern void BOP_this_group_over();
+VALUE ppr_over(){
   BOP_this_group_over();
+  return Qnil;
 }
 
 void
@@ -288,7 +306,7 @@ Init_PPR() {
     //TODO get this uncommented
     //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
-    register_port(&rubyheap_port, "RubyHeap Port");
+    register_port(&rubyheap_port, (char*) "RubyHeap Port");
 }
 
 void

@@ -1,5 +1,5 @@
 # rubybop
-Safe parallel Ruby language based on BOP
+Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rubybop-introduction/)
 
 [Ruby Version 2.2 commit c5a6913](https://github.com/ruby/ruby/tree/c5a691323201ace5f5299b6914c8e1709918c521)
 
@@ -21,7 +21,8 @@ Master  | Latest
 
 ###Unsupported Operations
 Rubybop currently does not support:
-- Terminal input (which is needed for IRB)
+- Terminal input (eg gets)
+- IRB (to be named IRBop) since it relies on the above. The included IRB (ruby/bin) script will not work with Rubybop, even if PPR{} calls are not used. Regular ruby will be required to install seperately.
 - Ruby's exec calls (use the system call instead. Similar semantics)
 - Ruby's signal handlers are not installed as they are needed for the bop library.
 - Functions to change the process group id of ruby processes. Again, these need to stay the same for library.

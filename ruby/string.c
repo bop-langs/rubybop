@@ -6842,7 +6842,7 @@ rb_str_enumerate_chars(VALUE str, int wantarray)
     const char *ptr;
     rb_encoding *enc;
     VALUE UNINITIALIZED_VAR(ary);
-
+    ary = Qnil;
     str = rb_str_new_frozen(str);
     ptr = RSTRING_PTR(str);
     len = RSTRING_LEN(str);

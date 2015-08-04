@@ -15,9 +15,7 @@ Divide & Merge Malloc
 Files
 =====
 * dmmalloc.* -> Divide and Merge Malloc
-* malloc_wrapper.* -> Wraps library (libc) malloc functions for use by dmmalloc
-* wrapper_test.c -> Basic test of using dmmalloc with the wrapper
-
+* malloc_wrapper.* -> Provides malloc family of functions. Calling malloc yields malloc_wrapper:malloc -> dmmalloc:dm_malloc. The wrapper also provides references to the system (eg libc or dlmalloc) malloc functions, which is how dmmalloc gets more memory.
 
 # Divide & Merge Malloc
 
