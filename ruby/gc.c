@@ -803,8 +803,7 @@ void zero_out_frees()
     rb_objspace_t *objspace = &rb_objspace;
     struct heap_page *worker;
     objspace->eden_heap.old_free_pages = objspace->eden_heap.free_pages;
-    objspace->tomb_heap.old_free_pages = objspace->tomb_heap.free_pages;
-    /*
+    //objspace->tomb_heap.old_free_pages = objspace->tomb_heap.free_pages;
     worker = *(struct heap_page **)objspace->heap_pages.sorted;
     while (worker)
     {
@@ -813,7 +812,7 @@ void zero_out_frees()
 	worker->oldfreelist = worker->freelist;
 	worker->freelist = 0;
 	worker = worker->next;
-    }*/
+    }
     return;
 }
 
