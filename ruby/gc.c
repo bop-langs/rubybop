@@ -1616,8 +1616,8 @@ heap_page_resurrect(rb_objspace_t *objspace)
 static struct heap_page *
 heap_page_create(rb_objspace_t *objspace)
 {
-    //struct heap_page *page = heap_page_resurrect(objspace);
-    struct heap_page *page = NULL;
+    struct heap_page *page = heap_page_resurrect(objspace);
+    //struct heap_page *page = NULL;
     const char *method = "recycle";
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
