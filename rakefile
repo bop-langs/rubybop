@@ -1,13 +1,24 @@
 task :default => :ruby
 test_dir = ['add', 'sleep','str/BOP_strcmp', 'str/BOP_string', 'str/strsub', 'str/strsub2']
-task :ruby => :bop do
-  #build ruby
+
+task :ruby_setup do
   cd "ruby" do
     if (!File.exists?("Makefile")) then
       sh 'autoconf'
       sh './configure --disable-install-doc'
     end
-    sh 'make'
+  end
+end
+task :miniruby => [:bop, :ruby_setup] do
+  cd "ruby" do
+    sh 'rm -f miniruby'
+    sh 'make miniruby'
+  end
+end
+task :ruby => [:bop, :ruby_setup] do
+  #build ruby
+  cd "ruby" do
+    sh 'make -j4' #make can run in parrallel. Big improvement in compile time
   end
 end
 
@@ -29,17 +40,19 @@ task :bop_debug do
     sh 'make debug'
   end
 end
-
-task :ruby_test => :ruby do
+task :ruby_test_run do
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
-		sh './rubybop --disable-gems ./bootstraptest/runner.rb' do |ok, res|
-			if ! ok then
+    sh './rubybop --disable-gems ./bootstraptest/runner.rb' do |ok, res|
+      if ! ok then
          fail "Ruby tests failed with exit code = #{res.exitstatus}"
       end
     end
   end
-	puts "Finished running all tests"
+  puts "All ruby tests passed"
+end
+task :ruby_test => :ruby do
+  Rake::Task[:ruby_test_run].invoke
 end
 
 task :bop_test => :bop do

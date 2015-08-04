@@ -26,3 +26,7 @@ malloc_test
 
 str/strsub2/string_orig
 str/strsub2/string_bop
+
+*_bop
+*_orig
+mem/big_alloc_*

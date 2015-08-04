@@ -19,15 +19,7 @@
 #include "bop_ppr_sync.h"
 #include "utils.h"
 
-#define VISUALIZE(s)
-
-#define PIPE(x) if(pipe((x)) == -1) { bop_msg(1, "ERROR making the pipe"); abort();}
-#define WRITE(a, b, c) if(write((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe write"); abort();}
-#define READ(a, b, c) if(read((a), (b), (c)) == -1) {bop_msg(1, "ERROR: pipe read"); abort();}
-#define CLOSE(x) if(close(x)) {abort();}
 #define OWN_GROUP() if (setpgid(0, 0) != 0) {    perror("setpgid");     exit(-1);  }
-#define READ_PORT(pipe) pipe[0]
-#define WRITE_PORT(pipe) pipe[1]
 
 extern bop_port_t bop_io_port;
 extern bop_port_t bop_merge_port;
@@ -49,12 +41,15 @@ static int bopgroup;
 static int monitor_process_id = 0;
 static int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
+static bool errored = false;
 
 void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
 static void __attribute__((noreturn)) end_clean(void); //exit if children errored or call abort
 static int  cleanup_children(void); //returns the value that end_clean would call with _exit (or 0 if would have aborted)
-
+void SigBopExit( int signo );
+static void block_wait(void);
+static void unblock_wait(void);
 //exec pipe
 
 static void _ppr_group_init( void ) {
@@ -95,7 +90,6 @@ int _BOP_ppr_begin(int id) {
   ppr_pos_t old_pos = ppr_pos;
   ppr_pos = PPR;
   ppr_index ++;
-  VISUALIZE("!");
 
   switch (task_status) {
   case UNDY:
@@ -118,9 +112,9 @@ int _BOP_ppr_begin(int id) {
       if (bop_mode == SERIAL) _ppr_task_init( );
       return 0;
     }
-
+    block_wait();
     int fid = fork( );
-
+    unblock_wait();
     if (fid == -1) {
       bop_msg (2, "OS unable to fork more tasks" );
       if ( task_status == MAIN) {
@@ -163,6 +157,41 @@ int _BOP_ppr_begin(int id) {
 //  bop_msg(2, "Abort all speculation because %s", msg );
 //  kill( 0, SIGUSR2 );
 // }
+bool waiting = false;
+void temp_sigint(int sigo){
+  waiting = true;
+}
+extern void io_on_malloc_rescue(void);
+int spawn_undy(void);
+extern void print_headers(void);
+//if malloc cannot meet a request, it calls this funcion
+void BOP_malloc_rescue(char * msg, size_t size){
+  bop_msg(2, "Malloc rescue begin. Size: %u Failure: %s", size, msg);
+  print_headers();
+  if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
+    bop_msg(1, "ERROR. Malloc failed while logically sequential");
+  }else if(task_status == MAIN || (task_status == SPEC && spec_order == 0)){
+      bop_msg(3, "Changing pid %d (mode %s)", getpid(),
+          task_status == MAIN ? "Main" : "SPEC");
+      io_on_malloc_rescue(); //before anything changes, but something will change
+      // //'undy wins the race'
+      bop_msg(4, "Changing sigint handler");
+      int now_undy = spawn_undy();
+      if(!now_undy){
+        //die
+        bop_msg(1, "Aborting malloc failing proc.");
+        abort();
+      }else{
+        bop_msg(1, "New saved undy returning.");
+        return;
+      }
+      return;//user-process
+  }else{
+    BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
+    abort(); //for exit!
+  }
+  abort(); //my sanity
+}
 void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
       || task_status == UNDY || bop_mode == SERIAL)
@@ -173,8 +202,7 @@ void BOP_abort_spec_2(bool really_abort, const char* msg){
       bop_msg(2, "Abort main speculation because %s", msg);
       partial_group_set_size( 1 );
     }
-  }
-  else {
+  }else{
     bop_msg(2, "Abort alt speculation because %s", msg);
     partial_group_set_size( spec_order );
     signal_commit_done( );
@@ -216,14 +244,14 @@ void post_ppr_undy( void ) {
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
   if(!bop_undy_active){
- 	bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
+ 	  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
   	abort();
   	return; //doesn't actually happen
   }
 
   // indicate the success of the understudy
   kill(0, SIGUSR2);
-  kill(-monitor_group, SIGUSR1); //main requires a special signal?
+  kill(-monitor_group, SIGUSR1); //TODO why is this here????? main requires a special signal?
 
   undy_succ_fini( );
 
@@ -234,7 +262,10 @@ void post_ppr_undy( void ) {
 
 /* Return true if it is UNDY (or SEQ in the rare case). */
 int spawn_undy( void ) {
+  pid_t caller = getpid();
+  block_wait();
   int fid = fork( );
+  unblock_wait();
   switch( fid ) {
   case -1:
     bop_msg(3,"OS cannot fork more process.");
@@ -249,7 +280,7 @@ int spawn_undy( void ) {
     spec_order = -1;
     //assert( setpgid(0, bopgroup) == 0 );
     assert (getpgrp() == -monitor_group);
-    bop_msg(3,"Understudy starts pid %d pgrp %d", getpid(), getpgrp());
+    bop_msg(3,"Understudy starts pid %d pgrp %d parent: %d", getpid(), getpgrp(), caller);
 
     signal_undy_created( fid );
 
@@ -263,7 +294,9 @@ int spawn_undy( void ) {
     return FALSE;
   }
 }
+void undy_on_create(){
 
+}
 /* It won't return if not correct. */
 static void _ppr_check_correctness( void ) {
   if ( task_status != MAIN )
@@ -321,7 +354,7 @@ void ppr_task_commit( void ) {
   /* Earlier spec aborted further tasks */
   if ( spec_order >= partial_group_get_size( ) ) {
   	  bop_msg( 4, "ppr task outside group size" );
-  	  cleanup_children();
+  	  exit(cleanup_children());
       //abort( ); //error
   }
 
@@ -346,9 +379,21 @@ void ppr_task_commit( void ) {
 
   end_clean();//abort( );
 }
-
+void _BOP_group_over(int id){
+  if(ppr_static_id != id){
+    bop_msg(3, "Mis-matched ppr ids. Continuing");
+  }else if(task_status == SPEC){
+    bop_msg(3, "Speculative process extended past PPR region. Aborting");
+    _exit(0);
+  }else{
+    bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");
+  }
+}
+void BOP_this_group_over(){
+  _BOP_group_over(ppr_static_id);
+}
 void _BOP_ppr_end(int id) {
-  VISUALIZE("?");
+  bop_msg(1, "Reached PPR end (pid %d)", getpid());
   if (ppr_pos == GAP || ppr_static_id != id)  {
     bop_msg(4, "Unmatched end PPR (region %d in/after region %d) ignored", id, ppr_static_id);
     return;
@@ -416,25 +461,12 @@ void print_backtrace(void){
   bop_msg(1, "\nEND BACKTRACE");
 }
 void ErrorKillAll(int signo){
+  //don't need to reap children. We know that it's an erroring-exit,
+  //intecept the call, allert monitor process, execute def behavior
   bop_msg(1, "ERROR CAUGHT %d", signo);
-  kill(monitor_process_id, SIGUSR2); //if this process was going to deliver the signal, deliver the signal.
-  int kids = cleanup_children();
-  if(task_status == UNDY || task_status == SEQ){
-    _exit(kids);
-  }else
-    _exit(0);
-    /*
-    if(task_status == UNDY || task_status == SEQ){
-      bop_msg(1, "Sending shutdown signal to monitor process");
-      //one of these fail, then the overall execution will fail
-      print_backtrace();
-
-      signal(SIGABRT, SIG_DFL);
-      kill(monitor_group, SIGABRT);
-    }else{
-      bop_msg(1, "Not termintating all because of invalid task state. ppid %d", getppid());
-    }
-    */
+  kill(monitor_process_id, SIGUSR2);
+  signal(signo, SIG_DFL);
+  raise(signo);
 }
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
@@ -463,6 +495,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if(getpid() == monitor_process_id){
     bop_msg(1, "Monitor process exiting main loop because of SIGUSR2 (error)", siginfo->si_pid);
     is_monitoring = false;
+    errored = true;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
     abort( );
@@ -471,7 +504,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 
 void SigBopExit( int signo ){
   bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
-  abort(); //done. No cleanup, just end the process now
+  _exit(0); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
  *
@@ -499,6 +532,10 @@ int report_child(pid_t child, int status){
     msg = "Child %d exit unkown status = %d";
     val = status;
   }
+  // if(child == -monitor_group){
+  //   //edge case: first child is dead, monitor wind down
+  //   is_monitoring = false;
+  // }
   if(val != -1)
     bop_msg(1, msg, child, val);
   else
@@ -529,7 +566,7 @@ static void wait_process() {
   int my_exit = 0; //success
   while (is_monitoring) {
     block_wait();
-    if (((child = waitpid(monitor_group, &status, WUNTRACED)) != -1)) {
+    if (((child = waitpid(monitor_group, &status, WNOHANG | WUNTRACED)) != -1)) {
       my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
     }
     unblock_wait();
@@ -541,10 +578,11 @@ static void wait_process() {
     my_exit = my_exit || report_child(child, status); //we only care about zero v. not-zero
   }
   unblock_wait();
-  if(errno != ECHILD){
+  if(errno && errno != ECHILD){
     perror("Error in wait_process. errno != ECHILD. Monitor process endings");
     _exit(EXIT_FAILURE);
   }
+  my_exit = my_exit || errored;
   my_exit = my_exit ? 1 : 0;
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
@@ -579,7 +617,6 @@ static void BOP_fini(void);
 
 extern int bop_verbose;
 extern int errno;
-
 /* Initialize allocation map.  Installs the timer process. */
 void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
@@ -588,7 +625,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
-  action.sa_flags &= (SA_SIGINFO | SA_RESTART); //ie only SA_SIGINFO and SA_RESTART
+  action.sa_flags = SA_SIGINFO; //ie only SA_SIGINFO and SA_RESTART
   action.sa_sigaction = (void *) SigUsr1;
   sigaction(SIGUSR1, &action, NULL);
   action.sa_sigaction = (void *) SigUsr2;
@@ -613,8 +650,9 @@ void __attribute__ ((constructor)) BOP_init(void) {
   if (bop_mode != SERIAL) {
     /* create a process to allow the use of time command */
     monitor_process_id = getpid();
+    block_wait();
     int fd = fork();
-
+    unblock_wait();
     switch (fd) {
     case -1:
       perror("fork() for timer process");
@@ -629,7 +667,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
     default:
       monitor_group = -fd; //child will set up its monitor_group variable
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
-
       //forward SIGINT to children/monitor group
       signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
       is_monitoring = true; //the real monitor process is the only one to actually loop
@@ -686,7 +723,6 @@ char* status_name(){
 }
 static void BOP_fini(void) {
   bop_msg(3, "An exit is reached in %s mode", status_name());
-
   switch (task_status) {
   case SPEC:
     BOP_abort_spec_2(true, "SPEC reached an exit");  /* will abort */

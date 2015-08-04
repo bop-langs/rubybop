@@ -29,12 +29,13 @@ end
 $i = 0
 $n = 5000
 #Declare a test instance n times, assign it a unique identifier
-PPR{
+
 while  ($i <= $n)
+PPR{
   instSimple = RaceTestSimple.new($i)
   instSimple.printNo
   instComplex = RaceTestComplexNo.new($i)
   instComplex.printNo
-  $i += 1
-end
 }
+$i += 1
+end

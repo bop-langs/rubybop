@@ -796,6 +796,8 @@ rb_ary_s_create(int argc, VALUE *argv, VALUE klass)
     return ary;
 }
 
+extern void BOP_record_write(void*, size_t);
+
 void
 rb_ary_store(VALUE ary, long idx, VALUE val)
 {
@@ -824,6 +826,8 @@ rb_ary_store(VALUE ary, long idx, VALUE val)
 	ARY_SET_LEN(ary, idx + 1);
     }
     ARY_SET(ary, idx, val);
+
+    BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) (&RARRAY_AREF(ary, idx+1) - &RARRAY_AREF(ary, idx)));
 }
 
 static VALUE
@@ -1170,15 +1174,19 @@ rb_ary_unshift(VALUE ary, VALUE item)
     return rb_ary_unshift_m(1,&item,ary);
 }
 
+extern void BOP_record_read(void*, size_t);
+
 /* faster version - use this if you don't need to treat negative offset */
 static inline VALUE
 rb_ary_elt(VALUE ary, long offset)
 {
+    
     long len = RARRAY_LEN(ary);
     if (len == 0) return Qnil;
     if (offset < 0 || len <= offset) {
 	return Qnil;
     }
+    BOP_record_read((void*)&RARRAY_AREF(ary, offset),(size_t) (&RARRAY_AREF(ary, offset+1) - &RARRAY_AREF(ary, offset)));
     return RARRAY_AREF(ary, offset);
 }
 

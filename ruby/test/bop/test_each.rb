@@ -20,6 +20,7 @@ PPR {
   $d="good"
   sleep(1);
   }
+PPR.over
 
 puts $a
 puts $b

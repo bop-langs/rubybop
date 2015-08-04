@@ -6,3 +6,5 @@ $params = '100000 4'
 
 bop_test 'mem', nil, false # Orig version fails
 bop_test 'add_mem_test'
+bop_test 'big_alloc'
+bop_test 'small_alloc'

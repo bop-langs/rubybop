@@ -705,16 +705,16 @@ rb_signal_buff_size(void)
 #include <pthread.h>
 #endif
 
+#if 0
 static void
 rb_disable_interrupt(void)
 {
-#ifdef HAVE_PTHREAD_SIGMASK
+#ifdef 0 && HAVE_PTHREAD_SIGMASK
     sigset_t mask;
     sigfillset(&mask);
     pthread_sigmask(SIG_SETMASK, &mask, NULL);
 #endif
 }
-
 static void
 rb_enable_interrupt(void)
 {
@@ -724,6 +724,7 @@ rb_enable_interrupt(void)
     pthread_sigmask(SIG_SETMASK, &mask, NULL);
 #endif
 }
+#endif
 
 int
 rb_get_next_signal(void)
@@ -880,7 +881,7 @@ sigsegv(int sig SIGINFO_ARG)
 }
 #endif
 
-#ifdef SIGILL
+#if defined(SIGILL) && 0
 static RETSIGTYPE
 sigill(int sig SIGINFO_ARG)
 {
@@ -1321,6 +1322,7 @@ sig_list(void)
     return h;
 }
 
+#if 0
 static int
 install_sighandler(int signum, sighandler_t handler)
 {
@@ -1337,6 +1339,7 @@ install_sighandler(int signum, sighandler_t handler)
 #ifndef __native_client__
 #  define install_sighandler(signum, handler) (install_sighandler(signum, handler) ? rb_bug(#signum) : (void)0)
 #endif
+
 
 #if defined(SIGCLD) || defined(SIGCHLD)
 static int
@@ -1358,7 +1361,7 @@ init_sigchld(int sig)
 #    define init_sigchld(signum) (init_sigchld(signum) ? rb_bug(#signum) : (void)0)
 #  endif
 #endif
-
+#endif
 void
 ruby_sig_finalize(void)
 {

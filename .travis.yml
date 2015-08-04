@@ -4,7 +4,7 @@ compiler:
   - clang
 os:
   - linux
-  - osx
+  #- osx
 env:
   - BOP_UndyFinish=1 #normal behavior
   - BOP_UndyFinish=0 #force PPR tasks to finish
@@ -46,4 +46,5 @@ before_script: #before tests run
 
 #test script
 script:
-  - rake test
+  - rake bop_test
+  - rake ruby_test_run
