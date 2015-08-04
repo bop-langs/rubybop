@@ -496,8 +496,11 @@ void * dm_realloc (void *ptr, size_t gsize) {
     ASSERTBLK(old_head);
     size_t new_size = ALIGN (gsize + HSIZE);
     int new_index = get_index (new_size);
+
+    // if(!SEQUENTIAL) bop_msg(3, "Realloc: ptr %p, new size %d, old size %d", ptr, size_of_klass(new_index), old_head->allocated.blocksize);
+
     void *payload;		//what the programmer gets
-    if (new_index != -1 && size_of_klass(new_index) == old_head->allocated.blocksize) {
+    if (new_index != -1 && size_of_klass(new_index) <= old_head->allocated.blocksize) {
         return ptr;	//no need to update
     } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in sequential mode for large->large blocks
@@ -506,7 +509,11 @@ void * dm_realloc (void *ptr, size_t gsize) {
         new_head->allocated.next = NULL;
         ASSERTBLK (new_head);
         return PAYLOAD (new_head);
-    } else {
+    } else if (!SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
+        bop_msg(0, "ERROR: attempting to realloc too large a section");
+        _exit(1);
+    }
+    else {
         //build off malloc and free
         ASSERTBLK(old_head);
         size_t size_cache = old_head->allocated.blocksize;
