@@ -787,96 +787,6 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 #define RANY(o) ((RVALUE*)(o))
 
 
-extern void bop_msg(int, const char*, ...);
-
-//BOP
-//Iterates through heap pages and sets each free slot to zero
-//
-//static struct *heap_page last_page;
-static struct heap_page *heap_page_create(rb_objspace_t *objspace);
-static void heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
-static inline void heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
-static int heap_increment(rb_objspace_t *objspace, rb_heap_t *heap);
-static void heap_set_increment(rb_objspace_t *objspace, size_t additional_pages);
-static void heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t);
-
-static struct heap_page *old_pages;
-static int old_count = 0;
-
-
-void detach_free_list(rb_objspace_t *objspace);
-void show_heap_pages();
-void zero_out_frees()
-{
-    bop_msg(3, "Zeroing out frees");
-    rb_gc_disable();
-    rb_objspace_t *objspace = &rb_objspace;
-    rb_heap_t *heap = heap_eden;
-    // heap_add_pages(objspace, heap, 1);
-    struct heap_page* page = heap->free_pages;
-    old_pages = page->free_next;
-    page->free_next = NULL;
-    old_count = heap_allocated_pages;
-    heap_allocated_pages = 1;
-    assert(heap->free_pages == page);
-
-  //   struct heap_page *worker;
-  //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
-  //   // heap_eden->free_pages = NULL;
-  //   while (worker)
-  //   {
-	// worker->old_free_slots = worker->free_slots;
-	// worker->free_slots = 0;
-  //
-	// worker->oldfreelist = worker->freelist;
-	// worker->freelist = NULL;
-  //
-  // worker->old_free_next = worker ->free_next;
-  // worker->free_next = NULL;
-  //
-	// worker = worker->next;
-  //   }
-    //show_heap_pages();
-    return;
-}
-
-void frees_restore()
-{
-  show_heap_pages();
-    rb_objspace_t *objspace = &rb_objspace;
-    rb_heap_t *heap = heap_eden;
-    heap->free_pages->free_next = old_pages;
-    heap_allocated_pages += old_count;
-    //
-    // show_heap_pages();
-  //   struct heap_page *worker;
-  //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
-  //   while (worker)
-  //   {
-	// worker->free_slots = worker->old_free_slots;
-	// worker->freelist = worker->oldfreelist;
-  // worker->free_next = worker->old_free_next;
-	// worker = worker->next;
-  //   }
-  //
-    return;
-}
-
-void show_heap_pages()
-{
-    rb_objspace_t *objspace = &rb_objspace;
-    bop_msg(3, "Iterating through heap pages");
-    int i = 0;
-    struct heap_page *worker;
-    worker = *(struct heap_page **)objspace->heap_pages.sorted;
-    while (worker)
-    {
-	bop_msg(3, "Heap page %i: %p", i, worker->body);
-	i++;
-	worker = worker->next;
-    }
-    return;
-}
 
 struct RZombie {
     struct RBasic basic;
@@ -1742,10 +1652,6 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
     assert(heap == heap_eden);
     struct heap_page *page;
     RVALUE *p;
-    if(!SEQUENTIAL){
-  	   heap_prepare(objspace, heap);
-    }
-
     while (UNLIKELY(heap->free_pages == NULL)) {
 	heap_prepare(objspace, heap);
     }
@@ -3262,6 +3168,101 @@ count_objects(int argc, VALUE *argv, VALUE os)
     }
 
     return hash;
+}
+
+
+extern void bop_msg(int, const char*, ...);
+
+//BOP
+//Iterates through heap pages and sets each free slot to zero
+//
+//static struct *heap_page last_page;
+static struct heap_page *heap_page_create(rb_objspace_t *objspace);
+static void heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
+static inline void heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page);
+static int heap_increment(rb_objspace_t *objspace, rb_heap_t *heap);
+static void heap_set_increment(rb_objspace_t *objspace, size_t additional_pages);
+static void heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t);
+
+static struct heap_page *old_pages;
+static int old_count = 0;
+
+
+void detach_free_list(rb_objspace_t *objspace);
+void show_heap_pages();
+
+
+void zero_out_frees()
+{
+    bop_msg(3, "Zeroing out frees");
+    rb_gc_disable();
+    rb_objspace_t *objspace = &rb_objspace;
+    rb_objspace_t *bop_objspace = rb_objspace_alloc();
+    rb_heap_t *heap = heap_eden;
+    // heap_add_pages(objspace, heap, 1);
+    heap->old_free_pages = heap->free_pages;
+    heap->free_pages = NULL;
+
+    // old_count = heap_allocated_pages;
+    // heap_allocated_pages = 1;
+    // assert(heap->free_pages == page);
+
+  //   struct heap_page *worker;
+  //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
+  //   // heap_eden->free_pages = NULL;
+  //   while (worker)
+  //   {
+	// worker->old_free_slots = worker->free_slots;
+	// worker->free_slots = 0;
+  //
+	// worker->oldfreelist = worker->freelist;
+	// worker->freelist = NULL;
+  //
+  // worker->old_free_next = worker ->free_next;
+  // worker->free_next = NULL;
+  //
+	// worker = worker->next;
+  //   }
+    //show_heap_pages();
+    return;
+}
+
+void frees_restore()
+{
+  show_heap_pages();
+    rb_objspace_t *objspace = &rb_objspace;
+    rb_heap_t *heap = heap_eden;
+    heap->free_pages->free_next = old_pages;
+    heap_allocated_pages += old_count;
+    //
+    // show_heap_pages();
+  //   struct heap_page *worker;
+  //   worker = *(struct heap_page **)objspace->heap_pages.sorted;
+  //   while (worker)
+  //   {
+	// worker->free_slots = worker->old_free_slots;
+	// worker->freelist = worker->oldfreelist;
+  // worker->free_next = worker->old_free_next;
+	// worker = worker->next;
+  //   }
+  //
+    return;
+}
+
+void show_heap_pages()
+{
+    rb_objspace_t *objspace = &rb_objspace;
+    bop_msg(3, "Iterating through heap pages");
+    int i = 0;
+    struct heap_page *worker;
+    worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    while (worker)
+    {
+	bop_msg(3, "Heap page %i: %p", i, worker->body);
+	i++;
+	worker = worker->next;
+    }
+    return;
 }
 
 /*
