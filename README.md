@@ -27,7 +27,7 @@ Rubybop currently does not support:
 - Ruby's signal handlers are not installed as they are needed for the bop library.
 - Functions to change the process group id of ruby processes. Again, these need to stay the same for library.
 
-In addition, all ruby code that was executed with the GVL is now forced to use the GVL. The __only__ exception to this rule is IO, since Ruby is too slow if IO requires locks.
+In addition, all ruby code that was executed with the GVL is now forced to use the GVL. The __only__ exception to this rule is IO, since Ruby is too slow if IO requires the GVL. If a script attempts to enter a parallel region with multiple threads running, an `ThreadError` is thrown.
 
 
 Any issues installing should be reported here.
