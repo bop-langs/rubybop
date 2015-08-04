@@ -180,7 +180,7 @@ void BOP_malloc_rescue(char * msg, size_t size){
       if(!now_undy){
         //die
         bop_msg(1, "Aborting malloc failing proc.");
-        abort();
+        _exit(0);
       }else{
         bop_msg(1, "New saved undy returning.");
         return;
@@ -188,9 +188,9 @@ void BOP_malloc_rescue(char * msg, size_t size){
       return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
-    abort(); //for exit!
+    _exit(0); //for exit!
   }
-  abort(); //my sanity
+  _exit(0); //my sanity
 }
 void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
@@ -207,7 +207,7 @@ void BOP_abort_spec_2(bool really_abort, const char* msg){
     partial_group_set_size( spec_order );
     signal_commit_done( );
     if(really_abort)
-      end_clean(); //abort();  /* die silently, but reap children*/
+      end_clean(); //_exit(0);  /* die silently, but reap children*/
     else
       bop_msg(2, "WARNING: Not calling abort to preserve exit values");
   }
@@ -245,7 +245,7 @@ void post_ppr_undy( void ) {
   bop_msg(3,"Understudy finishes and wins the race");
   if(!bop_undy_active){
  	  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
-  	abort();
+  	_exit(0);
   	return; //doesn't actually happen
   }
 
@@ -474,7 +474,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if (task_status == UNDY) {
     bop_msg(3,"Understudy concedes the race (sender pid %d)", siginfo->si_pid);
     signal_undy_conceded( );
-    abort( ); //has no children. don't need to reap
+    _exit(0); //has no children. don't need to reap
   }
   if (task_status == SPEC || task_status == MAIN) {
     if ( spec_order == partial_group_get_size() - 1 ) return;
@@ -498,7 +498,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     errored = true;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
-    abort( );
+    _exit(0);
   }
 }
 
@@ -520,9 +520,14 @@ int report_child(pid_t child, int status){
   if(WIFEXITED(status)){
     msg = "Child %d exited with value %d";
     rval = val = WEXITSTATUS(status);
-  }else if(WIFSIGNALED(status)){
+  }
+	 //Have it return true if the signal that kill the process is either SIGABRT or SIGSEGV
+	 else if(WIFSIGNALED(status)){
     msg = "Child %d was terminated by signal %d";
     val =  WTERMSIG(status);
+		if (WTERMSIG(status) == SIGABRT || WTERMSIG(status) == SIGSEGV){
+			rval = 1;
+		}
   }else if(WIFSTOPPED(status)){
     msg = "Child %d was stopped by signal %d";
     val = WSTOPSIG(status);
@@ -610,7 +615,7 @@ void end_clean(){
   if(exit_code)
     _exit(exit_code);
   else
-    abort();
+    _exit(0);
 }
 
 static void BOP_fini(void);
@@ -671,7 +676,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
       signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
       is_monitoring = true; //the real monitor process is the only one to actually loop
       wait_process(); //never returns
-      abort(); /* Should never get here */
+      _exit(0); /* Should never get here */
     }
 
     /* the child process continues */
