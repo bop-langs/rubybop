@@ -1,5 +1,6 @@
 #ifndef ATOMIC_H
 #define ATOMIC_H
+#include "utils.h"
 /* for GCC internals see
    http://gcc.gnu.org/onlinedocs/gcc-4.4.1/gcc/Atomic-Builtins.html */
 
@@ -15,14 +16,10 @@ typedef char bop_lock_t;
 /* nop, backoff, and slowpath locking code based on RSTM
 http://www.cs.rochester.edu/~sandhya/csc258/assignments/ass2/atomic_ops.h*/
 
-static inline void nop( ) {
-  __asm__ volatile("nop");
-}
-
 static inline void backoff( int *b ) {
   int i;
     for (i = *b; i; i--)
-        nop();
+        nop(); //from utils.h
 
     if (*b < 4096)
         *b <<= 1;

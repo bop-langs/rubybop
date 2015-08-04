@@ -13,8 +13,16 @@ void msg_destroy(void);
 void report_conflict( int verbose, mem_range_t *c1, char *n1,
 		      mem_range_t *c2, char *n2 );
 
-void nop(void);
+#define nop() asm volatile("nop") /** so it's 'inlined' */
+
 char mem_range_eq( mem_range_t *r1, mem_range_t *r2 );
+
+#ifndef NDEBUG
+/* We want the task status while debugging->bop_msg **/
+#define bop_debug(x, ...) fprintf(stderr, "%s:%d " #x "\n" , __FILE__, __LINE__, ##__VA_ARGS__);
+#else
+#define bop_debug(...)
+#endif
 
 #include "external/malloc.h"
 
