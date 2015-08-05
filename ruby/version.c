@@ -42,6 +42,7 @@ Init_version(void)
      * The running version of ruby
      */
     rb_define_global_const("RUBY_VERSION", MKSTR(version));
+    rb_define_global_const("BOP_VERSION", rb_usascii_str_new(BOP_VERSION, sizeof(BOP_VERSION) - 1));
     /*
      * The date this ruby was released
      */

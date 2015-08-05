@@ -5,10 +5,12 @@
 
 /* The program makes an array of randomly initialized integers and adds them together. */
 
+#include "dmmalloc.h"
 #include "bop_api.h"
 
 #if 1
 #define write(x , y, z...) printf("%d:"#y"\n", getpid(), z)
+#define DM_MAX_SIZE (ALIGN((MAX_SIZE) - (HSIZE)))
 #else
 #ifdef BOP
 #define write(x, y...) bop_msg(0, y)
@@ -18,7 +20,7 @@
 #endif
 
 #ifdef BOP
-extern unsigned int max_ppr;
+unsigned int max_ppr = DM_MAX_SIZE; 
 #else
 unsigned int max_ppr = 1 << 20;
 #endif

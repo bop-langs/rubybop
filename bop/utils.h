@@ -4,6 +4,11 @@
 #include <signal.h>
 #include "bop_api.h"
 
+int bop_terminal_to_workers();
+int bop_terminal_to_monitor();
+int block_signal(int signo);
+int unblock_signal(int signo);
+
 void bop_msg(int level, const char * msg, ...);
 int get_int_from_env(const char* env, int min, int max, int def);
 
@@ -19,7 +24,7 @@ char mem_range_eq( mem_range_t *r1, mem_range_t *r2 );
 
 #ifndef NDEBUG
 /* We want the task status while debugging->bop_msg **/
-#define bop_debug(x, ...) fprintf(stderr, "%s:%d " x "\n" , __FILE__, __LINE__, ##__VA_ARGS__);
+#define bop_debug(x, ...) bop_msg(1, "%s:%d " x "\n" , __FILE__, __LINE__, ##__VA_ARGS__);
 #else
 #define bop_debug(...)
 #endif
