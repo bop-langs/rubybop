@@ -1,7 +1,14 @@
 #include <stdlib.h>
+#include <signal.h>
+#include <errno.h>
+#include <stdio.h>
 #include "bop_api.h"
 #include "bop_ports.h"
+#include "utils.h"
 #include "external/malloc.h"
+#include <unistd.h>
+
+
 static mspace io_mspace = NULL;
 
 typedef struct {
@@ -176,3 +183,23 @@ bop_port_t bop_io_port = {
   .task_group_succ_fini = io_group_succ,
   .undy_succ_fini       = io_undy_succ
 };
+
+/**Terminal IO functions*/
+extern int monitor_process_id;
+extern int monitor_group; //Note: this value is negated!
+int terminal_helper(char* msg, int gpid){
+  //return true on success
+  block_signal(SIGTTIN);
+  int e = tcsetpgrp(STDIN_FILENO, gpid < 0 ? -gpid : gpid);
+  if(e != 0){
+    perror(msg);
+  }
+  unblock_signal(SIGTTIN);
+  return e;
+}
+int bop_terminal_to_monitor(){
+  return terminal_helper("Couldn't send terminal to monitor process", monitor_process_id);
+}
+int bop_terminal_to_workers(){
+  return terminal_helper("Couldn't send terminal to worker processes", monitor_group);
+}

@@ -38,8 +38,8 @@ stats_t bop_stats = { 0 };
 
 static int bopgroup;
 
-static int monitor_process_id = 0;
-static int monitor_group = 0; //the process group that PPR tasks are using
+int monitor_process_id = 0;
+int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
 static bool errored = false;
 
@@ -595,6 +595,24 @@ static void wait_process() {
   //Once the monitor process is done, everything should have already terminated
   _exit(my_exit);
 }
+int block_signal(int signo){
+  sigset_t mask;
+  sigemptyset(&mask);
+  if(sigaddset(&mask, signo) < 0) {
+    return -1;
+  }
+  sigprocmask(SIG_BLOCK, &mask, NULL);
+  return 0;
+}
+int unblock_signal(int signo){
+  sigset_t mask;
+  sigemptyset(&mask);
+  if(sigaddset(&mask, signo) < 0){
+    return -1;
+  }
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  return 0;
+}
 static void child_handler(int signo){
   assert(signo == SIGCHLD);
   int val = cleanup_children();
@@ -627,6 +645,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
+
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
@@ -635,6 +654,14 @@ void __attribute__ ((constructor)) BOP_init(void) {
   sigaction(SIGUSR1, &action, NULL);
   action.sa_sigaction = (void *) SigUsr2;
   sigaction(SIGUSR2, &action, NULL);
+
+  /** Set up SIGTTOU/SIGTTIN handlers (terminal reads) */
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_SIGINFO | SA_RESTART;
+  action.sa_sigaction = (void*) bop_terminal_to_workers;
+  sigaction(SIGTTOU, &action, NULL);
+  sigaction(SIGTTIN, &action, NULL);
+
 
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
@@ -666,15 +693,22 @@ void __attribute__ ((constructor)) BOP_init(void) {
       /* Child process continues after switch */
       //We must first set up process group
       //set up a new group
+
       OWN_GROUP();
       monitor_group = -getpid(); //negative-> work on process group
+
       break;
     default:
       monitor_group = -fd; //child will set up its monitor_group variable
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
+
+      bop_msg(1, "Child proc id: %d pgrd %d", getpid(), getpgrp() );
       //forward SIGINT to children/monitor group
       signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
       is_monitoring = true; //the real monitor process is the only one to actually loop
+      // give the child process the terminal
+
+
       wait_process(); //never returns
       _exit(0); /* Should never get here */
     }
@@ -693,7 +727,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
     sigprocmask( SIG_BLOCK, &mask, NULL );
     */
   }
-  assert(getpgrp() == -monitor_group);
+  // assert(getpgrp() == -monitor_group);
   task_status = SEQ;
 
   /* prepare related signals. Need these???*/

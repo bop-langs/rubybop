@@ -4,6 +4,11 @@
 #include <signal.h>
 #include "bop_api.h"
 
+int bop_terminal_to_workers();
+int bop_terminal_to_monitor();
+int block_signal(int signo);
+int unblock_signal(int signo);
+
 void bop_msg(int level, const char * msg, ...);
 int get_int_from_env(const char* env, int min, int max, int def);
 
