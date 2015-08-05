@@ -6,9 +6,13 @@ os:
   - linux
   #- osx
 env:
+  - BOP_GroupsSize=2
   - BOP_GroupSize=4 #normal understudy, more PPR tasks
 matrix:
   fast_finish: true
+  exclude:
+  - compiler: clang
+    env: BOP_GroupSize=4
 #dependencies for the ruby language
 
 sudo: false
