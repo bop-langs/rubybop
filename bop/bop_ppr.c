@@ -175,7 +175,6 @@ void BOP_malloc_rescue(char * msg, size_t size){
           task_status == MAIN ? "Main" : "SPEC");
       io_on_malloc_rescue(); //before anything changes, but something will change
       // //'undy wins the race'
-      bop_msg(4, "Changing sigint handler");
       int now_undy = spawn_undy();
       if(!now_undy){
         //die
@@ -229,7 +228,6 @@ void BOP_abort_next_spec( char *msg ) {
 }
 
 static int undy_ppr_count;
-extern int bop_undy_active;
 
 void post_ppr_undy( void ) {
   undy_ppr_count ++;
@@ -243,11 +241,6 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
-  if(!bop_undy_active){
- 	  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
-  	_exit(0);
-  	return; //doesn't actually happen
-  }
 
   // indicate the success of the understudy
   kill(0, SIGUSR2);
@@ -666,7 +659,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
-  bop_undy_active = get_int_from_env("BOP_UndyFinish", 0, 1, 1);
 
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
