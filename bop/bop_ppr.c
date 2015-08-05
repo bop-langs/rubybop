@@ -167,13 +167,13 @@ extern void print_headers(void);
 //if malloc cannot meet a request, it calls this funcion
 void BOP_malloc_rescue(char * msg, size_t size){
   bop_msg(2, "Malloc rescue begin. Size: %u Failure: %s", size, msg);
-  print_headers();
+  // print_headers();
   if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
     bop_msg(1, "ERROR. Malloc failed while logically sequential");
   }else if(task_status == MAIN || (task_status == SPEC && spec_order == 0)){
       bop_msg(3, "Changing pid %d (mode %s)", getpid(),
           task_status == MAIN ? "Main" : "SPEC");
-      io_on_malloc_rescue(); //before anything changes, but something will change
+      //Hangs here... io_on_malloc_rescue(); //before anything changes, but something will change
       // //'undy wins the race'
       int now_undy = spawn_undy();
       if(!now_undy){
@@ -185,6 +185,9 @@ void BOP_malloc_rescue(char * msg, size_t size){
         return;
       }
       return;//user-process
+  }else if(task_status == SPEC && spec_order > 0){
+      bop_msg(3, "Unable to save later SPEC tasks. Exiting");
+      _exit(0);
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
     _exit(0); //for exit!
