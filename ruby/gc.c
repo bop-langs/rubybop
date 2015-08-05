@@ -3270,7 +3270,7 @@ void zero_out_frees()
 
     (GET_VM()->objspace) = bop_objspaces[BOP_task];
 
-    if(GET_VM()->objspace->bop_debug != bop_objspaces[BOP_task]->bop_debug);
+    if((GET_VM()->objspace->bop_debug) != (bop_objspaces[BOP_task]->bop_debug));
       {
         bop_msg(0, "SAME OBJSPACES ARE DIFFERENT: first %p, %d; second %p, %d; task %d",
         (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug,
