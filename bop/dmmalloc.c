@@ -12,18 +12,13 @@
 #include "malloc_wrapper.h"
 #include "bop_api.h"
 #include "bop_ports.h"
+#include "utils.h"
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
 #define LOG(x) llog2(x)
 #else
 #include <math.h>
 #define LOG(x) log2(x)
-#endif
-
-#ifdef NDEBUG
-#define PRINT(msg) printf("dmmalloc: %s at %s:%d\n", msg, __FILE__, __LINE__)
-#else
-#define PRINT(msg)
 #endif
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -37,7 +32,7 @@
 
 #define FREEDLIST_IND -10
 //BOP macros & structures
-#define SEQUENTIAL (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
+#define SEQUENTIAL() (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
 typedef struct {
     header *start[DM_NUM_CLASSES];
@@ -89,6 +84,8 @@ static inline int llog2(const int x) {
             );
     return y;
 }
+/**Note: This is the INDEX of the old array of the class index, ie param 0
+ * means SIZE class 1. The original implementation had an array that had these values*/
 const FORCE_INLINE size_t size_of_klass(int klass_index){
 	return SIZE_C(klass_index + 1);
 }
@@ -105,9 +102,9 @@ const FORCE_INLINE int goal_blocks(int klass){
 	}
 }
 static int * goal_counts(){
-	static int goal[DM_NUM_CLASSES] = {[0 ... (DM_NUM_CLASSES -1)] = 0};
+	static int goal[DM_NUM_CLASSES] = {[0 ... (DM_NUM_CLASSES -1)] = -1};
 	int ind;
-	if( goal[0] == 0)
+	if( goal[0] == -1)
   	for(ind = 0; ind < DM_NUM_CLASSES; ind++)
   		goal[ind] = goal_blocks(ind);
   return goal;
@@ -156,12 +153,12 @@ static inline void release_lock() {/*Do nothing*/}
 /** Bop-related functionss*/
 static int reg_counts[DM_NUM_CLASSES];
 /** Divide up the currently allocated groups into regions.
-	Insures that each task will have a percentage of a sequential goal*/
+	Insures that each task will have a percentage of a SEQUENTIAL() goal*/
 
-static int* count_lists(bool has_lock){ //param unused
+static int* count_lists(bool is_locked){ //param unused
 	static int counts[DM_NUM_CLASSES];
 	int i, loc_count;
-	if( ! has_lock)
+	if( ! is_locked)
 		get_lock();
 	header * head;
 	for(i = 0; i < DM_NUM_CLASSES; i++){
@@ -170,7 +167,7 @@ static int* count_lists(bool has_lock){ //param unused
 			loc_count ++;
 		counts[i] = loc_count;
 	}
-	if( ! has_lock )
+	if( ! is_locked )
 		release_lock();
 	return counts;
 }
@@ -243,7 +240,8 @@ void malloc_promise() {
 //Grow the managed space so that each size class as tasks * their goal block counts
 static inline void grow (const int tasks) {
     int class_index, blocks_left, size;
-    PRINT("growing");
+    if(tasks > 1)
+      bop_msg(2, "growing tasks = %d", tasks);
 #ifndef NDEBUG
     grow_count++;
 #endif
@@ -293,8 +291,8 @@ static inline header * extract_header_freed(size_t size){
 			//remove and return
 			if(prev == NULL){
 				//list_current head of list
-        assert(current == freedlist);
-				freedlist = freedlist->free.next;
+        assert(list_current == freedlist);
+				freedlist = CAST_H(freedlist->free.next);
 				return list_current;
 			}else{
 				prev->free.next = list_current->free.next;
@@ -318,17 +316,18 @@ static inline header * get_header (size_t size, int *which) {
 		found = headers[temp];
 		//don't jump to the end. need next conditional
 	}
-	if ( !SEQUENTIAL &&
-		( (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) || ! found) ){
-		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
-		//try to allocate from the freed list. Slower
-		found =  extract_header_freed(size);
-		if(found)
-			temp = FREEDLIST_IND;
-		else
-			temp = -1;
-		//don't need go to. just falls through
-	}
+	if ( !SEQUENTIAL() ){
+  		if( found == NULL || (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) ) {
+  		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[*which], *which);
+  		//try to allocate from the freed list. Slower
+  		found =  extract_header_freed(size);
+  		if(found)
+  			temp = FREEDLIST_IND;
+  		else
+  			temp = -1;
+  		//don't need go to. just falls through
+  	}
+  }
 	write_back:
 	if(which != NULL)
 		*which = temp;
@@ -354,7 +353,7 @@ void *dm_malloc (const size_t size) {
 	if (block == NULL) {
 		//no item in list. Either correct list is empty OR huge block
 		if (alloc_size > MAX_SIZE) {
-			if(SEQUENTIAL){
+			if(SEQUENTIAL()){
 				//huge block always use system malloc
 				block = sys_malloc (alloc_size);
 				if (block == NULL) {
@@ -365,17 +364,17 @@ void *dm_malloc (const size_t size) {
 				block->allocated.blocksize = alloc_size;
 				goto checks;
 			}else{
-				//not sequential, and allocating a too-large block. Might be able to rescue
+				//not SEQUENTIAL(), and allocating a too-large block. Might be able to rescue
 				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
-		} else if (SEQUENTIAL && which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
+		} else if (SEQUENTIAL() && which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
 			splits++;
 #endif
 			block = dm_split (which);
 			ASSERTBLK(block);
-		} else if (SEQUENTIAL) {
+		} else if (SEQUENTIAL()) {
 			//grow the allocated region
 #ifndef NDEBUG
 			if (index_bigger (which) != -1)
@@ -384,13 +383,13 @@ void *dm_malloc (const size_t size) {
 			grow (1);
 			goto malloc_begin;
 		} else {
-			BOP_malloc_rescue("Need to grow the lists in non-sequential", alloc_size);
+			BOP_malloc_rescue("Need to grow the lists in non-SEQUENTIAL()", alloc_size);
 			//grow will happen at the next pass through...
 			goto malloc_begin; //try again
 			//bop_abort
 		}
 	}
-	if(!SEQUENTIAL)
+	if(!SEQUENTIAL())
 		add_next_list(&allocatedList, block);
 
 	//actually allocate the block
@@ -463,7 +462,7 @@ static inline header* dm_split (int which) {
         split = CAST_H ((CHARP (split) + size_of_klass(which - 1))); //which - 1 since only half of the block is used here. which -1 === size / 2
 				// bop_msg(1, "Split addr %p val %c", split, *((char*) split));
 				memset (split, 0, HSIZE);
-				if(SEQUENTIAL){
+				if(SEQUENTIAL()){
 					headers[which] = split;
 				}else{
 					//go through dm_free
@@ -487,7 +486,7 @@ void * dm_calloc (size_t n, size_t size) {
     return allocd;
 }
 
-// Reallocator: use sytem realloc with large->large sizes in sequential mode. Otherwise use standard realloc implementation
+// Reallocator: use sytem realloc with large->large sizes in SEQUENTIAL() mode. Otherwise use standard realloc implementation
 void * dm_realloc (void *ptr, size_t gsize) {
     header* old_head;
     header* new_head;
@@ -502,24 +501,17 @@ void * dm_realloc (void *ptr, size_t gsize) {
     ASSERTBLK(old_head);
     size_t new_size = ALIGN (gsize + HSIZE);
     int new_index = get_index (new_size);
-
-    // if(!SEQUENTIAL) bop_msg(3, "Realloc: ptr %p, new size %d, old size %d", ptr, size_of_klass(new_index), old_head->allocated.blocksize);
-
     void *payload;		//what the programmer gets
     if (new_index != -1 && size_of_klass(new_index) <= old_head->allocated.blocksize) {
         return ptr;	//no need to update
-    } else if (SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
-        //use system realloc in sequential mode for large->large blocks
+    } else if (SEQUENTIAL() && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
+        //use system realloc in SEQUENTIAL() mode for large->large blocks
         new_head = sys_realloc (old_head, new_size);
         new_head->allocated.blocksize = new_size; //sytem block
         new_head->allocated.next = NULL;
         ASSERTBLK (new_head);
         return PAYLOAD (new_head);
-    } else if (!SEQUENTIAL && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
-        bop_msg(0, "ERROR: attempting to realloc too large a section");
-        _exit(1);
-    }
-    else {
+    } else {
         //build off malloc and free
         ASSERTBLK(old_head);
         size_t size_cache = old_head->allocated.blocksize;
@@ -548,7 +540,7 @@ void * dm_realloc (void *ptr, size_t gsize) {
 void dm_free (void *ptr) {
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
-    if(SEQUENTIAL || remove_from_alloc_list (free_header))
+    if(SEQUENTIAL() || remove_from_alloc_list (free_header))
         free_now (free_header);
     else
         add_next_list(&freedlist, free_header);
@@ -560,7 +552,7 @@ static inline void free_now (header * head) {
     ASSERTBLK(head);
     bop_assert (size >= HSIZE && size == ALIGN (size));	//size is aligned, ie right value was written
     //test for system block
-    if (size > MAX_SIZE && SEQUENTIAL) {
+    if (size > MAX_SIZE && SEQUENTIAL()) {
         sys_free(head);
         return;
     }
@@ -628,7 +620,6 @@ static inline void add_next_list (header** list_head, header * item) {
     else if (item != *list_head){ //prevent loops
         item->allocated.next = CAST_SH(*list_head);
         *list_head = item;
-        assert(item != item->allocated.next);
     }
 }
 /**Print debug info*/
