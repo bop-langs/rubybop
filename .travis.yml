@@ -9,13 +9,6 @@ env:
   - BOP_GroupSize=4 #normal understudy, more PPR tasks
 matrix:
   fast_finish: true
-  exclude:
-  - os: osx
-    env: BOP_GroupSize=4
-  - compiler: clang
-    env: BOP_GroupSize=4
-  - compiler: clang
-    env: BOP_UndyFinish=0
 #dependencies for the ruby language
 
 sudo: false
