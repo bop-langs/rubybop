@@ -22,13 +22,6 @@ void report_conflict( int verbose, mem_range_t *c1, char *n1,
 
 char mem_range_eq( mem_range_t *r1, mem_range_t *r2 );
 
-#ifndef NDEBUG
-/* We want the task status while debugging->bop_msg **/
-#define bop_debug(x, ...) bop_msg(1, "%s:%d " x "\n" , __FILE__, __LINE__, ##__VA_ARGS__);
-#else
-#define bop_debug(...)
-#endif
-
 #include "external/malloc.h"
 
 mspace mspace_small_new( void );

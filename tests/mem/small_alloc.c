@@ -8,19 +8,8 @@
 #include "dmmalloc.h"
 #include "bop_api.h"
 
-#if 1
-#define write(x , y, z...) printf("%d:"#y"\n", getpid(), z)
-#define DM_MAX_SIZE (ALIGN((MAX_SIZE) - (HSIZE)))
-#else
 #ifdef BOP
-#define write(x, y...) bop_msg(0, y)
-#else
-#define #define write(x, y, z...) printf("%d:"#y"\n", getpid(), z)
-#endif
-#endif
-
-#ifdef BOP
-unsigned int max_ppr = DM_MAX_SIZE; 
+unsigned int max_ppr = DM_MAX_REQ;
 #else
 unsigned int max_ppr = 1 << 20;
 #endif
@@ -33,8 +22,8 @@ int set(int ind){
 int main(int argc, char ** argv)
 {
   unsigned int alloc_size = max_ppr - 100;
-  write(1, "dm max size is %u", max_ppr);
-  write(1, "Allocation size for test %u", alloc_size);
+  bop_debug("dm max size is %u", max_ppr);
+  bop_debug("Allocation size for test %u", alloc_size);
 
   int * some_arrays[num_arrays] = {NULL, NULL, NULL, NULL, NULL};
   void * raw;
@@ -44,7 +33,7 @@ int main(int argc, char ** argv)
       raw = calloc(alloc_size, 1); //something larger
       some_arrays[ind] = raw;
       some_arrays[ind][0] = set(ind);
-      write(1, "allocation %d at : %p val @ 0: %d", ind, raw, some_arrays[ind][0]);
+      bop_debug("allocation %d at : %p val @ 0: %d", ind, raw, some_arrays[ind][0]);
       BOP_promise(&(some_arrays[ind][0]), sizeof(int));
       BOP_promise(&(some_arrays[ind]), sizeof(some_arrays[ind]));
       sleep(3);
@@ -54,9 +43,9 @@ int main(int argc, char ** argv)
   // BOP_use(&some_arrays, sizeof(some_arrays));
   int eval = 0;
   for(ind = 0; ind < num_arrays; ind++){
-    write(1, "index %d begins at address %p", ind, &some_arrays[ind][0]);
+    bop_debug("index %d begins at address %p", ind, &some_arrays[ind][0]);
     if(some_arrays[ind][0] != set(ind)){
-      write(1, "array %d has invalid values! mem not copied. expected: %d actual: %d", ind, ind+1, some_arrays[ind][0]);
+      bop_debug("array %d has invalid values! mem not copied. expected: %d actual: %d", ind, ind+1, some_arrays[ind][0]);
       eval = 1;
     }
   }
