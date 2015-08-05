@@ -166,11 +166,12 @@ size_t max_ppr_request;
 #define BOP_use( addr, size )
 #define BOP_promise( addr, size )
 
-#define bop_msg(level, pass...) printf( pass )
+#define bop_msg(ignored, ...) printf( __VA_ARGS__ )
 
 #define BOP_abort_spec( msg )
 #define BOP_abort_next_spec( msg )
 #define BOP_abort_spec_group( msg )
+#define bop_assert(x) assert(x)
 
 #include <stdlib.h>
 

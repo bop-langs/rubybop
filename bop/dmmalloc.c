@@ -241,7 +241,7 @@ void malloc_promise() {
 static inline void grow (const int tasks) {
     int class_index, blocks_left, size;
     if(tasks > 1)
-      bop_msg(2, "growing tasks = %d", tasks);
+      bop_debug("growing tasks = %d", tasks);
 #ifndef NDEBUG
     grow_count++;
 #endif

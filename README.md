@@ -1,5 +1,5 @@
 # rubybop
-Safe parallel Ruby language based on BOP
+Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rubybop-introduction/)
 
 [Ruby Version 2.2 commit c5a6913](https://github.com/ruby/ruby/tree/c5a691323201ace5f5299b6914c8e1709918c521)
 
@@ -21,12 +21,18 @@ Master  | Latest
 
 ###Unsupported Operations
 Rubybop currently does not support:
-- Terminal input (which is needed for IRB)
 - Ruby's exec calls (use the system call instead. Similar semantics)
 - Ruby's signal handlers are not installed as they are needed for the bop library.
 - Functions to change the process group id of ruby processes. Again, these need to stay the same for library.
 
-In addition, all ruby code that was executed with the GVL is now forced to use the GVL. The __only__ exception to this rule is IO, since Ruby is too slow if IO requires locks.
+###Terminal IO Litations
+A program using BOP will always be able to write to the terminal. Writing to the terminal is more tricky, and is not supported during PPR tasks. What happens a process tries to read from the terminal while in PPR (or in understudy -- any time multiple processes are reading from STDIN) is undefined.
+
+IRB/IRBOP is supported in early stages. To run IRB with the Rubybop interpreter, Rubybop must be installed. To run the actual script, run the irb in <repo>/ruby/irbop. This will use the installed interpreter. You will know that the bop interpreter is running if BOP_Version is defined (eg puts BOP_Version doesn't error). Also note that scrolling through commands (up and down arrows) currently does not work and will terminal the program once enter is hit.
+
+
+###Threading
+In addition, all ruby code that was executed with the GVL is now forced to use the GVL. The __only__ exception to this rule is IO, since Ruby is too slow if IO requires the GVL. If a script attempts to enter a parallel region with multiple threads running, an `ThreadError` is thrown and Rubybop will terminate. Although there are currently no checks, the data structures used by BOP do not support concurrent modification, so only one thread should be active inside a PPR region.
 
 
 Any issues installing should be reported here.

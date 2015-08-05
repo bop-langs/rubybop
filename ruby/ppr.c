@@ -24,7 +24,17 @@ extern void BOP_promise(void*, size_t);
 #endif
 
 #define OBJ_RW_SETS
-
+/**Return true if safe*/
+bool pre_bop_begin(){
+  if(!rb_thread_alone()){
+    //there are multiple threads happening. raise an error and no PPR!
+    rb_raise(rb_eThreadError, "Multiple ruby threads at pre-ppr. Not allowing PPR to take place.");
+    abort();
+    return false;
+  }
+  bop_msg(4, "Pre-ppr check is valid! Allowing to enter PPR region");
+  return true;
+}
 int is_sequential(){
   return SEQUENTIAL;
 }
@@ -123,13 +133,16 @@ ppr_promise(VALUE ppr, VALUE obj)
 static VALUE
 ppr_yield(VALUE val)
 {
-    //set_rheap_null();
-    rb_gc_disable();
-    BOP_ppr_begin(1);
+    bool ppr_ok = pre_bop_begin();
+    if(ppr_ok)
+      BOP_ppr_begin(1);
+        rb_gc_disable();
+        //set_rheap_null();
         bop_msg(3,"yielding block...");
         rb_yield(val);
-    BOP_ppr_end(1);
-    rb_gc_enable();
+        rb_gc_enable();
+    if(ppr_ok)
+      BOP_ppr_end(1);
     return Qnil;
 }
 static VALUE
@@ -145,13 +158,16 @@ ordered_yield()
 static VALUE
 ppr_start(VALUE start_val){
   int start_int = FIX2INT(start_val);
-  BOP_ppr_begin(start_int);
+  bool ppr_ok = pre_bop_begin();
+  if(ppr_ok)
+    BOP_ppr_begin(start_int);
       rb_gc_disable();
       //set_rheap_null();
       bop_msg(3,"yielding block...");
       rb_yield(0);
       rb_gc_enable();
-  BOP_ppr_end(start_int);
+  if(ppr_ok)
+    BOP_ppr_end(start_int);
   return Qnil;
 }
 

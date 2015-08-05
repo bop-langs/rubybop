@@ -38,8 +38,8 @@ stats_t bop_stats = { 0 };
 
 static int bopgroup;
 
-static int monitor_process_id = 0;
-static int monitor_group = 0; //the process group that PPR tasks are using
+int monitor_process_id = 0;
+int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
 static bool errored = false;
 
@@ -175,12 +175,11 @@ void BOP_malloc_rescue(char * msg, size_t size){
           task_status == MAIN ? "Main" : "SPEC");
       io_on_malloc_rescue(); //before anything changes, but something will change
       // //'undy wins the race'
-      bop_msg(4, "Changing sigint handler");
       int now_undy = spawn_undy();
       if(!now_undy){
         //die
         bop_msg(1, "Aborting malloc failing proc.");
-        abort();
+        _exit(0);
       }else{
         bop_msg(1, "New saved undy returning.");
         return;
@@ -188,9 +187,9 @@ void BOP_malloc_rescue(char * msg, size_t size){
       return;//user-process
   }else{
     BOP_abort_spec("Didn't know how to process BOP_malloc_rescue");
-    abort(); //for exit!
+    _exit(0); //for exit!
   }
-  abort(); //my sanity
+  _exit(0); //my sanity
 }
 void BOP_abort_spec_2(bool really_abort, const char* msg){
   if (task_status == SEQ
@@ -207,7 +206,7 @@ void BOP_abort_spec_2(bool really_abort, const char* msg){
     partial_group_set_size( spec_order );
     signal_commit_done( );
     if(really_abort)
-      end_clean(); //abort();  /* die silently, but reap children*/
+      end_clean(); //_exit(0);  /* die silently, but reap children*/
     else
       bop_msg(2, "WARNING: Not calling abort to preserve exit values");
   }
@@ -229,7 +228,6 @@ void BOP_abort_next_spec( char *msg ) {
 }
 
 static int undy_ppr_count;
-extern int bop_undy_active;
 
 void post_ppr_undy( void ) {
   undy_ppr_count ++;
@@ -243,11 +241,6 @@ void post_ppr_undy( void ) {
      off SIGUSR2 (without being aborted by it before), then it wins the race
      (and thumb down for parallelism).*/
   bop_msg(3,"Understudy finishes and wins the race");
-  if(!bop_undy_active){
- 	  bop_msg(1, "Understudy won, but forcing BOP processes to 'win'. UNDY aborting.");
-  	abort();
-  	return; //doesn't actually happen
-  }
 
   // indicate the success of the understudy
   kill(0, SIGUSR2);
@@ -436,13 +429,12 @@ void _BOP_ppr_end(int id) {
 
 */
 void MonitorInteruptFwd(int signo){
-  bop_msg(3, "forwarding signal '%s' to children of pgrp %d", strsignal(signo), monitor_group);
+  bop_msg(1, "forwarding signal '%s' to children of pgrp %d", strsignal(signo), monitor_group);
   assert(getpid() == monitor_process_id);
   kill(monitor_group, signo);
   is_monitoring = is_monitoring && signo == SIGINT; //stop monitoring
   if(signo == SIGINT){
-    while(waitpid((pid_t) -1, NULL, WUNTRACED) != -1);
-    _exit(0);
+    _exit(0); // Don't clean up, just end
   }
 }
 void print_backtrace(void){
@@ -474,7 +466,7 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   if (task_status == UNDY) {
     bop_msg(3,"Understudy concedes the race (sender pid %d)", siginfo->si_pid);
     signal_undy_conceded( );
-    abort( ); //has no children. don't need to reap
+    _exit(0); //has no children. don't need to reap
   }
   if (task_status == SPEC || task_status == MAIN) {
     if ( spec_order == partial_group_get_size() - 1 ) return;
@@ -498,12 +490,13 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
     errored = true;
   }else if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
-    abort( );
+    _exit(0);
   }
 }
 
 void SigBopExit( int signo ){
   bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
+  bop_terminal_to_monitor();
   _exit(0); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
@@ -520,9 +513,14 @@ int report_child(pid_t child, int status){
   if(WIFEXITED(status)){
     msg = "Child %d exited with value %d";
     rval = val = WEXITSTATUS(status);
-  }else if(WIFSIGNALED(status)){
+  }
+	 //Have it return true if the signal that kill the process is either SIGABRT or SIGSEGV
+	 else if(WIFSIGNALED(status)){
     msg = "Child %d was terminated by signal %d";
     val =  WTERMSIG(status);
+		if (WTERMSIG(status) == SIGABRT || WTERMSIG(status) == SIGSEGV){
+			rval = 1;
+		}
   }else if(WIFSTOPPED(status)){
     msg = "Child %d was stopped by signal %d";
     val = WSTOPSIG(status);
@@ -590,6 +588,24 @@ static void wait_process() {
   //Once the monitor process is done, everything should have already terminated
   _exit(my_exit);
 }
+int block_signal(int signo){
+  sigset_t mask;
+  sigemptyset(&mask);
+  if(sigaddset(&mask, signo) < 0) {
+    return -1;
+  }
+  sigprocmask(SIG_BLOCK, &mask, NULL);
+  return 0;
+}
+int unblock_signal(int signo){
+  sigset_t mask;
+  sigemptyset(&mask);
+  if(sigaddset(&mask, signo) < 0){
+    return -1;
+  }
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  return 0;
+}
 static void child_handler(int signo){
   assert(signo == SIGCHLD);
   int val = cleanup_children();
@@ -610,7 +626,7 @@ void end_clean(){
   if(exit_code)
     _exit(exit_code);
   else
-    abort();
+    _exit(0);
 }
 
 static void BOP_fini(void);
@@ -622,6 +638,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
+
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);
@@ -631,10 +648,17 @@ void __attribute__ ((constructor)) BOP_init(void) {
   action.sa_sigaction = (void *) SigUsr2;
   sigaction(SIGUSR2, &action, NULL);
 
+  /** Set up SIGTTOU/SIGTTIN handlers (terminal reads) */
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_SIGINFO | SA_RESTART;
+  action.sa_sigaction = (void*) bop_terminal_to_workers;
+  sigaction(SIGTTOU, &action, NULL);
+  sigaction(SIGTTIN, &action, NULL);
+
+
   /* Read environment variables: BOP_GroupSize, BOP_Verbose */
   bop_verbose = get_int_from_env("BOP_Verbose", 0, 6, 0);
   int g = get_int_from_env("BOP_GroupSize", 1, 100, 2);
-  bop_undy_active = get_int_from_env("BOP_UndyFinish", 0, 1, 1);
 
   BOP_set_group_size( g );
   bop_mode = g<2? SERIAL: PARALLEL;
@@ -661,17 +685,24 @@ void __attribute__ ((constructor)) BOP_init(void) {
       /* Child process continues after switch */
       //We must first set up process group
       //set up a new group
+
       OWN_GROUP();
       monitor_group = -getpid(); //negative-> work on process group
+
       break;
     default:
       monitor_group = -fd; //child will set up its monitor_group variable
       OWN_GROUP(); //monitoring process gets its own group, useful for ruby test suite
+
+      bop_msg(1, "Child proc id: %d pgrd %d", getpid(), getpgrp() );
       //forward SIGINT to children/monitor group
       signal( SIGINT, MonitorInteruptFwd ); //sigint gets forwarded to children
       is_monitoring = true; //the real monitor process is the only one to actually loop
+      // give the child process the terminal
+
+
       wait_process(); //never returns
-      abort(); /* Should never get here */
+      _exit(0); /* Should never get here */
     }
 
     /* the child process continues */
@@ -706,7 +737,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
   bop_msg(3, "Library initialized successfully.");
 }
-
 char* status_name(){
   switch (task_status) {
   case SPEC:
@@ -773,6 +803,7 @@ static void BOP_fini(void) {
     bop_msg(3, "Sending shutdown signal to monitor process %d from pid %d", monitor_process_id, getpid());
     kill(monitor_process_id, SIGUSR1);
     bop_msg(3, "Terminal process %d exiting with value %d", getpid(), exitv);
+    bop_terminal_to_monitor();
     if(exitv)
       _exit(exitv);
     //don't need to call normal exit,

@@ -11,7 +11,8 @@ task :ruby_setup do
 end
 task :miniruby => [:bop, :ruby_setup] do
   cd "ruby" do
-    sh 'make miniruby'    
+    sh 'rm -f miniruby'
+    sh 'make miniruby'
   end
 end
 task :ruby => [:bop, :ruby_setup] do
@@ -40,14 +41,16 @@ task :bop_debug do
   end
 end
 task :ruby_test_run do
+
   ENV["BOP_Verbose"]=0.to_s
   cd "ruby" do
-    sh './rubybop --disable-gems ./bootstraptest/runner.rb' do |ok, res|
-      if ! ok then
-         fail "Ruby tests failed with exit code = #{res.exitstatus}"
-      end
-    end
+    ok = system 'echo \'Rubybop terminal io\' | ./miniruby -e \'puts "Hi #{gets}"\''
+    fail 'Rubybop failed to read from STDIN' if ! ok
+
+    ok, res = sh './rubybop --disable-gems ./bootstraptest/runner.rb'
+    fail "Ruby tests failed with exit code = #{res.exitstatus}" if ! ok
   end
+
   puts "All ruby tests passed"
 end
 task :ruby_test => :ruby do
