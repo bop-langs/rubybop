@@ -25,7 +25,7 @@ Rubybop currently does not support:
 - Ruby's signal handlers are not installed as they are needed for the bop library.
 - Functions to change the process group id of ruby processes. Again, these need to stay the same for library.
 
-###Terminal IO Litations
+###Terminal IO Limitations
 A program using BOP will always be able to write to the terminal. Writing to the terminal is more tricky, and is not supported during PPR tasks. What happens a process tries to read from the terminal while in PPR (or in understudy -- any time multiple processes are reading from STDIN) is undefined.
 
 IRB/IRBOP is supported in early stages. To run IRB with the Rubybop interpreter, Rubybop must be installed. To run the actual script, run the irb in <repo>/ruby/irbop. This will use the installed interpreter. You will know that the bop interpreter is running if BOP_Version is defined (eg puts BOP_Version doesn't error). Also note that scrolling through commands (up and down arrows) currently does not work and will terminal the program once enter is hit.
