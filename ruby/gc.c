@@ -3260,16 +3260,17 @@ void zero_out_frees()
     rb_gc_disable();
 
     assert(!during_gc && !ruby_gc_stressful);
-
     sequential_objspace = malloc(sizeof(rb_objspace_t));
     memcpy(sequential_objspace, GET_VM()->objspace, sizeof(rb_objspace_t));
     assert(sequential_objspace->bop_debug == 0);
     bop_msg(3, "Sequential objspace %p", sequential_objspace);
     bop_msg(3, "Current objspace %p", bop_objspaces[BOP_task]);
 
+    bop_objspaces[0]->bop_debug=1;
+
     (GET_VM()->objspace) = bop_objspaces[BOP_task];
 
-    if(!((GET_VM()->objspace)->bop_debug == bop_objspaces[BOP_task]->bop_debug == BOP_task+1));
+    if(GET_VM()->objspace->bop_debug != bop_objspaces[BOP_task]->bop_debug);
       {
         bop_msg(0, "SAME OBJSPACES ARE DIFFERENT: first %p, %d; second %p, %d; task %d",
         (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug,
@@ -3278,12 +3279,12 @@ void zero_out_frees()
 
       }
 
-    if(sequential_objspace->bop_debug == (GET_VM()->objspace)->bop_debug){
+    if(objspace->bop_debug == (GET_VM()->objspace)->bop_debug){
       bop_msg(0, "TASK NOT GETTING PROPER OBJSPACE: seq %p, %d; spec %p, %d",
         objspace, objspace->bop_debug,
         (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug);
     }
-    assert (sequential_objspace->bop_debug != (GET_VM()->objspace)->bop_debug);
+    assert (objspace->bop_debug != (GET_VM()->objspace)->bop_debug);
 
     objspace = (GET_VM()->objspace);
 
