@@ -192,7 +192,8 @@ int terminal_helper(char* msg, int gpid){
   block_signal(SIGTTIN);
   int e = tcsetpgrp(STDIN_FILENO, gpid < 0 ? -gpid : gpid);
   if(e != 0){
-    perror(msg);
+    if(BOP_get_verbose() > 3)
+      perror(msg);
   }
   unblock_signal(SIGTTIN);
   return e;
