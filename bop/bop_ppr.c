@@ -436,13 +436,12 @@ void _BOP_ppr_end(int id) {
 
 */
 void MonitorInteruptFwd(int signo){
-  bop_msg(3, "forwarding signal '%s' to children of pgrp %d", strsignal(signo), monitor_group);
+  bop_msg(1, "forwarding signal '%s' to children of pgrp %d", strsignal(signo), monitor_group);
   assert(getpid() == monitor_process_id);
   kill(monitor_group, signo);
   is_monitoring = is_monitoring && signo == SIGINT; //stop monitoring
   if(signo == SIGINT){
-    while(waitpid((pid_t) -1, NULL, WUNTRACED) != -1);
-    _exit(0);
+    _exit(0); // Don't clean up, just end
   }
 }
 void print_backtrace(void){
@@ -504,6 +503,7 @@ void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 
 void SigBopExit( int signo ){
   bop_msg( 3,"Recieved signal %s (#%d)", strsignal(signo), signo );
+  bop_terminal_to_monitor();
   _exit(0); //done. No cleanup, just end the process now
 }
 /* Initial process heads into this code before forking.
@@ -727,7 +727,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
     sigprocmask( SIG_BLOCK, &mask, NULL );
     */
   }
-  // assert(getpgrp() == -monitor_group);
+  assert(getpgrp() == -monitor_group);
   task_status = SEQ;
 
   /* prepare related signals. Need these???*/
@@ -745,7 +745,6 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_alloc_port, "Malloc Port");
   bop_msg(3, "Library initialized successfully.");
 }
-
 char* status_name(){
   switch (task_status) {
   case SPEC:
@@ -812,6 +811,7 @@ static void BOP_fini(void) {
     bop_msg(3, "Sending shutdown signal to monitor process %d from pid %d", monitor_process_id, getpid());
     kill(monitor_process_id, SIGUSR1);
     bop_msg(3, "Terminal process %d exiting with value %d", getpid(), exitv);
+    bop_terminal_to_monitor();
     if(exitv)
       _exit(exitv);
     //don't need to call normal exit,
