@@ -5,6 +5,13 @@
 #ifndef _BOP_API_H_
 #define _BOP_API_H_
 
+#ifndef NDEBUG
+/* We want the task status while debugging->bop_msg **/
+#define bop_debug(x, ...) bop_msg(1, "%s:%d " x "\n" , __FILE__, __LINE__, ##__VA_ARGS__);
+#else
+#define bop_debug(...)
+#endif
+
 #if defined(BOP)
 
 #include <stdarg.h>  /* for bop_msg */
