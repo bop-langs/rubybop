@@ -192,15 +192,19 @@ int terminal_helper(char* msg, int gpid){
   block_signal(SIGTTIN);
   int e = tcsetpgrp(STDIN_FILENO, gpid < 0 ? -gpid : gpid);
   if(e != 0){
-    if(BOP_get_verbose() > 3)
+    if(BOP_get_verbose() > 2)
       perror(msg);
   }
   unblock_signal(SIGTTIN);
   return e;
 }
+bool given_to_workers = false; //starts in the monitor proc
 int bop_terminal_to_monitor(){
+  given_to_workers = false;
   return terminal_helper("Couldn't send terminal to monitor process", monitor_process_id);
 }
 int bop_terminal_to_workers(){
-  return terminal_helper("Couldn't send terminal to worker processes", monitor_group);
+  if(!given_to_workers)
+    return terminal_helper("Couldn't send terminal to worker processes", monitor_group);
+  return 0;
 }
