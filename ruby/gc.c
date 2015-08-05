@@ -1616,7 +1616,8 @@ static struct heap_page *
 heap_page_create(rb_objspace_t *objspace)
 {
     struct heap_page *page = heap_page_resurrect(objspace);
-    //struct heap_page *page = NULL;
+    if (BOP_mode() != SERIAL)
+	page = NULL;
     const char *method = "recycle";
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
@@ -9120,6 +9121,6 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = zero_out_frees,
+    .ppr_task_init = zero_out_frees,
     .task_group_commit = frees_restore
 };
