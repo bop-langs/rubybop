@@ -287,16 +287,17 @@ static inline void grow (const int tasks) {
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
 	header * list_current,  * prev;
-	for(list_current = freedlist, prev = NULL; list_current;
+	for(list_current = freedlist, prev = NULL; list_current != NULL;
 			prev = list_current,	list_current = CAST_H(list_current->free.next)){
 		if(list_current->allocated.blocksize >= size){
 			//remove and return
 			if(prev == NULL){
 				//list_current head of list
-				freedlist = NULL;
+        assert(current == freedlist);
+				freedlist = freedlist->free.next;
 				return list_current;
 			}else{
-				prev->allocated.next = list_current->allocated.next;
+				prev->free.next = list_current->free.next;
 				return list_current;
 			}
 		}
@@ -397,7 +398,9 @@ void *dm_malloc (const size_t size) {
 		block->allocated.blocksize = size_of_klass(which);
 		// ASSERTBLK(block); unneed
 		headers[which] = CAST_H (block->free.next);	//remove from free list
-	}
+	}else{
+    bop_msg(2, "Allocated from the free list head addr %p size %u", block, block->allocated.blocksize);
+  }
  checks:
 	ASSERTBLK(block);
 	release_lock();
@@ -473,8 +476,11 @@ static inline header* dm_split (int which) {
 }
 // standard calloc using malloc
 void * dm_calloc (size_t n, size_t size) {
+    header * head;
     char *allocd = dm_malloc (size * n);
     if(allocd != NULL){
+        head = HEADER(allocd);
+        assert(head->allocated.blocksize >= (size*n));
         memset (allocd, 0, size * n);
     		ASSERTBLK(HEADER(allocd));
 		}
