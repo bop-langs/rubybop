@@ -151,7 +151,7 @@ static inline void get_lock() {/*Do nothing*/}
 static inline void release_lock() {/*Do nothing*/}
 #endif //use locks
 /** Bop-related functionss*/
-static int reg_counts[DM_NUM_CLASSES];
+
 /** Divide up the currently allocated groups into regions.
 	Insures that each task will have a percentage of a SEQUENTIAL() goal*/
 
@@ -178,7 +178,7 @@ void carve () {
 		dm_free(regions); //dm_free -> don't have lock
 	regions = dm_calloc (tasks, sizeof (ppr_list));
 	get_lock(); //now locked
-	int * counts = count_lists(true);
+	int * counts = count_lists(true); // true -> we have the lock
 	grow(tasks); //need to already have the lock
 	bop_assert (tasks >= 2);
 
@@ -190,7 +190,6 @@ void carve () {
 	//actually split the lists
 	for (index = 0; index < DM_NUM_CLASSES; index++) {
 		count = counts[index] / tasks;
-		reg_counts[index] = count;
 		for (r = 0; r < tasks; r++) {
 			regions[r].start[index] = current_headers[index];
 			temp = CAST_H (current_headers[index]->free.next);
@@ -198,14 +197,9 @@ void carve () {
 				temp = CAST_H(temp->free.next);
 			}
 			current_headers[index] = temp;
-			// the last task has no tail, use the same as seq. exectution
-			if(r < tasks - 1){
-				bop_assert (temp != (header*) -1);
-				regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
-			}else{
-				bop_assert(r == tasks - 1);
-				regions[r].end[index] = NULL;
-			}
+      // the last task has no tail, use the same as seq. exectution
+      bop_assert (temp != (header*) -1);
+      regions[r].end[index] = temp != NULL ? CAST_H (temp->free.prev) : NULL;
 		}
 	}
 	release_lock();
@@ -228,6 +222,7 @@ void initialize_group () {
 /** Merge
 1) Promise everything in both allocated and free list
 */
+//NOTE: only the heads should be promised. The payloads should be the job of the caller?
 void malloc_promise() {
     header* head;
     for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
@@ -284,6 +279,7 @@ static inline void grow (const int tasks) {
 }
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
+  return NULL;
 	header * list_current,  * prev;
 	for(list_current = freedlist, prev = NULL; list_current != NULL;
 			prev = list_current,	list_current = CAST_H(list_current->free.next)){
@@ -463,6 +459,7 @@ static inline header* dm_split (int which) {
 				// bop_msg(1, "Split addr %p val %c", split, *((char*) split));
 				memset (split, 0, HSIZE);
 				if(SEQUENTIAL()){
+          assert(headers[which] == NULL);
 					headers[which] = split;
 				}else{
 					//go through dm_free
