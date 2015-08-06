@@ -3254,7 +3254,7 @@ extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 
 static rb_objspace_t **bop_objspaces;
-static rb_objspace_t *sequential_objspace;
+static rb_objspace_t *sequential_objspace= NULL;
 
 void detach_free_list(rb_objspace_t *objspace);
 
@@ -3295,9 +3295,18 @@ void zero_out_frees()
     rb_gc_disable();
 
     assert(!during_gc && !ruby_gc_stressful);
-    sequential_objspace = calloc(2,sizeof(rb_objspace_t));
-    memcpy(sequential_objspace, GET_VM()->objspace, sizeof(rb_objspace_t));
+    if(sequential_objspace== NULL){
+      sequential_objspace = calloc(2,sizeof(rb_objspace_t));
+      memcpy(sequential_objspace, GET_VM()->objspace, sizeof(rb_objspace_t));
+    }
+
+
+    if(!(sequential_objspace->bop_debug == 0)){
+      bop_msg(0, "Sequential objspace not getting set properly: objspace location %p, bop_debug %d",
+      sequential_objspace, sequential_objspace->bop_debug);
+    }
     assert(sequential_objspace->bop_debug == 0);
+
     bop_msg(3, "Sequential objspace %p", sequential_objspace);
     bop_msg(3, "Current objspace %p", bop_objspaces[BOP_task]);
 
