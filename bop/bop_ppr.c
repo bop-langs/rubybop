@@ -813,7 +813,7 @@ static void BOP_fini(void) {
     kill(monitor_process_id, SIGUSR1);
     bop_msg(3, "Terminal process %d exiting with value %d", getpid(), exitv);
     bop_terminal_to_monitor();
-    dm_print_info();
+    // dm_print_info();
     if(exitv)
       _exit(exitv);
     //don't need to call normal exit,
