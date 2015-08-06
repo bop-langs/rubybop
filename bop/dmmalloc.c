@@ -652,26 +652,26 @@ void dm_print_info (void) {
 		int GROW_S = 0;
 		for(i = 0; i < DM_NUM_CLASSES; i++)
 			GROW_S += size_of_klass(i);
-    printf("******DM Debug info******\n");
+    bop_msg(1, "******DM Debug info******\n");
     printf ("Grow count: %'d\n", grow_count);
-    printf("Max grow size: %'d B\n", GROW_S);
-    printf("Total managed mem: %'d B\n", growth_size);
-    printf("Differnce in actual & max: %'d B\n", (grow_count * (GROW_S)) - growth_size);
+    bop_msg(1, "Max grow size: %'d B\n", GROW_S);
+    bop_msg(1, "Total managed mem: %'d B\n", growth_size);
+    bop_msg(1, "Differnce in actual & max: %'d B\n", (grow_count * (GROW_S)) - growth_size);
     for(i = 0; i < DM_NUM_CLASSES; i++) {
-        printf("\tSplit to give class %d (%'lu B) %d times. It was given %d heads\n",
+        bop_msg(1, "\tSplit to give class %d (%'lu B) %d times. It was given %d heads\n",
                i+1, size_of_klass(i), split_attempts[i],split_gave_head[i]);
     }
-    printf("Splits: %'d\n", splits);
-    printf("Miss splits: %'d\n", missed_splits);
-    printf("Multi splits: %'d\n", multi_splits);
+    bop_msg(1, "Splits: %'d\n", splits);
+    bop_msg(1, "Miss splits: %'d\n", missed_splits);
+    bop_msg(1, "Multi splits: %'d\n", multi_splits);
     for(i = 0; i < DM_NUM_CLASSES; i++)
-        printf("Class %d had %'d remaining items\n", i+1, counts[i]);
-    printf("Malloc'd %d times\n", malloc_called);
-    printf("Calloc'd %d times\n", calloc_called);
-    printf("realloc'd %d times\n", realloc_called);
-    printf("free'd %d times\n", free_called);
+        bop_msg(1, "Class %d had %'d remaining items\n", i+1, counts[i]);
+    bop_msg(1, "Malloc'd %d times\n", malloc_called);
+    bop_msg(1, "Calloc'd %d times\n", calloc_called);
+    bop_msg(1, "realloc'd %d times\n", realloc_called);
+    bop_msg(1, "free'd %d times\n", free_called);
 #else
-    printf("dm malloc not compiled in debug mode. Recompile without NDEBUG defined to keep track of debug information.\n");
+    bop_msg(1, "dm malloc not compiled in debug mode. Recompile without NDEBUG defined to keep track of debug information.\n");
 #endif
 }
 
