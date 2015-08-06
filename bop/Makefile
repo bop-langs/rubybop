@@ -11,7 +11,7 @@ _OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o \
 				bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
 
 CFLAGS_DEF = -Wall -fPIC -pthread -g3 -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)
-CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D USE_LOCKS
+CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D USE_LOCKS -D UNSUPPORTED_MALLOC
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O0
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG

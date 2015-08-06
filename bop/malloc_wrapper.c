@@ -92,6 +92,8 @@ struct mallinfo mallinfo() {
     printf("\nUNSUPPORTED OPERATION: mallinfo\n");
     _exit(0);
 }
+#else
+#error "not overriding unsupported"
 #endif
 void* malloc(size_t s) {
     SPEC_VISUALIZE("+");
