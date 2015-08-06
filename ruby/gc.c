@@ -7430,14 +7430,14 @@ aligned_malloc(size_t alignment, size_t size)
     void *res;
 
 #if defined __MINGW32__
-#warning "the incorrect things"
+#error "the incorrect things"
     res = __mingw_aligned_malloc(size, alignment);
 #elif defined _WIN32 && !defined __CYGWIN__
-#warning "the incorrect things"
+#error "the incorrect things"
     void *_aligned_malloc(size_t, size_t);
     res = _aligned_malloc(size, alignment);
 #elif defined(HAVE_POSIX_MEMALIGN)
-#warning "the incorrect things"
+#error "the incorrect things"
     if (posix_memalign(&res, alignment, size) == 0) {
         return res;
     }
@@ -7446,7 +7446,7 @@ aligned_malloc(size_t alignment, size_t size)
     }
 //Definition makes sure that ruby's implementation of memalign is used
 #elif defined(HAVE_MEMALIGN)
-#warning "the incorrect things"
+#error "the incorrect things"
     res = memalign(alignment, size);
 #else
 #warning "the correct things"
@@ -7454,6 +7454,7 @@ aligned_malloc(size_t alignment, size_t size)
     res = malloc(alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);
     aligned -= ((VALUE)aligned & (alignment - 1));
+    assert(aligned > res);
     ((void**)aligned)[-1] = res;
     res = (void*)aligned;
 #endif
