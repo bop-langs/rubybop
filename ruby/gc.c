@@ -1371,7 +1371,7 @@ heap_pages_expand_sorted(rb_objspace_t *objspace)
 	size_t size = next_length * sizeof(struct heap_page *);
 
 	gc_report(3, objspace, "heap_pages_expand_sorted: next_length: %d, size: %d\n", (int)next_length, (int)size);
-
+//heap list corrupted in the area from here and end of function
 	if (heap_pages_sorted_length > 0) {
 	    sorted = (struct heap_page **)realloc(heap_pages_sorted, size);
 	    if (sorted) heap_pages_sorted = sorted;
