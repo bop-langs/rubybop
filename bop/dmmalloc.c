@@ -70,10 +70,14 @@ static int splits = 0;
 static int multi_splits = 0;
 static int split_attempts[DM_NUM_CLASSES];
 static int split_gave_head[DM_NUM_CLASSES];
+#endif
+
+#if defined(LOG_FUNCS) && ! defined(NDEBUG)
 static int calloc_called = 0;
 static int malloc_called = 0;
 static int free_called = 0;
 static int realloc_called = 0;
+
 #define INC_MALLOC() malloc_called++
 #define INC_CALLOC() calloc_called++
 #define INC_FREE() free_called++
@@ -666,10 +670,12 @@ void dm_print_info (void) {
     bop_msg(1, "Multi splits: %'d\n", multi_splits);
     for(i = 0; i < DM_NUM_CLASSES; i++)
         bop_msg(1, "Class %d had %'d remaining items\n", i+1, counts[i]);
+    #ifdef LOG_FUNCS
     bop_msg(1, "Malloc'd %d times\n", malloc_called);
     bop_msg(1, "Calloc'd %d times\n", calloc_called);
     bop_msg(1, "realloc'd %d times\n", realloc_called);
     bop_msg(1, "free'd %d times\n", free_called);
+    #endif
 #else
     bop_msg(1, "dm malloc not compiled in debug mode. Recompile without NDEBUG defined to keep track of debug information.\n");
 #endif
