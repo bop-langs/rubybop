@@ -32,8 +32,7 @@
 
 #define FREEDLIST_IND -10
 //BOP macros & structures
-#define SEQUENTIAL() 1
-// (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
+#define SEQUENTIAL() (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
 typedef struct {
     header *start[DM_NUM_CLASSES];
@@ -485,9 +484,9 @@ void * dm_calloc (size_t n, size_t size) {
 }
 
 // Reallocator: use sytem realloc with large->large sizes in SEQUENTIAL() mode. Otherwise use standard realloc implementation
-void * dm_realloc (void *ptr, size_t gsize) {
-    header* old_head;
-    header* new_head;
+void * dm_realloc (const void *ptr, size_t gsize) {
+    header* old_head,  * new_head;
+    size_t new_size = ALIGN(gsize + HSIZE), old_size;
     if(gsize == 0)
         return NULL;
     if(ptr == NULL) {
@@ -495,13 +494,16 @@ void * dm_realloc (void *ptr, size_t gsize) {
         ASSERTBLK (new_head);
         return PAYLOAD (new_head);
     }
+
     old_head = HEADER (ptr);
+
     ASSERTBLK(old_head);
-    size_t new_size = ALIGN (gsize + HSIZE);
+
+    old_size = old_head->allocated.blocksize;
     int new_index = get_index (new_size);
-    void *payload;		//what the programmer gets
+
     if (new_index != -1 && size_of_klass(new_index) <= old_head->allocated.blocksize) {
-        return ptr;	//no need to update
+        return (void*) ptr;	//no need to update
     } else if (SEQUENTIAL() && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in SEQUENTIAL() mode for large->large blocks
         new_head = sys_realloc (old_head, new_size);
@@ -514,18 +516,22 @@ void * dm_realloc (void *ptr, size_t gsize) {
         ASSERTBLK(old_head);
         size_t size_cache = old_head->allocated.blocksize;
         //we're reallocating within managed memory
-        payload = dm_malloc (gsize); //use the originally requested size
-        if(payload == NULL) //would happen if reallocating a block > MAX_SIZE in PPR
-            return NULL;
-        size_t copySize = MIN(size_cache, new_size) - HSIZE;
-        payload = memcpy (payload, PAYLOAD(old_head), copySize);	//copy memory, don't copy the header
-        new_head = HEADER(payload);
-        bop_assert (new_index == -1 || new_head->allocated.blocksize == size_of_klass(new_index));
-        old_head->allocated.blocksize = size_cache;
+
+        void* new_payload = dm_malloc(gsize); //malloc will tweak size again.
+        if(new_payload == NULL){
+          bop_msg(1, "Unable to reallocate %p (size %u) to new size %u", ptr, old_size, new_size);
+          return NULL;
+        }
+        //copy the data
+        size_t copy_size = MIN(old_size, new_size) - HSIZE; // block sizes include the header!
+        bop_assert( HEADER(new_payload)->allocated.blocksize >= (copy_size + HSIZE)); //check dm_malloc gave enough space
+        new_payload = memcpy(new_payload, ptr, copy_size); // copy data
+        bop_assert( ((header *)HEADER(new_payload))->allocated.blocksize >= copy_size);
         ASSERTBLK(old_head);
-        dm_free (ptr);
-        ASSERTBLK(HEADER(payload));
-        return payload;
+        bop_assert(old_head->allocated.blocksize == size_cache);
+        dm_free( (void*) ptr);
+
+        return new_payload;
     }
 }
 
