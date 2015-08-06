@@ -32,7 +32,8 @@
 
 #define FREEDLIST_IND -10
 //BOP macros & structures
-#define SEQUENTIAL() (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
+#define SEQUENTIAL() 1
+// (bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY) 		//might need to go back and fix
 
 typedef struct {
     header *start[DM_NUM_CLASSES];
@@ -432,6 +433,7 @@ static inline header* dm_split (int which) {
     split_attempts[which]++;
     split_gave_head[which]++;
 #endif
+    if(!is_sequential()) bop_msg(4, "Splitting in PPR task");
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = CAST_H((CHARP (block) + size_of_klass(which)));	//cut in half

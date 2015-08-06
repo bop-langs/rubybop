@@ -790,6 +790,7 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 #define check_heap_pages(p) _check_heap_pages(p ,__func__, __LINE__)
 void _check_heap_pages(int print_heap ,const char* func, const int line)
 {
+    return;
     rb_objspace_t *objspace = &rb_objspace;
 
     if(!is_sequential()){
@@ -799,17 +800,17 @@ void _check_heap_pages(int print_heap ,const char* func, const int line)
 
     struct heap_page *worker;
     if(objspace->heap_pages.sorted){
-      for(i = 0; i < heap_allocated_pages; i++){
+      for(i = 0; i < heap_pages_sorted_length; i++){
 
         if(heap_pages_sorted[i]){
 
           if(print_heap){
-            bop_msg(3, "Heap page %i: %p", i, heap_pages_sorted[i]->body);
+            bop_msg(4, "Heap page %i: %p", i, heap_pages_sorted[i]->body);
           }
 
           if(((unsigned int)(heap_pages_sorted[i]->body) & (unsigned int) (0xfff)) != 0 ){
             bop_msg(3, "HEAP PAGE INVALID: func %s, line %d", func, line);
-            abort();
+            //abort();
           }
 
         }
@@ -1434,6 +1435,9 @@ heap_add_poolpage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *pa
 static void
 heap_unlink_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
+  if(!is_sequential()){
+    return;
+  }
     bop_msg(2, "Unlinking page %p", page);
     if (page->prev) page->prev->next = page->next;
     if (page->next) page->next->prev = page->prev;
@@ -1597,8 +1601,10 @@ heap_page_create(rb_objspace_t *objspace)
 {
     struct heap_page *page = NULL;
     const char *method;
-    page = heap_page_resurrect(objspace);
-    method = "recycle";
+    if(is_sequential()){
+      page = heap_page_resurrect(objspace);
+      method = "recycle";
+    }
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
 	method = "allocate";
