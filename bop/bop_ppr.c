@@ -441,6 +441,7 @@ void MonitorInteruptFwd(int signo){
   }
 }
 void print_backtrace(void){
+  if(task_status != MAIN) return;
   bop_msg(1, "\nBACKTRACE pid = %d parent pid %d", getpid(), getppid());
   void *bt[1024];
   int bt_size;
@@ -451,17 +452,22 @@ void print_backtrace(void){
   bt_syms = backtrace_symbols(bt, bt_size);
   for (i = 1; i < bt_size; i++) {
     size_t len = strlen(bt_syms[i]);
-    bop_msg(1, "\nBT: %s", bt_syms[i], len);
+    bop_msg(1, "\tBT: %s", bt_syms[i], len);
   }
   bop_msg(1, "\nEND BACKTRACE");
 }
 void ErrorKillAll(int signo){
   //don't need to reap children. We know that it's an erroring-exit,
   //intecept the call, allert monitor process, execute def behavior
+  /**Horrible things are happening. Go to SEQ mode so malloc won't have issues*/
   bop_msg(1, "ERROR CAUGHT %d", signo);
+  int om = bop_mode;
+  bop_mode = SERIAL;
+  print_backtrace();
   kill(monitor_process_id, SIGUSR2);
   signal(signo, SIG_DFL);
   raise(signo);
+  bop_mode = om;
 }
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
