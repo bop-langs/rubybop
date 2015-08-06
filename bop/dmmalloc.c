@@ -433,7 +433,6 @@ static inline header* dm_split (int which) {
     split_attempts[which]++;
     split_gave_head[which]++;
 #endif
-    if(!is_sequential()) bop_msg(4, "Splitting in PPR task");
     int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = CAST_H((CHARP (block) + size_of_klass(which)));	//cut in half
