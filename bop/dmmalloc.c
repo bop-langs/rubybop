@@ -282,12 +282,8 @@ static inline void grow (const int tasks) {
           add_next_list(&headers[class_index], head);
         }
     }
-#ifndef NDEBUG //sanity check, make sure the last byte is allocated
-    header* check = headers[DM_NUM_CLASSES - 1];
-    char* end_byte = ((char*) check) + MAX_SIZE - 1;
-    *end_byte = '\0'; //write an arbitary value
-#endif
 }
+
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
 	header * list_current,  * prev;
