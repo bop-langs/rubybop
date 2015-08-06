@@ -457,9 +457,9 @@ static inline header* dm_split (int which) {
         //update the headers
         split = CAST_H ((CHARP (split) + size_of_klass(which - 1))); //which - 1 since only half of the block is used here. which -1 === size / 2
 				// bop_msg(1, "Split addr %p val %c", split, *((char*) split));
-				memset (split, 0, HSIZE);
 				if(SEQUENTIAL()){
           assert(headers[which] == NULL);
+          memset (split, 0, HSIZE);
 					headers[which] = split;
 				}else{
 					//go through dm_free
@@ -549,9 +549,15 @@ static inline void free_now (header * head) {
     ASSERTBLK(head);
     bop_assert (size >= HSIZE && size == ALIGN (size));	//size is aligned, ie right value was written
     //test for system block
-    if (size > MAX_SIZE && SEQUENTIAL()) {
+    if (size > MAX_SIZE){
+      if(SEQUENTIAL() ) {
         sys_free(head);
-        return;
+      }else{
+        get_lock();
+        add_next_list(&freedlist, head);
+        release_lock();
+      }
+      return;
     }
     //synchronised region
     get_lock();
