@@ -1715,7 +1715,6 @@ heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
 	rb_memerror();
     }
 }
-#define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
 
 static RVALUE *
 heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
