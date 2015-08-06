@@ -70,6 +70,19 @@ static int splits = 0;
 static int multi_splits = 0;
 static int split_attempts[DM_NUM_CLASSES];
 static int split_gave_head[DM_NUM_CLASSES];
+static int calloc_called = 0;
+static int malloc_called = 0;
+static int free_called = 0;
+static int realloc_called = 0;
+#define INC_MALLOC() malloc_called++
+#define INC_CALLOC() calloc_called++
+#define INC_FREE() free_called++
+#define INC_REALLOC() realloc_called++
+#else
+#define INC_MALLOC()
+#define INC_CALLOC()
+#define INC_FREE()
+#define INC_REALLOC()
 #endif
 
 #define FORCE_INLINE inline __attribute__((always_inline))
@@ -242,33 +255,27 @@ static inline void grow (const int tasks) {
 #endif
 		int * goal_counts_arr = goal_counts();
     //compute the number of blocks to allocate
-    size_t growth = HSIZE;
+    // size_t growth = HSIZE;
     int blocks[DM_NUM_CLASSES];
 		int * counts = count_lists(true); //we have the lock
     for(class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         blocks_left = tasks * goal_counts_arr[class_index] - counts[class_index];
         blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
-        growth += blocks[class_index] * size_of_klass(class_index);
+        // growth += blocks[class_index] * size_of_klass(class_index);
     }
-    char *space_head = sys_calloc (growth, 1);	//system malloc, use byte-sized type
-    bop_assert (space_head != NULL);	//ran out of sys memory
     header *head;
+    char* space_head;
+    int current_block;
     for (class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         size = size_of_klass(class_index);
-        counts[class_index] += blocks[class_index];
-        if (headers[class_index] == NULL) {
-            //list was empty
-            headers[class_index] = CAST_H (space_head);
-            space_head += size;
-            blocks[class_index]--;
-        }
-        for (blocks_left = blocks[class_index]; blocks_left; blocks_left--) {
-            CAST_H (space_head)->free.next = CAST_SH (headers[class_index]);
-            head = headers[class_index];
-            head->free.prev = CAST_SH (space_head); //the header is readable
-            head = CAST_H (space_head);
-            space_head += size;
-            headers[class_index] = head;
+        space_head = sys_calloc (blocks[class_index], size);	//system malloc, use byte-sized type
+        bop_assert (blocks[class_index] == 0 || space_head != NULL);	//ran out of sys memory
+
+        for(current_block = 0; current_block < blocks[class_index]; current_block++){
+          //set up this space
+          head = (header *) &space_head[(current_block * size)];
+          head->free.prev = headers[class_index];
+          add_next_list(&headers[class_index], head);
         }
     }
 #ifndef NDEBUG //sanity check, make sure the last byte is allocated
@@ -279,7 +286,6 @@ static inline void grow (const int tasks) {
 }
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
-  return NULL;
 	header * list_current,  * prev;
 	for(list_current = freedlist, prev = NULL; list_current != NULL;
 			prev = list_current,	list_current = CAST_H(list_current->free.next)){
@@ -333,6 +339,7 @@ int has_returned = 0;
 extern void BOP_malloc_rescue(char *, size_t);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
+  INC_MALLOC();
 	header * block = NULL;
 	int which;
 	size_t alloc_size;
@@ -374,7 +381,7 @@ void *dm_malloc (const size_t size) {
 			//grow the allocated region
 #ifndef NDEBUG
 			if (index_bigger (which) != -1)
-			missed_splits++;
+			   missed_splits++;
 #endif
 			grow (1);
 			goto malloc_begin;
@@ -472,6 +479,7 @@ static inline header* dm_split (int which) {
 }
 // standard calloc using malloc
 void * dm_calloc (size_t n, size_t size) {
+    INC_CALLOC();
     header * head;
     char *allocd = dm_malloc (size * n);
     if(allocd != NULL){
@@ -485,6 +493,7 @@ void * dm_calloc (size_t n, size_t size) {
 
 // Reallocator: use sytem realloc with large->large sizes in SEQUENTIAL() mode. Otherwise use standard realloc implementation
 void * dm_realloc (const void *ptr, size_t gsize) {
+    INC_REALLOC();
     header* old_head,  * new_head;
     size_t new_size = ALIGN(gsize + HSIZE), old_size;
     if(gsize == 0)
@@ -520,6 +529,7 @@ void * dm_realloc (const void *ptr, size_t gsize) {
         void* new_payload = dm_malloc(gsize); //malloc will tweak size again.
         if(new_payload == NULL){
           bop_msg(1, "Unable to reallocate %p (size %u) to new size %u", ptr, old_size, new_size);
+          abort();
           return NULL;
         }
         //copy the data
@@ -542,6 +552,7 @@ void * dm_realloc (const void *ptr, size_t gsize) {
  *	A free is queued to be free'd at BOP commit time otherwise.
 */
 void dm_free (void *ptr) {
+    INC_FREE();
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
     if(SEQUENTIAL() || remove_from_alloc_list (free_header))
@@ -655,6 +666,10 @@ void dm_print_info (void) {
     printf("Multi splits: %'d\n", multi_splits);
     for(i = 0; i < DM_NUM_CLASSES; i++)
         printf("Class %d had %'d remaining items\n", i+1, counts[i]);
+    printf("Malloc'd %d times\n", malloc_called);
+    printf("Calloc'd %d times\n", calloc_called);
+    printf("realloc'd %d times\n", realloc_called);
+    printf("free'd %d times\n", free_called);
 #else
     printf("dm malloc not compiled in debug mode. Recompile without NDEBUG defined to keep track of debug information.\n");
 #endif
