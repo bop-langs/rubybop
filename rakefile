@@ -1,5 +1,5 @@
 task :default => :ruby
-test_dir = ['add', 'sleep', 'str/BOP_string', 'str/strsub', 'str/strsub2']
+test_dir = ['add', 'sleep'] #TODO enable string tests, 'str/BOP_string', 'str/strsub', 'str/strsub2']
 #TODO add back str/BOP_strcmp
 task :ruby_setup do
   cd "ruby" do
