@@ -430,7 +430,6 @@ void *dm_malloc (const size_t size) {
 		// ASSERTBLK(block); //unneed
     bop_assert (headers[which] != CAST_H (block->free.next));
 		headers[which] = CAST_H (block->free.next);	//remove from free list
-
 	}else{
     bop_msg(2, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
   }
