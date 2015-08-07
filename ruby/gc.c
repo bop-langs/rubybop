@@ -3279,7 +3279,7 @@ void initialize_objspaces(){
     gc_stress_set(objspace, ruby_initial_gc_stress);
     heap_pages_sorted_length = 0;
     bop_msg(3, "gc_params.heap_init_slots = %d, HEAP_OBJ_LIMIT = %d", gc_params.heap_init_slots, HEAP_OBJ_LIMIT);
-    heap_add_pages(objspace, heap_eden, (gc_params.heap_init_slots / HEAP_OBJ_LIMIT) / 6);
+    heap_add_pages(objspace, heap_eden, 4);
     init_mark_stack(&objspace->mark_stack);
     objspace->profile.invoke_time = getrusage_time();
     finalizer_table = st_init_numtable();
