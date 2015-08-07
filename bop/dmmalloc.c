@@ -151,7 +151,7 @@ static inline void get_lock() {/*Do nothing*/}
 static inline void release_lock() {/*Do nothing*/}
 #endif //use locks
 /** Bop-related functionss*/
-static int reg_counts[DM_NUM_CLASSES];
+
 /** Divide up the currently allocated groups into regions.
 	Insures that each task will have a percentage of a SEQUENTIAL() goal*/
 
@@ -173,42 +173,40 @@ static int* count_lists(bool is_locked){ //param unused
 }
 
 void carve () {
-	int tasks = BOP_get_group_size();
-	if( regions != NULL)
-		dm_free(regions); //dm_free -> don't have lock
-	regions = dm_calloc (tasks, sizeof (ppr_list));
-	get_lock(); //now locked
-	int * counts = count_lists(true);
-	grow(tasks); //need to already have the lock
-	bop_assert (tasks >= 2);
+  int tasks = BOP_get_group_size();
+  if( regions != NULL){
+    dm_free(regions); //dm_free -> don't have lock
+  }
+  regions = dm_calloc (tasks, sizeof (ppr_list));
+  get_lock(); //now locked
+  grow(tasks); //need to already have the lock
+  int * counts = count_lists(true); // true -> we have the lock
+  bop_assert (tasks >= 2);
 
-	int index, count, j, r;
-	header *current_headers[DM_NUM_CLASSES];
-	header *temp = (header*) -1;
-	for (index = 0; index < DM_NUM_CLASSES; index++)
-	current_headers[index] = CAST_H (headers[index]);
-	//actually split the lists
-	for (index = 0; index < DM_NUM_CLASSES; index++) {
-		count = counts[index] / tasks;
-		reg_counts[index] = count;
-		for (r = 0; r < tasks; r++) {
-			regions[r].start[index] = current_headers[index];
-			temp = CAST_H (current_headers[index]->free.next);
-			for (j = 0; j < count && temp; j++) {
-				temp = CAST_H(temp->free.next);
-			}
-			current_headers[index] = temp;
-			// the last task has no tail, use the same as seq. exectution
-			if(r < tasks - 1){
-				bop_assert (temp != (header*) -1);
-				regions[r].end[index] = temp ? CAST_H (temp->free.prev) : NULL;
-			}else{
-				bop_assert(r == tasks - 1);
-				regions[r].end[index] = NULL;
-			}
-		}
-	}
-	release_lock();
+  int index, count, j, r;
+  header *current_headers[DM_NUM_CLASSES];
+  header *temp = (header*) -1;
+  for (index = 0; index < DM_NUM_CLASSES; index++)
+    current_headers[index] = CAST_H (headers[index]);
+  //actually split the lists
+  for (index = 0; index < DM_NUM_CLASSES; index++) {
+    bop_assert(counts[index] > 0);
+    count = counts[index] / tasks;
+    bop_assert(count > 0);
+    for (r = 0; r < tasks; r++) {
+      regions[r].start[index] = current_headers[index];
+      temp = CAST_H (current_headers[index]->free.next);
+      for (j = 0; j < count && temp; j++) {
+        temp = CAST_H(temp->free.next);
+      }
+      current_headers[index] = temp;
+      // the last task has no tail, use the same as seq. exectution
+      bop_assert (temp != (header*) -1);
+      regions[r].end[index] = temp != NULL ? CAST_H (temp->free.prev) : NULL;
+      bop_assert(regions[r].start[index] != regions[r].end[index]);
+    }
+  }
+  release_lock();
 }
 
 /**set the range of values to be used by this PPR task*/
@@ -220,7 +218,12 @@ void initialize_group () {
     for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
-				bop_assert(headers[ind] != ends[ind]); //
+        if(group_num != 0){
+          bop_assert(headers[ind] != NULL);
+        }else{
+          bop_assert(task_status == MAIN);
+        }
+				bop_assert(headers[ind] != ends[ind]);
 				// bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
     }
 }
@@ -228,6 +231,7 @@ void initialize_group () {
 /** Merge
 1) Promise everything in both allocated and free list
 */
+//NOTE: only the heads should be promised. The payloads should be the job of the caller?
 void malloc_promise() {
     header* head;
     for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
@@ -235,10 +239,9 @@ void malloc_promise() {
     for(head = freedlist; head != NULL; head = CAST_H(head->free.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
 }
-
-/** Standard malloc library functions */
-//Grow the managed space so that each size class as tasks * their goal block counts
+#warning "Using new grow function"
 static inline void grow (const int tasks) {
+  //THIS IS THE NEW GROW FUNCTION!
     int class_index, blocks_left, size;
     if(tasks > 1)
       bop_debug("growing tasks = %d", tasks);
@@ -247,54 +250,81 @@ static inline void grow (const int tasks) {
 #endif
 		int * goal_counts_arr = goal_counts();
     //compute the number of blocks to allocate
-    size_t growth = HSIZE;
+    // size_t growth = HSIZE;
     int blocks[DM_NUM_CLASSES];
 		int * counts = count_lists(true); //we have the lock
     for(class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         blocks_left = tasks * goal_counts_arr[class_index] - counts[class_index];
         blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
-        growth += blocks[class_index] * size_of_klass(class_index);
+        // growth += blocks[class_index] * size_of_klass(class_index);
     }
-    char *space_head = sys_calloc (growth, 1);	//system malloc, use byte-sized type
-    bop_assert (space_head != NULL);	//ran out of sys memory
-    header *head;
+    header * head, * list_top;
+
+    char* space_head;
+    int current_block;
+    char * debug_ptr;
     for (class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         size = size_of_klass(class_index);
-        counts[class_index] += blocks[class_index];
-        if (headers[class_index] == NULL) {
-            //list was empty
-            headers[class_index] = CAST_H (space_head);
-            space_head += size;
-            blocks[class_index]--;
-        }
-        for (blocks_left = blocks[class_index]; blocks_left; blocks_left--) {
-            CAST_H (space_head)->free.next = CAST_SH (headers[class_index]);
-            head = headers[class_index];
-            head->free.prev = CAST_SH (space_head); //the header is readable
-            head = CAST_H (space_head);
-            space_head += size;
-            headers[class_index] = head;
-        }
-    }
-#ifndef NDEBUG //sanity check, make sure the last byte is allocated
-    header* check = headers[DM_NUM_CLASSES - 1];
-    char* end_byte = ((char*) check) + MAX_SIZE - 1;
-    *end_byte = '\0'; //write an arbitary value
+        space_head = sys_calloc (blocks[class_index], size + 1);	//system malloc, use byte-sized type
+        bop_assert (blocks[class_index] == 0 || space_head != NULL);	//ran out of sys memory
+
+        for(current_block = 0; current_block < blocks[class_index]; current_block++){
+          //set up this space
+          head = (header *) & (space_head[current_block * size]);
+          //make sure the last B in the head is writtable
+#ifndef NDEBUG
+          if(grow_count > 1){ /** Utilization tests */
+            debug_ptr  = (char*) head;
+            //check stack is growing correctly
+            bop_assert(current_block == 0 ||
+                headers[class_index] == (header *) & space_head[(current_block - 1) * size]);
+            // calloc'd return & seperate from previous head
+            bop_assert( *debug_ptr == (char) 0);
+            // last byte is readable
+            bop_assert(current_block == blocks[class_index] - 1 || debug_ptr[size -1] == (char) 0);
+            //adjacent in memory to previous block
+            bop_assert( current_block == 0 || debug_ptr[-1] == 'x'); //previous byte is the last of the previous
+            debug_ptr[size - 1] = 'x'; //This is an array, so -1 since the highest array index is -1 than length
+          }
 #endif
+          list_top = headers[class_index];
+          if(list_top == NULL)
+            headers[class_index] = head;
+          else{
+            head->free.next = CAST_SH(list_top);
+            list_top->free.prev = CAST_SH(head);
+            headers[class_index] = head;
+          }
+        }
+        //post-size class division checks
+#ifndef NDEBUG
+        if(grow_count > 1){
+            //ensure that this list is not a giant loop
+            header * current;
+            for(current = CAST_H(headers[class_index]->free.next); current; current = CAST_H(current->free.next)){
+              bop_assert(current != headers[class_index]);
+              bop_assert(current != CAST_H(current->free.next));
+            }
+        }
+#endif
+    }
 }
+
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
+  return NULL;
 	header * list_current,  * prev;
-	for(list_current = freedlist, prev = NULL; list_current;
+	for(list_current = freedlist, prev = NULL; list_current != NULL;
 			prev = list_current,	list_current = CAST_H(list_current->free.next)){
 		if(list_current->allocated.blocksize >= size){
 			//remove and return
 			if(prev == NULL){
 				//list_current head of list
-				freedlist = NULL;
+        assert(list_current == freedlist);
+				freedlist = CAST_H(freedlist->free.next);
 				return list_current;
 			}else{
-				prev->allocated.next = list_current->allocated.next;
+				prev->free.next = list_current->free.next;
 				return list_current;
 			}
 		}
@@ -309,7 +339,6 @@ static inline header * get_header (size_t size, int *which) {
 	if (size > MAX_SIZE) {
 		found = NULL;
 		temp = -1;
-		goto write_back;
 	} else {
 		temp = get_index (size);
 		found = headers[temp];
@@ -327,7 +356,6 @@ static inline header * get_header (size_t size, int *which) {
   		//don't need go to. just falls through
   	}
   }
-	write_back:
 	if(which != NULL)
 		*which = temp;
 	return found;
@@ -396,7 +424,9 @@ void *dm_malloc (const size_t size) {
 		block->allocated.blocksize = size_of_klass(which);
 		// ASSERTBLK(block); unneed
 		headers[which] = CAST_H (block->free.next);	//remove from free list
-	}
+	}else{
+    bop_msg(2, "Allocated from the free list head addr %p size %u", block, block->allocated.blocksize);
+  }
  checks:
 	ASSERTBLK(block);
 	release_lock();
@@ -458,8 +488,9 @@ static inline header* dm_split (int which) {
         //update the headers
         split = CAST_H ((CHARP (split) + size_of_klass(which - 1))); //which - 1 since only half of the block is used here. which -1 === size / 2
 				// bop_msg(1, "Split addr %p val %c", split, *((char*) split));
-				memset (split, 0, HSIZE);
 				if(SEQUENTIAL()){
+          assert(headers[which] == NULL);
+          memset (split, 0, HSIZE);
 					headers[which] = split;
 				}else{
 					//go through dm_free
@@ -472,8 +503,11 @@ static inline header* dm_split (int which) {
 }
 // standard calloc using malloc
 void * dm_calloc (size_t n, size_t size) {
+    header * head;
     char *allocd = dm_malloc (size * n);
     if(allocd != NULL){
+        head = HEADER(allocd);
+        assert(head->allocated.blocksize >= (size*n));
         memset (allocd, 0, size * n);
     		ASSERTBLK(HEADER(allocd));
 		}
@@ -481,9 +515,9 @@ void * dm_calloc (size_t n, size_t size) {
 }
 
 // Reallocator: use sytem realloc with large->large sizes in SEQUENTIAL() mode. Otherwise use standard realloc implementation
-void * dm_realloc (void *ptr, size_t gsize) {
-    header* old_head;
-    header* new_head;
+void * dm_realloc (const void *ptr, size_t gsize) {
+    header* old_head,  * new_head;
+    size_t new_size = ALIGN(gsize + HSIZE), old_size;
     if(gsize == 0)
         return NULL;
     if(ptr == NULL) {
@@ -491,13 +525,16 @@ void * dm_realloc (void *ptr, size_t gsize) {
         ASSERTBLK (new_head);
         return PAYLOAD (new_head);
     }
+
     old_head = HEADER (ptr);
+
     ASSERTBLK(old_head);
-    size_t new_size = ALIGN (gsize + HSIZE);
+
+    old_size = old_head->allocated.blocksize;
     int new_index = get_index (new_size);
-    void *payload;		//what the programmer gets
+
     if (new_index != -1 && size_of_klass(new_index) <= old_head->allocated.blocksize) {
-        return ptr;	//no need to update
+        return (void*) ptr;	//no need to update
     } else if (SEQUENTIAL() && old_head->allocated.blocksize > MAX_SIZE && new_size > MAX_SIZE) {
         //use system realloc in SEQUENTIAL() mode for large->large blocks
         new_head = sys_realloc (old_head, new_size);
@@ -510,18 +547,22 @@ void * dm_realloc (void *ptr, size_t gsize) {
         ASSERTBLK(old_head);
         size_t size_cache = old_head->allocated.blocksize;
         //we're reallocating within managed memory
-        payload = dm_malloc (gsize); //use the originally requested size
-        if(payload == NULL) //would happen if reallocating a block > MAX_SIZE in PPR
-            return NULL;
-        size_t copySize = MIN(size_cache, new_size) - HSIZE;
-        payload = memcpy (payload, PAYLOAD(old_head), copySize);	//copy memory, don't copy the header
-        new_head = HEADER(payload);
-        bop_assert (new_index == -1 || new_head->allocated.blocksize == size_of_klass(new_index));
-        old_head->allocated.blocksize = size_cache;
+
+        void* new_payload = dm_malloc(gsize); //malloc will tweak size again.
+        if(new_payload == NULL){
+          bop_msg(1, "Unable to reallocate %p (size %u) to new size %u", ptr, old_size, new_size);
+          return NULL;
+        }
+        //copy the data
+        size_t copy_size = MIN(old_size, new_size) - HSIZE; // block sizes include the header!
+        bop_assert( HEADER(new_payload)->allocated.blocksize >= (copy_size + HSIZE)); //check dm_malloc gave enough space
+        new_payload = memcpy(new_payload, ptr, copy_size); // copy data
+        bop_assert( ((header *)HEADER(new_payload))->allocated.blocksize >= copy_size);
         ASSERTBLK(old_head);
-        dm_free (ptr);
-        ASSERTBLK(HEADER(payload));
-        return payload;
+        bop_assert(old_head->allocated.blocksize == size_cache);
+        dm_free( (void*) ptr);
+
+        return new_payload;
     }
 }
 
@@ -546,9 +587,15 @@ static inline void free_now (header * head) {
     ASSERTBLK(head);
     bop_assert (size >= HSIZE && size == ALIGN (size));	//size is aligned, ie right value was written
     //test for system block
-    if (size > MAX_SIZE && SEQUENTIAL()) {
+    if (size > MAX_SIZE){
+      if(SEQUENTIAL() ) {
         sys_free(head);
-        return;
+      }else{
+        get_lock();
+        add_next_list(&freedlist, head);
+        release_lock();
+      }
+      return;
     }
     //synchronised region
     get_lock();
@@ -579,6 +626,7 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static inline header* remove_from_alloc_list (header * val) {
+  return NULL;
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
@@ -586,7 +634,7 @@ static inline header* remove_from_alloc_list (header * val) {
     }
     header* current, * prev = NULL;
     for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
-        if(current == val) {
+        if(current == val) { //TODO simplify cases
             if(prev != NULL){
               prev->allocated.next = current->allocated.next;
             }else{

@@ -35,7 +35,7 @@ module IRB # :nodoc:
     end
     @CONF[:AP_NAME] = File::basename(ap_path, ".rb")
 
-    @CONF[:IRB_NAME] = "irb"
+    @CONF[:IRB_NAME] = "irbop"
     @CONF[:IRB_LIB_PATH] = File.dirname(__FILE__)
 
     @CONF[:RC] = true

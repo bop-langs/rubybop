@@ -22,7 +22,7 @@ typedef union {
 
 //prototypes
 void * dm_malloc(size_t);
-void * dm_realloc(void *, size_t);
+void * dm_realloc(const void *, size_t);
 void dm_free(void *);
 void * dm_calloc(size_t, size_t);
 void dm_print_info(void);
@@ -67,7 +67,7 @@ void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 #define DM_CLASS_OFFSET 4 //how much extra to shift the bits for size class, ie class k is 2 ^ (k + DM_CLASS_OFFSET)
 #define MAX_SIZE SIZE_C(DM_NUM_CLASSES)
 #define SIZE_C(k) (ALIGN((1 << (k + DM_CLASS_OFFSET))))	//allows for iterative spliting
-
+#define DM_MAX_REQ (ALIGN((MAX_SIZE) - (HSIZE)))
 
 
 #endif

@@ -5,6 +5,13 @@
 #ifndef _BOP_API_H_
 #define _BOP_API_H_
 
+#ifndef NDEBUG
+/* We want the task status while debugging->bop_msg **/
+#define bop_debug(x, ...) bop_msg(1, "%s:%d " x "\n" , __FILE__, __LINE__, ##__VA_ARGS__);
+#else
+#define bop_debug(...)
+#endif
+
 #if defined(BOP)
 
 #include <stdarg.h>  /* for bop_msg */
@@ -96,7 +103,7 @@ mem_range_t *BOP_check_access(void* addr);
 void bop_set_verbose( int );
 int bop_get_verbose( void );
 void bop_msg(int level, const char * msg, ...);
-#define bop_assert(x) if(!(x)) {bop_msg(0, ("assertions %s failed, %s, %d, %s"), #x, __FILE__, __LINE__, __func__); exit(1);}
+#define bop_assert(x) if(!(x)) {bop_msg(0, ("Assertion: %s failed, %s:%d %s"), #x, __FILE__, __LINE__, __func__); abort();}
 
 /* For collecting statistics */
 typedef struct {

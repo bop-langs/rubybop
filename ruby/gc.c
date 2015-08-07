@@ -1,4 +1,4 @@
- /**********************************************************************
+/**********************************************************************
 
   gc.c -
 
@@ -640,6 +640,7 @@ typedef struct rb_objspace {
     } rincgc;
 #endif
 #endif /* USE_RGENGC */
+  int bop_debug;
 } rb_objspace_t;
 
 
@@ -680,6 +681,7 @@ struct heap_page {
     } flags;
 
     struct heap_page *free_next;
+    struct heap_page *old_free_next;
     RVALUE *start;
     RVALUE *freelist;
     RVALUE *oldfreelist;
@@ -785,98 +787,55 @@ VALUE *ruby_initial_gc_stress_ptr = &ruby_initial_gc_stress;
 
 #define RANY(o) ((RVALUE*)(o))
 
-
-//BOP
-//Iterates through heap pages and sets each free slot to zero
-//
-
-void detach_free_list(rb_objspace_t *objspace);
-void heap_pages_statreport();
-
-
-
-
-
-void zero_out_frees()
+#define check_heap_pages(p) _check_heap_pages(p ,__func__, __LINE__)
+void _check_heap_pages(int print_heap ,const char* func, const int line)
 {
-    heap_pages_statreport();
-    rb_objspace_t *objspace = &rb_objspace;
-    struct heap_page *worker;
-    objspace->eden_heap.old_free_pages = objspace->eden_heap.free_pages;
-    //objspace->tomb_heap.old_free_pages = objspace->tomb_heap.free_pages;
-    worker = *(struct heap_page **)objspace->heap_pages.sorted;
-    while (worker)
-    {
-	worker->old_free_slots = worker->free_slots;
-	worker->free_slots = 0;
-	worker->oldfreelist = worker->freelist;
-	worker->freelist = 0;
-	worker = worker->next;
-    }
     return;
-}
-
-void heap_pages_statreport()
-{
-    int eden_free_page_count = 0;
-    int tomb_free_page_count = 0;
-    int sorted_free_page_count = 0;
     rb_objspace_t *objspace = &rb_objspace;
-    struct heap_page *worker = objspace->eden_heap.free_pages;
-    while (worker)
-    {
-	eden_free_page_count++;
-	worker = worker->next;
-    }
-    worker = objspace->tomb_heap.free_pages;
-    while (worker)
-    {
-	tomb_free_page_count++;
-	worker = worker->next;
-    }
-    worker = *(objspace->heap_pages.sorted);
-    while (worker)
-    {
-	sorted_free_page_count++;
-	worker = worker->free_next;
-    }
-    if ((eden_free_page_count^tomb_free_page_count^sorted_free_page_count))
-    {
-	bop_msg(5, "WARNING: Count mismatch");
-    }
-}
 
-void show_heap_pages();
-
-
-void frees_restore()
-{
-    rb_objspace_t *objspace = &rb_objspace;
-    struct heap_page *worker;
-    objspace->eden_heap.free_pages = objspace->eden_heap.old_free_pages;
-    worker = *(struct heap_page **)objspace->heap_pages.sorted;
-    while (worker)
-    {
-	worker->free_slots = worker->old_free_slots;
-	worker->freelist = worker->oldfreelist;
-	worker = worker->next;
+    if(!is_sequential()){
+      bop_msg(3, "Checking heap pages: func %s, line %d: print_heap = %d", func, line, print_heap);
     }
-    return;
-}
-
-void show_heap_pages()
-{
-    rb_objspace_t *objspace = &rb_objspace;
-    bop_msg(3, "Iterating through heap pages");
     int i = 0;
+
     struct heap_page *worker;
-    worker = *(struct heap_page **)objspace->heap_pages.sorted;
-    while (worker)
-    {
-	bop_msg(3, "Heap page %i: %x", i, worker);
-	i++;
-	worker = worker->next;
+    if(objspace->heap_pages.sorted){
+      for(i = 0; i < heap_pages_sorted_length; i++){
+
+        if(heap_pages_sorted[i]){
+
+          if(print_heap){
+            bop_msg(4, "Heap page %i: %p", i, heap_pages_sorted[i]->body);
+          }
+
+          if(((unsigned int)(heap_pages_sorted[i]->body) & (unsigned int) (0xfff)) != 0 ){
+            bop_msg(3, "HEAP PAGE INVALID: func %s, line %d", func, line);
+            //abort();
+          }
+
+        }
+        else{
+          bop_msg(3,"heap_pages_sorted empty");
+        }
+      }
     }
+    else{
+      bop_msg(3, "no heap_page.sorted");
+    }
+    // worker = *(struct heap_page **)objspace->heap_pages.sorted;
+    //   while (worker)
+    //   {
+    //     if(print_heap){
+	  //      bop_msg(3, "Heap page %i: %p", i, worker->body);
+    //     }
+    //      if(((unsigned int)(worker->body) & (unsigned int) (0xfff)) != 0 ){
+    //        bop_msg(3, "HEAP PAGE INVALID: func %s, line %d", func, line);
+    //        abort();
+    //      }
+	  //       i++;
+	  //        worker = worker->next;
+    //   }
+    // }
     return;
 }
 
@@ -1360,6 +1319,7 @@ static void heap_page_free(rb_objspace_t *objspace, struct heap_page *page);
 void
 rb_objspace_free(rb_objspace_t *objspace)
 {
+  bop_msg(2, "objspace being freed");
     if (is_lazy_sweeping(heap_eden))
 	rb_bug("lazy sweeping underway when freeing object space");
 
@@ -1398,6 +1358,10 @@ rb_objspace_free(rb_objspace_t *objspace)
 static void
 heap_pages_expand_sorted(rb_objspace_t *objspace)
 {
+  if(!is_sequential()){
+  check_heap_pages(0);
+    //return;
+  }
     size_t next_length = heap_allocatable_pages;
     next_length += heap_eden->page_length;
     next_length += heap_tomb->page_length;
@@ -1407,13 +1371,16 @@ heap_pages_expand_sorted(rb_objspace_t *objspace)
 	size_t size = next_length * sizeof(struct heap_page *);
 
 	gc_report(3, objspace, "heap_pages_expand_sorted: next_length: %d, size: %d\n", (int)next_length, (int)size);
-
+//heap list corrupted in the area from here and end of function
 	if (heap_pages_sorted_length > 0) {
 	    sorted = (struct heap_page **)realloc(heap_pages_sorted, size);
 	    if (sorted) heap_pages_sorted = sorted;
+      else {
+        bop_msg(0, "REALLOC FAILED IN HEAP_PAGES_EXPAND_SORTED");
+      }
 	}
 	else {
-	    sorted = heap_pages_sorted = (struct heap_page **)malloc(size);
+	    sorted = heap_pages_sorted = (struct heap_page **)calloc(1,size);
 	}
 
 	if (sorted == 0) {
@@ -1442,6 +1409,7 @@ heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj
 static inline void
 heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
+  check_heap_pages(0);
     if (page->freelist) {
 	page->free_next = heap->free_pages;
 	heap->free_pages = page;
@@ -1467,6 +1435,10 @@ heap_add_poolpage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *pa
 static void
 heap_unlink_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
+  if(!is_sequential()){
+    return;
+  }
+    bop_msg(2, "Unlinking page %p", page);
     if (page->prev) page->prev->next = page->next;
     if (page->next) page->next->prev = page->prev;
     if (heap->pages == page) heap->pages = page->next;
@@ -1497,7 +1469,7 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 
 	    if (page->heap == heap_tomb && page->free_slots == page->total_slots) {
 		if (heap_pages_swept_slots - page->total_slots > heap_pages_max_free_slots) {
-		    if (0) fprintf(stderr, "heap_pages_free_unused_pages: %d free page %p, heap_pages_swept_slots: %d, heap_pages_max_free_slots: %d\n",
+		    if (!is_sequential()) fprintf(stderr, "heap_pages_free_unused_pages: %d free page %p, heap_pages_swept_slots: %d, heap_pages_max_free_slots: %d\n",
 				   (int)i, page, (int)heap_pages_swept_slots, (int)heap_pages_max_free_slots);
 		    heap_pages_swept_slots -= page->total_slots;
 		    heap_unlink_page(objspace, heap_tomb, page);
@@ -1532,8 +1504,12 @@ heap_page_allocate(rb_objspace_t *objspace)
 	rb_memerror();
     }
 
-    /* assign heap_page entry */
+  	    /* assign heap_page entry */
     page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
+    if(!is_sequential()){
+      check_heap_pages(1);
+      bop_msg(3, "NEW heap page: %p, page_body %p" ,page ,page_body);
+    }
     if (page == 0) {
 	aligned_free(page_body);
 	rb_memerror();
@@ -1548,6 +1524,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	struct heap_page *mid_page;
 
 	mid = (lo + hi) / 2;
+  // bop_msg(0, "Before of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
 	mid_page = heap_pages_sorted[mid];
 	if (mid_page->body < page_body) {
 	    lo = mid + 1;
@@ -1556,28 +1533,38 @@ heap_page_allocate(rb_objspace_t *objspace)
 	    hi = mid;
 	}
 	else {
-    //abort();
-	    show_heap_pages();
+	    check_heap_pages(1);
+      bop_msg(3, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
+      bop_msg(2, "ERROR DEFINING HEAP PAGE");
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
-    if (hi < heap_allocated_pages) {
-	MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
-    }
 
+    if(!is_sequential()) bop_msg(3, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
+    if (hi < heap_allocated_pages) {
+	     MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
+    }
     heap_pages_sorted[hi] = page;
+
+    if(hi > 0){
+      assert (page_body > heap_pages_sorted[hi-1]->body);
+    }
+    if(hi < heap_allocated_pages){
+      assert (page_body < heap_pages_sorted[hi+1]->body);
+    }
 
     heap_allocated_pages++;
     objspace->profile.total_allocated_pages++;
 
+    check_heap_pages(1);
     if (RGENGC_CHECK_MODE) assert(heap_allocated_pages <= heap_pages_sorted_length);
 
     /* adjust obj_limit (object number available in this page) */
     start = (RVALUE*)((VALUE)page_body + sizeof(struct heap_page_header));
     if ((VALUE)start % sizeof(RVALUE) != 0) {
-	int delta = (int)(sizeof(RVALUE) - ((VALUE)start % sizeof(RVALUE)));
-	start = (RVALUE*)((VALUE)start + delta);
-	limit = (HEAP_SIZE - (int)((VALUE)start - (VALUE)page_body))/(int)sizeof(RVALUE);
+	     int delta = (int)(sizeof(RVALUE) - ((VALUE)start % sizeof(RVALUE)));
+	      start = (RVALUE*)((VALUE)start + delta);
+	       limit = (HEAP_SIZE - (int)((VALUE)start - (VALUE)page_body))/(int)sizeof(RVALUE);
     }
     end = start + limit;
 
@@ -1597,9 +1584,6 @@ heap_page_allocate(rb_objspace_t *objspace)
     return page;
 }
 
-
-
-//BOP: Resurrect tries to get pages from the tomb before deciding to allocate. This will cause PPR tasks to allocate to the same page as they both have the same addresses for heap tomb pages
 static struct heap_page *
 heap_page_resurrect(rb_objspace_t *objspace)
 {
@@ -1615,14 +1599,18 @@ heap_page_resurrect(rb_objspace_t *objspace)
 static struct heap_page *
 heap_page_create(rb_objspace_t *objspace)
 {
-    struct heap_page *page = heap_page_resurrect(objspace);
-    //struct heap_page *page = NULL;
-    const char *method = "recycle";
+    struct heap_page *page = NULL;
+    const char *method;
+    if(is_sequential()){
+      page = heap_page_resurrect(objspace);
+      method = "recycle";
+    }
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
 	method = "allocate";
+      check_heap_pages(0);
     }
-    if (0) fprintf(stderr, "heap_page_create: %s - %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb->page_length: %d\n",
+    if (!is_sequential()) bop_msg(3, "heap_page_create: %s - %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb->page_length: %d\n",
 		   method, page, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length);
     return page;
 }
@@ -1630,6 +1618,7 @@ heap_page_create(rb_objspace_t *objspace)
 static void
 heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
+      check_heap_pages(0);
     page->heap = heap;
     page->next = heap->pages;
     if (heap->pages) heap->pages->prev = page;
@@ -1644,11 +1633,13 @@ heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap)
     struct heap *page = (struct heap *)heap_page_create(objspace);
     heap_add_page(objspace, heap, (struct heap_page *) page);
     heap_add_freepage(objspace, heap, (struct heap_page *) page);
+      check_heap_pages(0);
 }
 
 static void
 heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add)
 {
+  // check_heap_pages(0);
     size_t i;
 
     heap_allocatable_pages = add;
@@ -1676,6 +1667,7 @@ heap_extend_pages(rb_objspace_t *objspace)
 static void
 heap_set_increment(rb_objspace_t *objspace, size_t additional_pages)
 {
+  check_heap_pages(0);
     size_t used = heap_eden->page_length;
     size_t next_used_limit = used + additional_pages;
 
@@ -1703,6 +1695,7 @@ heap_increment(rb_objspace_t *objspace, rb_heap_t *heap)
 static void
 heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
 {
+  check_heap_pages(0);
     if (RGENGC_CHECK_MODE) assert(heap->free_pages == NULL);
 
 #if GC_ENABLE_LAZY_SWEEP
@@ -1726,9 +1719,11 @@ heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
 static RVALUE *
 heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
 {
+  check_heap_pages(0);
+    // bop_msg(0, "\nheap inside: %p \nheap eden: %p", heap, heap_eden);
+    assert(heap == heap_eden);
     struct heap_page *page;
     RVALUE *p;
-
     while (UNLIKELY(heap->free_pages == NULL)) {
 	heap_prepare(objspace, heap);
     }
@@ -1746,6 +1741,7 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
 static inline VALUE
 heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
 {
+  // check_heap_pages(0);
     RVALUE *p = heap->freelist;
 
     while (1) {
@@ -1780,7 +1776,6 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
     } \
 } while (0)
 
-extern void bop_msg(int, const char*, ...);
 extern void BOP_record_write(void *ptr, size_t size);
 
 static VALUE
@@ -1793,7 +1788,13 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 	if (during_gc) {
 	    dont_gc = 1;
 	    during_gc = 0;
-	    rb_bug("object allocation during garbage collection phase");
+      if(is_sequential()){
+	       rb_bug("object allocation during garbage collection phase");
+      }
+      else{
+        bop_msg(0, "CORRUPTED objspace");
+        abort();
+      }
 	}
 
 	if (ruby_gc_stressful) {
@@ -1861,8 +1862,8 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
     //TODO sever the heap so that this actually works...
-    bop_msg(5, "newobj:%s\n", obj_info(obj));
-    if(is_sequential()) bop_msg(4, "newobj:%s\n", obj_info(obj));
+    bop_msg(5, "newobj:%s", obj_info(obj));
+    if(is_sequential()) bop_msg(4, "newobj:%s", obj_info(obj));
     //BOP_obj_use_promise(obj);
     //BOP_record_write(obj, sizeof(obj));
     return obj;
@@ -3247,6 +3248,111 @@ count_objects(int argc, VALUE *argv, VALUE os)
 
     return hash;
 }
+
+extern int BOP_get_group_size();
+extern void bop_msg(int, const char*, ...);
+
+static rb_objspace_t **bop_objspaces;
+static rb_objspace_t *sequential_objspace= NULL;
+
+void detach_free_list(rb_objspace_t *objspace);
+
+void initialize_objspaces(){
+  rb_gc_disable();
+  bop_msg(3, "GC group init");
+  rb_objspace_t *objspace = &rb_objspace;
+  assert(!during_gc && !ruby_gc_stressful);
+  int n = BOP_get_group_size();
+  bop_objspaces = calloc(n+2, sizeof(rb_objspace_t));
+  int i;
+  for(i = 0; i < n; i++){
+    bop_objspaces[i] = rb_objspace_alloc();
+    rb_heap_t *new_heap = calloc(2, sizeof(rb_heap_t));
+    bop_objspaces[i]->eden_heap = *new_heap;
+    bop_objspaces[i]->eden_heap.free_pages = NULL;
+    bop_objspaces[i]->eden_heap.freelist = NULL;
+    bop_objspaces[i]->eden_heap.pages = NULL;
+    bop_objspaces[i]->eden_heap.using_page = NULL;
+    bop_objspaces[i]->bop_debug = i+1;
+    bop_objspaces[i]->heap_pages.sorted_length = 0;
+    //TODO set values right
+  }
+
+}
+
+void zero_out_frees()
+{
+    int BOP_task = spec_order;
+    rb_objspace_t *objspace = &rb_objspace;
+
+
+
+    assert(bop_objspaces[BOP_task]->bop_debug == BOP_task+1);
+
+    bop_msg(3, "GC task init");
+
+    rb_gc_disable();
+
+    assert(!during_gc && !ruby_gc_stressful);
+    if(sequential_objspace== NULL){
+      sequential_objspace = calloc(2,sizeof(rb_objspace_t));
+      memcpy(sequential_objspace, GET_VM()->objspace, sizeof(rb_objspace_t));
+    }
+
+
+    if(!(sequential_objspace->bop_debug == 0)){
+      bop_msg(0, "Sequential objspace not getting set properly: objspace location %p, bop_debug %d",
+      sequential_objspace, sequential_objspace->bop_debug);
+    }
+    assert(sequential_objspace->bop_debug == 0);
+
+    bop_msg(3, "Sequential objspace %p", sequential_objspace);
+    bop_msg(3, "Current objspace %p", bop_objspaces[BOP_task]);
+
+    // bop_objspaces[0]->bop_debug=1;
+
+    (GET_VM()->objspace) = bop_objspaces[BOP_task];
+
+    if((int) (GET_VM()->objspace->bop_debug) != (int) (bop_objspaces[BOP_task]->bop_debug))
+      {
+        bop_msg(0, "SAME OBJSPACES ARE DIFFERENT: first %p, %d; second %p, %d; task %d",
+        (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug,
+        bop_objspaces[BOP_task], bop_objspaces[BOP_task]->bop_debug,
+        BOP_task);
+
+      }
+
+    if(objspace->bop_debug == (GET_VM()->objspace)->bop_debug){
+      bop_msg(0, "TASK NOT GETTING PROPER OBJSPACE: seq %p, %d; spec %p, %d",
+        objspace, objspace->bop_debug,
+        (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug);
+    }
+    assert (objspace->bop_debug != (GET_VM()->objspace)->bop_debug);
+
+    objspace = (GET_VM()->objspace);
+
+    assert(objspace->bop_debug == spec_order+1);
+
+    gc_stress_set(objspace, ruby_initial_gc_stress);
+    heap_pages_sorted_length = 0;
+    heap_add_pages(objspace, heap_eden, gc_params.heap_init_slots / HEAP_OBJ_LIMIT);
+    init_mark_stack(&objspace->mark_stack);
+    objspace->profile.invoke_time = getrusage_time();
+    finalizer_table = st_init_numtable();
+
+
+
+    return;
+}
+
+void frees_restore()
+{
+  //check_heap_pages(0);
+  GET_VM()->objspace = sequential_objspace;
+  assert(GET_VM()->objspace->bop_debug == 0 );
+  return;
+}
+
 
 /*
   ------------------------ Garbage Collection ------------------------
@@ -7312,6 +7418,7 @@ ruby_memerror(void)
 void
 rb_memerror(void)
 {
+    bop_msg(0, "RUBY MEM ERROR");
     rb_thread_t *th = GET_THREAD();
     rb_objspace_t *objspace = &rb_objspace;
 
@@ -7337,11 +7444,14 @@ aligned_malloc(size_t alignment, size_t size)
     void *res;
 
 #if defined __MINGW32__
+#error "the incorrect things"
     res = __mingw_aligned_malloc(size, alignment);
 #elif defined _WIN32 && !defined __CYGWIN__
+#error "the incorrect things"
     void *_aligned_malloc(size_t, size_t);
     res = _aligned_malloc(size, alignment);
 #elif defined(HAVE_POSIX_MEMALIGN)
+#error "the incorrect things"
     if (posix_memalign(&res, alignment, size) == 0) {
         return res;
     }
@@ -7350,12 +7460,15 @@ aligned_malloc(size_t alignment, size_t size)
     }
 //Definition makes sure that ruby's implementation of memalign is used
 #elif defined(HAVE_MEMALIGN)
+#error "the incorrect things"
     res = memalign(alignment, size);
 #else
+#warning "the correct things"
     char* aligned;
     res = malloc(alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);
     aligned -= ((VALUE)aligned & (alignment - 1));
+    assert(aligned > res);
     ((void**)aligned)[-1] = res;
     res = (void*)aligned;
 #endif
@@ -9120,6 +9233,7 @@ Init_GC(void)
 }
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = zero_out_frees,
+    .ppr_group_init = initialize_objspaces,
+    .ppr_task_init = zero_out_frees,
     .task_group_commit = frees_restore
 };
