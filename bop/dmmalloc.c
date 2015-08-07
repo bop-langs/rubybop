@@ -588,6 +588,7 @@ void dm_free (void *ptr) {
         free_now (free_header);
     } else
         add_next_list(&freedlist, free_header);
+		release_lock();
 }
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
 static inline void free_now (header * head) {
