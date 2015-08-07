@@ -17,7 +17,6 @@
 #include <stdarg.h>  /* for bop_msg */
 #include <assert.h>  /* for assert */
 #include <stdio.h>   /* for IO */
-
 #include <stdint.h>
 typedef uintptr_t addr_t;
 
@@ -103,7 +102,8 @@ mem_range_t *BOP_check_access(void* addr);
 void bop_set_verbose( int );
 int bop_get_verbose( void );
 void bop_msg(int level, const char * msg, ...);
-#define bop_assert(x) if(!(x)) {bop_msg(0, ("Assertion: %s failed, %s:%d %s"), #x, __FILE__, __LINE__, __func__); abort();}
+extern short malloc_panic;
+#define bop_assert(x) if(!(x)) {malloc_panic = 1; bop_msg(0, ("Assertion: %s failed, %s:%d %s"), #x, __FILE__, __LINE__, __func__); abort();}
 
 /* For collecting statistics */
 typedef struct {
