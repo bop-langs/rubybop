@@ -52,6 +52,10 @@ static void block_wait(void);
 static void unblock_wait(void);
 //exec pipe
 
+//Semaphore msg init
+extern void msg_init();
+
+
 static void _ppr_group_init( void ) {
   bop_msg( 3, "task group starts (gs %d)", BOP_get_group_size() );
 
@@ -627,6 +631,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   //install signal handlers
   /* two user signals for sequential-parallel race arbitration, block
    for SIGUSR2 initially */
+  msg_init();
   struct sigaction action;
   sigaction(SIGUSR1, NULL, &action);
   sigemptyset(&action.sa_mask);

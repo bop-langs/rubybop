@@ -72,7 +72,7 @@ char *strerror(int errnum);
 void bop_msg(int level, const char * msg, ...) {
  if(bop_verbose >= level)
   {
-    msg_init();
+      //msg_init();
     sem_wait(bopmsg_sem);
     va_list v;
     va_start(v,msg);
