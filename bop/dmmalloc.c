@@ -173,36 +173,40 @@ static int* count_lists(bool is_locked){ //param unused
 }
 
 void carve () {
-	int tasks = BOP_get_group_size();
-	if( regions != NULL)
-		dm_free(regions); //dm_free -> don't have lock
-	regions = dm_calloc (tasks, sizeof (ppr_list));
-	get_lock(); //now locked
-	int * counts = count_lists(true); // true -> we have the lock
-	grow(tasks); //need to already have the lock
-	bop_assert (tasks >= 2);
+  int tasks = BOP_get_group_size();
+  if( regions != NULL){
+    dm_free(regions); //dm_free -> don't have lock
+  }
+  regions = dm_calloc (tasks, sizeof (ppr_list));
+  get_lock(); //now locked
+  grow(tasks); //need to already have the lock
+  int * counts = count_lists(true); // true -> we have the lock
+  bop_assert (tasks >= 2);
 
-	int index, count, j, r;
-	header *current_headers[DM_NUM_CLASSES];
-	header *temp = (header*) -1;
-	for (index = 0; index < DM_NUM_CLASSES; index++)
-	current_headers[index] = CAST_H (headers[index]);
-	//actually split the lists
-	for (index = 0; index < DM_NUM_CLASSES; index++) {
-		count = counts[index] / tasks;
-		for (r = 0; r < tasks; r++) {
-			regions[r].start[index] = current_headers[index];
-			temp = CAST_H (current_headers[index]->free.next);
-			for (j = 0; j < count && temp; j++) {
-				temp = CAST_H(temp->free.next);
-			}
-			current_headers[index] = temp;
+  int index, count, j, r;
+  header *current_headers[DM_NUM_CLASSES];
+  header *temp = (header*) -1;
+  for (index = 0; index < DM_NUM_CLASSES; index++)
+    current_headers[index] = CAST_H (headers[index]);
+  //actually split the lists
+  for (index = 0; index < DM_NUM_CLASSES; index++) {
+    bop_assert(counts[index] > 0);
+    count = counts[index] / tasks;
+    bop_assert(count > 0);
+    for (r = 0; r < tasks; r++) {
+      regions[r].start[index] = current_headers[index];
+      temp = CAST_H (current_headers[index]->free.next);
+      for (j = 0; j < count && temp; j++) {
+        temp = CAST_H(temp->free.next);
+      }
+      current_headers[index] = temp;
       // the last task has no tail, use the same as seq. exectution
       bop_assert (temp != (header*) -1);
       regions[r].end[index] = temp != NULL ? CAST_H (temp->free.prev) : NULL;
-		}
-	}
-	release_lock();
+      bop_assert(regions[r].start[index] != regions[r].end[index]);
+    }
+  }
+  release_lock();
 }
 
 /**set the range of values to be used by this PPR task*/
@@ -214,7 +218,12 @@ void initialize_group () {
     for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
         ends[ind] = my_list.end[ind];
         headers[ind] = my_list.start[ind];
-				bop_assert(headers[ind] != ends[ind]); //
+        if(group_num != 0){
+          bop_assert(headers[ind] != NULL);
+        }else{
+          bop_assert(task_status == MAIN);
+        }
+				bop_assert(headers[ind] != ends[ind]);
 				// bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
     }
 }
@@ -230,10 +239,9 @@ void malloc_promise() {
     for(head = freedlist; head != NULL; head = CAST_H(head->free.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
 }
-
-/** Standard malloc library functions */
-//Grow the managed space so that each size class as tasks * their goal block counts
+#warning "Using new grow function"
 static inline void grow (const int tasks) {
+  //THIS IS THE NEW GROW FUNCTION!
     int class_index, blocks_left, size;
     if(tasks > 1)
       bop_debug("growing tasks = %d", tasks);
@@ -242,41 +250,66 @@ static inline void grow (const int tasks) {
 #endif
 		int * goal_counts_arr = goal_counts();
     //compute the number of blocks to allocate
-    size_t growth = HSIZE;
+    // size_t growth = HSIZE;
     int blocks[DM_NUM_CLASSES];
 		int * counts = count_lists(true); //we have the lock
     for(class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         blocks_left = tasks * goal_counts_arr[class_index] - counts[class_index];
         blocks[class_index] =  blocks_left >= 0 ? blocks_left : 0;
-        growth += blocks[class_index] * size_of_klass(class_index);
+        // growth += blocks[class_index] * size_of_klass(class_index);
     }
-    char *space_head = sys_calloc (growth, 1);	//system malloc, use byte-sized type
-    bop_assert (space_head != NULL);	//ran out of sys memory
-    header *head;
+    header * head, * list_top;
+
+    char* space_head;
+    int current_block;
+    char * debug_ptr;
     for (class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         size = size_of_klass(class_index);
-        counts[class_index] += blocks[class_index];
-        if (headers[class_index] == NULL) {
-            //list was empty
-            headers[class_index] = CAST_H (space_head);
-            space_head += size;
-            blocks[class_index]--;
-        }
-        for (blocks_left = blocks[class_index]; blocks_left; blocks_left--) {
-            CAST_H (space_head)->free.next = CAST_SH (headers[class_index]);
-            head = headers[class_index];
-            head->free.prev = CAST_SH (space_head); //the header is readable
-            head = CAST_H (space_head);
-            space_head += size;
-            headers[class_index] = head;
-        }
-    }
-#ifndef NDEBUG //sanity check, make sure the last byte is allocated
-    header* check = headers[DM_NUM_CLASSES - 1];
-    char* end_byte = ((char*) check) + MAX_SIZE - 1;
-    *end_byte = '\0'; //write an arbitary value
+        space_head = sys_calloc (blocks[class_index], size + 1);	//system malloc, use byte-sized type
+        bop_assert (blocks[class_index] == 0 || space_head != NULL);	//ran out of sys memory
+
+        for(current_block = 0; current_block < blocks[class_index]; current_block++){
+          //set up this space
+          head = (header *) & (space_head[current_block * size]);
+          //make sure the last B in the head is writtable
+#ifndef NDEBUG
+          if(grow_count > 1){ /** Utilization tests */
+            debug_ptr  = (char*) head;
+            //check stack is growing correctly
+            bop_assert(current_block == 0 ||
+                headers[class_index] == (header *) & space_head[(current_block - 1) * size]);
+            // calloc'd return & seperate from previous head
+            bop_assert( *debug_ptr == (char) 0);
+            // last byte is readable
+            bop_assert(current_block == blocks[class_index] - 1 || debug_ptr[size -1] == (char) 0);
+            //adjacent in memory to previous block
+            bop_assert( current_block == 0 || debug_ptr[-1] == 'x'); //previous byte is the last of the previous
+            debug_ptr[size - 1] = 'x'; //This is an array, so -1 since the highest array index is -1 than length
+          }
 #endif
+          list_top = headers[class_index];
+          if(list_top == NULL)
+            headers[class_index] = head;
+          else{
+            head->free.next = CAST_SH(list_top);
+            list_top->free.prev = CAST_SH(head);
+            headers[class_index] = head;
+          }
+        }
+        //post-size class division checks
+#ifndef NDEBUG
+        if(grow_count > 1){
+            //ensure that this list is not a giant loop
+            header * current;
+            for(current = CAST_H(headers[class_index]->free.next); current; current = CAST_H(current->free.next)){
+              bop_assert(current != headers[class_index]);
+              bop_assert(current != CAST_H(current->free.next));
+            }
+        }
+#endif
+    }
 }
+
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
   return NULL;
@@ -306,7 +339,6 @@ static inline header * get_header (size_t size, int *which) {
 	if (size > MAX_SIZE) {
 		found = NULL;
 		temp = -1;
-		goto write_back;
 	} else {
 		temp = get_index (size);
 		found = headers[temp];
@@ -324,7 +356,6 @@ static inline header * get_header (size_t size, int *which) {
   		//don't need go to. just falls through
   	}
   }
-	write_back:
 	if(which != NULL)
 		*which = temp;
 	return found;
@@ -595,6 +626,7 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static inline header* remove_from_alloc_list (header * val) {
+  return NULL;
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
@@ -602,7 +634,7 @@ static inline header* remove_from_alloc_list (header * val) {
     }
     header* current, * prev = NULL;
     for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
-        if(current == val) {
+        if(current == val) { //TODO simplify cases
             if(prev != NULL){
               prev->allocated.next = current->allocated.next;
             }else{
