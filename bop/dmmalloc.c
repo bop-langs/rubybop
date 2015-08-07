@@ -75,7 +75,6 @@ static int split_gave_head[DM_NUM_CLASSES];
 #endif
 
 #define FORCE_INLINE inline __attribute__((always_inline))
-#undef bop_assert(x)
 
 
 /** x86 assembly code for computing the log2 of a value.
@@ -322,6 +321,7 @@ static inline header * extract_header_freed(size_t size){
 	header * list_current,  * prev;
 	for(list_current = freedlist, prev = NULL; list_current != NULL;
 			prev = list_current,	list_current = CAST_H(list_current->free.next)){
+        assert(prev != list_current);
 		if(list_current->allocated.blocksize >= size){
 			//remove and return
 			if(prev == NULL){
@@ -427,8 +427,10 @@ void *dm_malloc (const size_t size) {
 	//actually allocate the block
 	if(which != FREEDLIST_IND){
 		block->allocated.blocksize = size_of_klass(which);
-		// ASSERTBLK(block); unneed
+		// ASSERTBLK(block); //unneed
+    bop_assert (headers[which] != CAST_H (block->free.next));
 		headers[which] = CAST_H (block->free.next);	//remove from free list
+
 	}else{
     bop_msg(2, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
   }
@@ -656,6 +658,7 @@ static inline header* remove_from_alloc_list (header * val) {
             return current;
         }
     }
+    bop_msg(2, "Allocation not found on alloc list");
     return NULL;
 }
 static inline bool list_contains (header * list, header * search_value) {
@@ -670,6 +673,7 @@ static inline bool list_contains (header * list, header * search_value) {
 }
 //add an allocated item to the allocated list
 static inline void add_next_list (header** list_head, header * item) {
+  // return;
     if(*list_head == NULL)
         *list_head = item;
     else if (item != *list_head){ //prevent loops
