@@ -3265,14 +3265,27 @@ void initialize_objspaces(){
   int n = BOP_get_group_size();
   bop_objspaces = calloc(n+2, sizeof(rb_objspace_t));
   int i;
+  rb_objspace_t *old_objspace = objspace;
   for(i = 0; i < n; i++){
     bop_objspaces[i] = rb_objspace_alloc();
     rb_heap_t *new_heap = calloc(1, sizeof(rb_heap_t));
     bop_objspaces[i]->eden_heap = *new_heap;
     bop_objspaces[i]->bop_debug = i+1;
+
+    objspace = bop_objspaces[i];
+
     //TODO bring heap init up here
+
+    gc_stress_set(objspace, ruby_initial_gc_stress);
+    heap_pages_sorted_length = 0;
+    bop_msg(3, "gc_params.heap_init_slots = %d, HEAP_OBJ_LIMIT = %d", gc_params.heap_init_slots, HEAP_OBJ_LIMIT);
+    heap_add_pages(objspace, heap_eden, (gc_params.heap_init_slots / HEAP_OBJ_LIMIT) / 6);
+    init_mark_stack(&objspace->mark_stack);
+    objspace->profile.invoke_time = getrusage_time();
+    finalizer_table = st_init_numtable();
   }
 
+  objspace = old_objspace;
 }
 
 void zero_out_frees()
@@ -3327,13 +3340,6 @@ void zero_out_frees()
     assert(objspace->bop_debug == spec_order+1);
 
     //TODO move this to ppr group init
-    gc_stress_set(objspace, ruby_initial_gc_stress);
-    heap_pages_sorted_length = 0;
-    bop_msg(3, "gc_params.heap_init_slots = %d, HEAP_OBJ_LIMIT = %d", gc_params.heap_init_slots, HEAP_OBJ_LIMIT);
-    heap_add_pages(objspace, heap_eden, (gc_params.heap_init_slots / HEAP_OBJ_LIMIT) / 6);
-    init_mark_stack(&objspace->mark_stack);
-    objspace->profile.invoke_time = getrusage_time();
-    finalizer_table = st_init_numtable();
 
 
 
