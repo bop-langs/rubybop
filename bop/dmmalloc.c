@@ -73,6 +73,9 @@ static int split_gave_head[DM_NUM_CLASSES];
 #endif
 
 #define FORCE_INLINE inline __attribute__((always_inline))
+#undef bop_assert(x)
+
+#define bop_assert(x) if(!(x)) {bop_msg(0, ("Assertion: %s failed, %s:%d %s"), #x, __FILE__, __LINE__, __func__); release_lock(); abort();}
 
 /** x86 assembly code for computing the log2 of a value.
 		This is much faster than math.h log2*/
@@ -662,6 +665,9 @@ static inline void add_next_list (header** list_head, header * item) {
     else if (item != *list_head){ //prevent loops
         item->allocated.next = CAST_SH(*list_head);
         *list_head = item;
+    }
+    else{
+      bop_msg(0, "Loop detected in add_next_list");
     }
 }
 /**Print debug info*/
