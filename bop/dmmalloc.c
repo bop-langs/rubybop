@@ -57,6 +57,7 @@ static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
 static inline header* remove_from_alloc_list (header *);
+static inline header * extract_header_freed(size_t);
 static inline void add_next_list (header**, header *);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
@@ -634,13 +635,13 @@ inline size_t dm_malloc_usable_size(void* ptr) {
     header *free_header = HEADER (ptr);
     size_t head_size = free_header->allocated.blocksize;
     if(head_size > MAX_SIZE){
-        return free_header->allocated.blocksize = sys_malloc_usable_size (free_header) - HSIZE;
-          //what the system actually gave, and write back the better-known value. (debugging)
+      head_size = sys_malloc_usable_size(free_header);
     }
     return head_size - HSIZE; //even for system-allocated chunks.
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static inline header* remove_from_alloc_list (header * val) {
+  return NULL;
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
@@ -672,7 +673,6 @@ static inline bool list_contains (header * list, header * search_value) {
 }
 //add an allocated item to the allocated list
 static inline void add_next_list (header** list_head, header * item) {
-  // return;
     if(*list_head == NULL)
         *list_head = item;
     else if (item != *list_head){ //prevent loops
