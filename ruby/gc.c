@@ -3263,7 +3263,8 @@ void initialize_objspaces(){
   rb_objspace_t *objspace = &rb_objspace;
   assert(!during_gc && !ruby_gc_stressful);
   int n = BOP_get_group_size();
-  bop_objspaces = calloc(n+2, sizeof(rb_objspace_t));
+  bop_objspaces = calloc(n, sizeof(rb_objspace_t *));
+  sequential_objspace = calloc(1, sizeof(rb_objspace_t *));
   int i;
   rb_objspace_t *old_objspace = objspace;
   for(i = 0; i < n; i++){
@@ -3300,9 +3301,11 @@ void zero_out_frees()
     rb_gc_disable();
 
     assert(!during_gc && !ruby_gc_stressful);
-    if(sequential_objspace== NULL){
-      sequential_objspace = calloc(2,sizeof(rb_objspace_t));
+
+    //might move this up to group?
+    if(sequential_objspace->bop_debug != -1){
       memcpy(sequential_objspace, GET_VM()->objspace, sizeof(rb_objspace_t));
+      sequential_objspace->bop_debug = -1;
     }
 
 
