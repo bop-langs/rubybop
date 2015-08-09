@@ -548,7 +548,9 @@ void * dm_realloc (const void *ptr, size_t gsize) {
         new_head->allocated.next = NULL;
         ASSERTBLK (new_head);
         return PAYLOAD (new_head);
-    } else {
+
+    }
+    else {
         //build off malloc and free
         ASSERTBLK(old_head);
         size_t size_cache = old_head->allocated.blocksize;
@@ -561,6 +563,7 @@ void * dm_realloc (const void *ptr, size_t gsize) {
         }
         //copy the data
         size_t copy_size = MIN(old_size, new_size) - HSIZE; // block sizes include the header!
+        assert(copy_size != new_size - HSIZE);
         bop_assert( HEADER(new_payload)->allocated.blocksize >= (copy_size + HSIZE)); //check dm_malloc gave enough space
         new_payload = memcpy(new_payload, ptr, copy_size); // copy data
         bop_assert( ((header *)HEADER(new_payload))->allocated.blocksize >= copy_size);
@@ -579,7 +582,7 @@ void * dm_realloc (const void *ptr, size_t gsize) {
  *	A free is queued to be free'd at BOP commit time otherwise.
 */
 void dm_free (void *ptr) {
-  return;
+  // return;
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
     get_lock();
@@ -592,7 +595,7 @@ void dm_free (void *ptr) {
 }
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
 static inline void free_now (header * head) {
-  return;
+  // return;
     int which;
     size_t size = head->allocated.blocksize;
     ASSERTBLK(head);
@@ -642,7 +645,7 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static inline header* remove_from_alloc_list (header * val) {
-  return NULL;
+  // return NULL;
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
