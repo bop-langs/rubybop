@@ -1610,8 +1610,8 @@ heap_page_create(rb_objspace_t *objspace)
 	method = "allocate";
       check_heap_pages(0);
     }
-    if (!is_sequential()) bop_msg(3, "heap_page_create: %s - %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb->page_length: %d\n",
-		   method, page, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length);
+    if (1) bop_msg(3, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
+		   method, page, page->body, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length, objspace);
     return page;
 }
 
@@ -3281,7 +3281,7 @@ void initialize_objspaces(){
     gc_stress_set(objspace, ruby_initial_gc_stress);
     heap_pages_sorted_length = 0;
     bop_msg(3, "gc_params.heap_init_slots = %d, HEAP_OBJ_LIMIT = %d", gc_params.heap_init_slots, HEAP_OBJ_LIMIT);
-    heap_add_pages(objspace, heap_eden, 10);
+    heap_add_pages(objspace, heap_eden, 20);
     init_mark_stack(&objspace->mark_stack);
     objspace->profile.invoke_time = getrusage_time();
     finalizer_table = st_init_numtable();
