@@ -3323,7 +3323,7 @@ void zero_out_frees()
 
     (GET_VM()->objspace) = bop_objspaces[BOP_task];
 
-    bop_msg(0, "Set objspace %d", GET_VM()->objspace->bop_debug);
+    bop_msg(1, "Set objspace %d", GET_VM()->objspace->bop_debug);
 
     if((int) (GET_VM()->objspace->bop_debug) != (int) (bop_objspaces[BOP_task]->bop_debug))
       {
