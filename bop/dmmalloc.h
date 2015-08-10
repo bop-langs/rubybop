@@ -48,7 +48,7 @@ void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 
 //malloc config macros
 #ifndef DM_BLOCK_SIZE
-#define DM_BLOCK_SIZE 200
+#define DM_BLOCK_SIZE 500
 #endif
 
 //alignement/ header macros
