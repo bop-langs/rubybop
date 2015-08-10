@@ -108,7 +108,7 @@ const FORCE_INLINE int goal_blocks(int klass){
 }
 
 static inline void lists_disjoint(){
-#ifndef NDEBUG
+#if defined(NDEBUG) && !defined(CI_BUILD)
   if(SEQUENTIAL()) return;
 
   header * freed_current, * alloc_curr;
@@ -422,7 +422,7 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
-		} else if (0 && which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
+		} else if (which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
 #ifndef NDEBUG
 			splits++;
 #endif
@@ -500,7 +500,8 @@ static inline header* dm_split (int which) {
     header *split = CAST_H((CHARP (block) + size_of_klass(which)));	//cut in half
     bop_assert (block != split);
     //split-specific info sets
-    headers[which] = split;	// was null PPR Safe
+
+    // headers[which] = split;	// was null PPR Safe
     headers[larger] = CAST_H (headers[larger]->free.next); //PPR Safe
     //remove split up block
     block->allocated.blocksize = size_of_klass(which);
