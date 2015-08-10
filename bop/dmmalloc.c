@@ -623,6 +623,7 @@ static inline void free_now (header * head) {
     bop_assert (size_of_klass(which) == size);	//should exactly align
     if (free_stack == NULL) {
         //empty free_stack
+        //why?
         head->free.next = head->free.prev = NULL;
         headers[which] = head;
         release_lock();
@@ -656,6 +657,8 @@ static inline header* remove_from_alloc_list (header * val) {
         if(current == val) { //TODO simplify cases
             if(prev != NULL){
               prev->allocated.next = current->allocated.next;
+            }else if (current->allocated.next){//if removing head of list
+              allocatedList = current->allocated.next;
             }else{
               allocatedList = NULL;
             }
@@ -677,10 +680,12 @@ static inline bool list_contains (header * list, header * search_value) {
 }
 //add an allocated item to the allocated list
 static inline void add_next_list (header** list_head, header * item) {
-    if(*list_head == NULL)
-        *list_head = item;
+    if(*list_head == NULL){
+      *list_head = item;
+      item->allocated.next = NULL;
+    }
     else if (item != *list_head){ //prevent loops
-        item->allocated.next = CAST_SH(*list_head);
+        item->allocated.next = CAST_SH(*list_head);//overloading allocated next possibly causing error?
         *list_head = item;
     }
     else{
