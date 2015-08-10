@@ -383,7 +383,7 @@ void _BOP_group_over(int id){
   if(ppr_static_id != id){
     bop_msg(3, "Mis-matched ppr ids. Continuing");
   }else if(task_status == SPEC){
-    bop_msg(3, "Speculative process extended past PPR region. Aborting");
+    bop_msg(3, "Speculative process extended past PPR region. _exiting");
     _exit(0);
   }else{
     bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");

@@ -150,7 +150,6 @@ static inline int get_index (size_t size) {
     //Space is too big.
     if (size > MAX_SIZE)
         return -1;			//too big
-    //Computations for the actual index, off set of -5 from macro & array indexing
     int index = LOG(size) - DM_CLASS_OFFSET - 1;
 
     if (index == -1 || size_of_klass(index) < size)
@@ -710,16 +709,19 @@ static int added_n = 0;
 static int nseq_added_n = 0;
 static inline void add_next_list (header** list_head, header * item) {
   added_n++;
-  if(!SEQUENTIAL()) nseq_added_n++;
-    bop_assert(*list_head != item);
-    item->allocated.next = CAST_SH(*list_head); //works even if *list_head == NULL
-    *list_head = item;
-    header * current, * prev;
-    for(prev = NULL, current = *list_head; current != NULL; prev = current, current = CAST_H(current->free.next)){
-      bop_assert(current != CAST_H(current->free.next));
-      bop_assert(current != prev);
-      bop_assert(current != *list_head || prev == NULL);
-    }
+  if(!SEQUENTIAL())
+    nseq_added_n++;
+  bop_assert(*list_head != item);
+  item->allocated.next = CAST_SH(*list_head); //works even if *list_head == NULL
+  *list_head = item;
+#ifndef NDEBUG
+  header * current, * prev;
+  for(prev = NULL, current = *list_head; current != NULL; prev = current, current = CAST_H(current->free.next)){
+    bop_assert(current != CAST_H(current->free.next));
+    bop_assert(current != prev);
+    bop_assert(current != *list_head || prev == NULL);
+  }
+#endif
 }
 /**Print debug info*/
 void dm_print_info (void) {
