@@ -313,13 +313,15 @@ static inline void grow (const int tasks) {
 #endif
           list_top = headers[class_index];
           add_next_list( &headers[class_index], head);
-          // if(list_top == NULL)
-          //   headers[class_index] = head;
-          // else{
-          //   head->free.next = CAST_SH(list_top);
-          //   list_top->free.prev = CAST_SH(head);
-          //   headers[class_index] = head;
-          // }
+          if(list_top == NULL){
+            headers[class_index] = head;
+            head->free.next = head->free.prev = NULL;
+          }
+          else{
+            head->free.next = CAST_SH(list_top);
+            list_top->free.prev = CAST_SH(head);
+            headers[class_index] = head;
+          }
         }
         //post-size class division checks
 #ifndef NDEBUG
