@@ -289,7 +289,7 @@ static inline void grow (const int tasks) {
     char * debug_ptr;
     for (class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         size = size_of_klass(class_index);
-        space_head = sys_calloc (blocks[class_index], size + 1);	//system malloc, use byte-sized type
+        space_head = sys_calloc (blocks[class_index], size);	//system malloc, use byte-sized type
         bop_assert (blocks[class_index] == 0 || space_head != NULL);	//ran out of sys memory
 
         for(current_block = 0; current_block < blocks[class_index]; current_block++){
