@@ -318,7 +318,6 @@ static inline void grow (const int tasks) {
 
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
-  return NULL;
 	header * list_current,  * prev;
 	for(list_current = freedlist, prev = NULL; list_current != NULL;
 			prev = list_current,	list_current = CAST_H(list_current->free.next)){
@@ -623,7 +622,6 @@ static inline void free_now (header * head) {
     bop_assert (size_of_klass(which) == size);	//should exactly align
     if (free_stack == NULL) {
         //empty free_stack
-        //why?
         head->free.next = head->free.prev = NULL;
         headers[which] = head;
         release_lock();
@@ -646,8 +644,8 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static inline header* remove_from_alloc_list (header * val) {
-  // return NULL;
     //remove val from the list
+    return NULL;
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
         return val;
@@ -657,8 +655,6 @@ static inline header* remove_from_alloc_list (header * val) {
         if(current == val) { //TODO simplify cases
             if(prev != NULL){
               prev->allocated.next = current->allocated.next;
-            }else if (current->allocated.next){//if removing head of list
-              allocatedList = current->allocated.next;
             }else{
               allocatedList = NULL;
             }
@@ -680,16 +676,12 @@ static inline bool list_contains (header * list, header * search_value) {
 }
 //add an allocated item to the allocated list
 static inline void add_next_list (header** list_head, header * item) {
-    if(*list_head == NULL){
-      *list_head = item;
-      item->allocated.next = NULL;
-    }
-    else if (item != *list_head){ //prevent loops
-        item->allocated.next = CAST_SH(*list_head);//overloading allocated next possibly causing error?
-        *list_head = item;
-    }
-    else{
-      bop_msg(0, "Loop detected in add_next_list");
+    item->allocated.next = CAST_SH(*list_head); //works even if *list_head == NULL
+    *list_head = item;
+    header * current, * prev;
+    for(prev = NULL, current = *list_head; current != NULL; prev = current, current = CAST_H(current->free.next)){
+      bop_assert(current != prev);
+      bop_assert(current != *list_head || prev == NULL);
     }
 }
 /**Print debug info*/
