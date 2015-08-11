@@ -170,7 +170,7 @@ int spawn_undy(void);
 extern void print_headers(void);
 //if malloc cannot meet a request, it calls this funcion
 void BOP_malloc_rescue(char * msg, size_t size){
-  bop_msg(2, "Malloc rescue begin. Size: %u Failure: %s", size, msg);
+  bop_msg(2, "Malloc rescue begin. aligned size & header: %u Failure: %s", size, msg);
   // print_headers();
   if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
     bop_msg(1, "ERROR. Malloc failed while logically sequential");

@@ -496,9 +496,6 @@ static inline header* dm_split (int which) {
   if(which > 8){
     bop_msg(3, "In large split");
   }
-#ifdef VISUALIZE
-    printf("s");
-#endif
 #ifndef NDEBUG
     split_attempts[which]++;
     split_gave_head[which]++;
