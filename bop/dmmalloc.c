@@ -47,7 +47,7 @@ header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//current
 
 
 header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
-header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info of an allocated block
+header* freedlist= {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode. NOTE: has info of an allocated block
 
 header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
 
@@ -58,7 +58,8 @@ static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
 static inline header* remove_from_alloc_list (header *);
 static inline header * extract_header_freed(size_t);
-static inline void add_next_list (header**, header *);
+static inline void add_alloc_list (header *);
+static inline void add_freed_list (header*);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
 static inline size_t align(size_t size, size_t align);
