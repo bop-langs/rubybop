@@ -386,10 +386,9 @@ static inline header * get_header (size_t size, int *which) {
     found = headers[temp];
   }
 
-	if ( !SEQUENTIAL() && found != NULL ){
-      //this will be useless in PPR mode, and useless if found == NULL
-      bop_assert(temp != FREEDLIST_IND);
-      if(t2 == -1){
+	if ( !SEQUENTIAL() && found != NULL){
+      //this will be useless in sequential mode, and useless if found == NULL
+      if(t2 == -1  || temp != FREEDLIST_IND){
         t2 = get_index(size);
       }
   		if(ends[t2] != NULL && CAST_UH(found) == ends[t2]->free.next) {

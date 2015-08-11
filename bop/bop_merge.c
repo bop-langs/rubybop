@@ -239,9 +239,9 @@ void clear_patch( map_t *patch ) {
 
 static void ppr_commit( void ) {
   assert( spec_order >= 0 );
-  bop_msg(4, "Data commit start");
+  bop_msg(3, "Data commit start");
   create_patch( & patches[ spec_order ], & write_map, commit_space );
-  bop_msg(4, "Data commit done");
+  bop_msg(3, "Data commit done");
 }
 
 static void ppr_group_commit( void ) {
