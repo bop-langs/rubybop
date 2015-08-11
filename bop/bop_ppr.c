@@ -445,7 +445,6 @@ void MonitorInteruptFwd(int signo){
   }
 }
 void print_backtrace(void){
-  if(task_status != MAIN) return;
   bop_msg(1, "\nBACKTRACE pid = %d parent pid %d", getpid(), getppid());
   void *bt[1024];
   int bt_size;
@@ -466,7 +465,7 @@ void ErrorKillAll(int signo){
   /**Horrible things are happening. Go to SEQ mode so malloc won't have issues*/
   bop_msg(1, "ERROR CAUGHT %d", signo);
   int om = bop_mode;
-  bop_mode = SERIAL;
+  malloc_panic = true;
   print_backtrace();
   kill(monitor_process_id, SIGUSR2);
   signal(signo, SIG_DFL);
