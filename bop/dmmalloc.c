@@ -227,7 +227,8 @@ void initialize_group () {
   int ind;
   for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
     ends[ind] = my_list.end[ind];
-    headers[ind] = my_list.start[ind];
+    if(task_status != MAIN)
+      headers[ind] = my_list.start[ind];
     if(group_num != 0){
       bop_assert(headers[ind] != NULL);
     }else{
@@ -436,7 +437,7 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
-		} else if (which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
+		} else if (0 && which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
 			block = dm_split (which);
 			ASSERTBLK(block);
 		} else if (SEQUENTIAL()) {
@@ -695,7 +696,6 @@ static inline header* remove_from_alloc_list (header * val) {
             return current;
         }
     }
-    bop_msg(2, "Allocation not found on alloc list");
     return NULL;
 }
 static inline bool list_contains (header * list, header * search_value) {
