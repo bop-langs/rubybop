@@ -44,12 +44,11 @@ typedef struct {
 ppr_list *regions = NULL;
 //header info
 header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//current heads of free lists
-
-
-header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
-header* freedlist= {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode. NOTE: has info of an allocated block
-
 header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
+
+header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
+header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
+
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -58,7 +57,7 @@ static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
 static inline header* remove_from_alloc_list (header *);
 static inline header * extract_header_freed(size_t);
-static inline void add_alloc_list (header *);
+static inline void add_alloc_list (header**, header *);
 static inline void add_freed_list (header*);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
@@ -106,24 +105,6 @@ const FORCE_INLINE int goal_blocks(int klass){
 		default:
 			return 1;
 	}
-}
-
-static inline void lists_disjoint(){
-#if defined(NDEBUG) && !defined(CI_BUILD)
-  if(SEQUENTIAL()) return;
-
-  header * freed_current, * alloc_curr;
-  for(freed_current = freedlist; freed_current != NULL; freed_current = CAST_H(freed_current->free.next)){
-    for(alloc_curr = allocatedList; alloc_curr != NULL; alloc_curr = CAST_H(alloc_curr->free.next)){
-      bop_assert(freed_current != alloc_curr);
-    }
-  }
-  for(alloc_curr = allocatedList; alloc_curr != NULL; alloc_curr = CAST_H(alloc_curr->free.next)){
-    for(freed_current = freedlist; freed_current != NULL; freed_current = CAST_H(freed_current->free.next)){
-      bop_assert(freed_current != alloc_curr);
-    }
-  }
-#endif
 }
 static int * goal_counts(){
 	static int goal[DM_NUM_CLASSES] = {[0 ... (DM_NUM_CLASSES -1)] = -1};
@@ -258,10 +239,13 @@ void initialize_group () {
 //NOTE: only the heads should be promised. The payloads should be the job of the caller?
 void malloc_promise() {
     header* head;
+    int i;
     for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
         BOP_promise(head, head->allocated.blocksize); //playload matters
-    for(head = freedlist; head != NULL; head = CAST_H(head->free.next))
+    for(i=0; i < DM_NUM_CLASSES; i++){
+      for(head = freedlist[i]; head != NULL; head = CAST_H(head->free.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
+    }
 }
 #warning "Using new grow function"
 static inline void grow (const int tasks) {
@@ -312,7 +296,7 @@ static inline void grow (const int tasks) {
           }
 #endif
           list_top = headers[class_index];
-          add_next_list( &headers[class_index], head);
+          add_alloc_list( &headers[class_index], head);
           if(list_top == NULL){
             headers[class_index] = head;
             head->free.next = head->free.prev = NULL;
@@ -339,54 +323,50 @@ static inline void grow (const int tasks) {
 
 static inline header * extract_header_freed(size_t size){
 	//find an free'd block that is large enough for size. Also removes from the list
-	header * list_current,  * prev;
-	for(list_current = freedlist, prev = NULL; list_current != NULL;
-			prev = list_current, list_current = CAST_H(list_current->free.next)){
-        bop_assert(prev != list_current);
-        bop_assert(list_current != CAST_H(list_current->free.next));
-		if(list_current->allocated.blocksize >= size){
-			//remove and return
-			if(prev == NULL){
-				//list_current head of list
-        bop_assert(list_current == freedlist);
-        list_current->allocated.next = NULL;
-				freedlist = CAST_H(freedlist->free.next);
-				return list_current;
-			}else{
-				prev->free.next = list_current->free.next;
-				return list_current;
-			}
-		}
-	}
-	return NULL;
+  int index = get_index(size);
+  header* head = freedlist[index];
+  if(head){
+    freedlist[index] = head->free.next;
+    freedlist[index]->free.prev = NULL;
+  }
+	return head;
 }
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
 	int temp = -1;
-	//requested allocation is too big
-	if (size > MAX_SIZE) {
+  if (size > MAX_SIZE) {
 		found = NULL;
 		temp = -1;
 	} else {
-		temp = get_index (size);
-		found = headers[temp];
-		//don't jump to the end. need next conditional
-	}
-	if ( !SEQUENTIAL() ){
-  		if( found == NULL || (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) ) {
-  		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[temp], temp);
-  		//try to allocate from the freed list. Slower
+    //TODO clean this up
+    if(!SEQUENTIAL()){
   		found =  extract_header_freed(size);
   		if(found)
   			temp = FREEDLIST_IND;
-  		else
-  			temp = -1;
-  		//don't need go to. just falls through
+      else{
+  	    temp = get_index (size);
+    		found = headers[temp];
+      }
+    }
+    else{
+	    temp = get_index (size);
+  		found = headers[temp];
+    }
+	}
+  if(which == NULL){
+    return found;
+  }
+	//requested allocation is too big
+
+  *which = temp;
+	if ( !SEQUENTIAL() ){
+  		if( found == NULL || (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) ) {
+  		bop_msg(2, "Attempting to extract a header from the freed list:\n value of ends[which]: %p\n value of which: %d", ends[temp], temp);
   	}
   }
-	if(which != NULL)
-		*which = temp;
+
+  *which = temp;
 	return found;
 }
 extern void BOP_malloc_rescue(char *, size_t);
@@ -445,7 +425,7 @@ void *dm_malloc (const size_t size) {
 		}
 	}
 	if(!SEQUENTIAL()){
-		add_next_list(&allocatedList, block);
+		add_alloc_list(&allocatedList, block);
   }
 
 	//actually allocate the block
@@ -463,7 +443,6 @@ void *dm_malloc (const size_t size) {
   block->allocated.next = NULL;
 
   get_lock();
-  lists_disjoint();
   release_lock();
 	return PAYLOAD (block);
 }
@@ -616,10 +595,10 @@ void dm_free (void *ptr) {
     if(SEQUENTIAL() || remove_from_alloc_list (free_header)){
         release_lock();
         free_now (free_header);
-    } else
-        add_next_list(&freedlist, free_header);
+    } else{
+       add_freed_list(free_header);
+    }
 
-    lists_disjoint();
 		release_lock();
 }
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
@@ -635,7 +614,7 @@ static inline void free_now (header * head) {
         sys_free(head);
       }else{
         get_lock();
-        add_next_list(&freedlist, head);
+        add_freed_list(head);
         release_lock();
       }
       return;
@@ -646,7 +625,7 @@ static inline void free_now (header * head) {
     if(which == FREEDLIST_IND){
       //TODO ???? not safe...??
       bop_msg(3, "Tried t free from alloc_curr_list returned head.");
-      add_next_list(&freedlist, head);
+      add_freed_list(head);
       return;
     }
     if(which != -1)
@@ -662,7 +641,6 @@ static inline void free_now (header * head) {
     head->free.next = CAST_SH (free_stack);
     headers[which] = head;
 
-    lists_disjoint();
     release_lock();
 }
 inline size_t dm_malloc_usable_size(void* ptr) {
@@ -709,22 +687,26 @@ static inline bool list_contains (header * list, header * search_value) {
 //add an allocated item to the allocated list
 static int added_n = 0;
 static int nseq_added_n = 0;
-static inline void add_next_list (header** list_head, header * item) {
+
+static inline void add_alloc_list (header** list_head, header * item) {
   added_n++;
   if(!SEQUENTIAL())
     nseq_added_n++;
   bop_assert(*list_head != item);
   item->allocated.next = CAST_SH(*list_head); //works even if *list_head == NULL
   *list_head = item;
-#ifndef NDEBUG
-  header * current, * prev;
-  for(prev = NULL, current = *list_head; current != NULL; prev = current, current = CAST_H(current->free.next)){
-    bop_assert(current != CAST_H(current->free.next));
-    bop_assert(current != prev);
-    bop_assert(current != *list_head || prev == NULL);
-  }
-#endif
 }
+
+static inline void add_freed_list(header* item){
+  size_t size = item->allocated.blocksize;
+  int index = get_index(size);
+  item->free.next = freedlist[index];
+  if(freedlist[index]){
+    freedlist[index]->free.prev = item;
+  }
+  freedlist[index] = item;
+}
+
 /**Print debug info*/
 void dm_print_info (void) {
 #ifndef NDEBUG
