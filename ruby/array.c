@@ -827,7 +827,7 @@ rb_ary_store(VALUE ary, long idx, VALUE val)
     }
     ARY_SET(ary, idx, val);
 
-    BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) (&RARRAY_AREF(ary, idx+1) - &RARRAY_AREF(ary, idx)));
+    BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
 }
 
 static VALUE
