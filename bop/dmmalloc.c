@@ -371,7 +371,6 @@ static inline header * get_header (size_t size, int *which) {
   if (size > MAX_SIZE) {
 		found = NULL;
 		temp = -1;
-    goto cleanup;
 	}
   if(!SEQUENTIAL()){
     found = extract_header_freed(size);
@@ -386,7 +385,6 @@ static inline header * get_header (size_t size, int *which) {
     found = headers[temp];
   }
 
-  cleanup:
 	if ( !SEQUENTIAL() ){
       if(t2 == -1)
         t2 = get_index(size);
