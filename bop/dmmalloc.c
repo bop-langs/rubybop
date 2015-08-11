@@ -462,7 +462,8 @@ void *dm_malloc (const size_t size) {
 		headers[which] = CAST_H (block->free.next);	//remove from free list
     //headers[which]->free.prev = NULL; //this should be here...
 	}else{
-    bop_msg(2, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
+    block->allocated.blocksize = size_of_klass(which);
+    bop_msg(4, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
   }
  checks:
 	ASSERTBLK(block);
@@ -492,6 +493,9 @@ static inline int index_bigger (int which) {
 
 // Repeatedly split a larger block into a block of the required size
 static inline header* dm_split (int which) {
+  if(which > 8){
+    bop_msg(3, "In large split");
+  }
 #ifdef VISUALIZE
     printf("s");
 #endif
@@ -696,6 +700,7 @@ static inline header* remove_from_alloc_list (header * val) {
             return current;
         }
     }
+    bop_msg(4, "Allocation not found on alloc list");
     return NULL;
 }
 static inline bool list_contains (header * list, header * search_value) {
