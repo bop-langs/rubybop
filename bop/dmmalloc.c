@@ -177,8 +177,10 @@ static int* count_lists(bool is_locked){
 		release_lock();
 	return counts;
 }
+/** BOP Port functions */
 
 void carve () {
+  bop_assert(SEQUENTIAL());
   int tasks = BOP_get_group_size();
   if( regions != NULL){
     dm_free(regions); //dm_free -> don't have lock
@@ -218,22 +220,30 @@ void carve () {
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
-		bop_msg(2,"DM Malloc initializing spec task %d", spec_order);
-	  int group_num = spec_order;
-    ppr_list my_list = regions[group_num];
-    int ind;
-    for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
-        ends[ind] = my_list.end[ind];
-        headers[ind] = my_list.start[ind];
-        if(group_num != 0){
-          bop_assert(headers[ind] != NULL);
-        }else{
-          bop_assert(task_status == MAIN);
-        }
-				bop_assert(headers[ind] != ends[ind]);
-				// bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
+  bop_msg(2,"DM Malloc initializing spec task %d", spec_order);
+  bop_assert(! SEQUENTIAL() );
+  int group_num = spec_order;
+  ppr_list my_list = regions[group_num];
+  int ind;
+  for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
+    ends[ind] = my_list.end[ind];
+    headers[ind] = my_list.start[ind];
+    if(group_num != 0){
+      bop_assert(headers[ind] != NULL);
+    }else{
+      bop_assert(task_status == MAIN);
     }
+    bop_assert(headers[ind] != ends[ind]);
+    // bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
+  }
+#ifndef NDEBUG
+  for(ind = 0; ind < DM_NUM_CLASSES; ind++){
+    bop_assert(headers[ind] != NULL);
+    bop_assert(headers[ind]->free.next != NULL);
+  }
+#endif
 }
+
 
 /** Merge
 1) Promise everything in both allocated and free list
@@ -248,6 +258,24 @@ void malloc_promise() {
       for(head = freedlist[i]; head != NULL; head = CAST_H(head->free.next))
         BOP_promise(head, HSIZE); //payload doesn't matter
     }
+}
+
+void dm_malloc_undy_init(){
+  //called when the under study begins. Free everything in the freed list
+  bop_assert(SEQUENTIAL());
+  header * current, *  next;
+  int ind;
+  for(ind = 0; ind < DM_NUM_CLASSES; ind++){
+    for(current = freedlist[ind]; current != NULL; current = CAST_H(current->free.next)){
+      dm_free(PAYLOAD(current));
+    }
+    freedlist[ind] = NULL;
+  }
+  for(current = allocatedList; current != NULL; current = next){
+    next = CAST_H(current->allocated.next);
+    current->allocated.next = NULL;
+  }
+  allocatedList = NULL;
 }
 
 static inline void grow (const int tasks) {
@@ -734,5 +762,6 @@ void dm_print_info (void) {
 bop_port_t bop_alloc_port = {
 	.ppr_group_init		= carve,
 	.ppr_task_init		= initialize_group,
-	.task_group_commit	= malloc_promise
+	.task_group_commit	= malloc_promise,
+  .undy_init = dm_malloc_undy_init
 };
