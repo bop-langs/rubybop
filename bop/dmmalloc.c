@@ -221,7 +221,7 @@ void carve () {
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
   bop_msg(2,"DM Malloc initializing spec task %d", spec_order);
-  bop_assert(! SEQUENTIAL() );
+  // bop_assert(! SEQUENTIAL() );
   int group_num = spec_order;
   ppr_list my_list = regions[group_num];
   int ind;
@@ -253,12 +253,19 @@ void initialize_group () {
 void malloc_promise() {
     header* head;
     int i;
-    for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
+    int allocs = 0, frees = 0;
+    for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next)){
         BOP_promise(head, head->allocated.blocksize); //playload matters
-    for(i=0; i < DM_NUM_CLASSES; i++){
-      for(head = freedlist[i]; head != NULL; head = CAST_H(head->free.next))
-        BOP_promise(head, HSIZE); //payload doesn't matter
+        allocs++;
     }
+    for(i=0; i < DM_NUM_CLASSES; i++){
+      for(head = freedlist[i]; head != NULL; head = CAST_H(head->free.next)){
+        BOP_promise(head, HSIZE); //payload doesn't matter
+        frees++;
+      }
+    }
+    bop_msg(3, "Number of promised frees: \t%d", frees);
+    bop_msg(3, "Number of promised allocs: \t%d", allocs);
 }
 
 void dm_malloc_undy_init(){
