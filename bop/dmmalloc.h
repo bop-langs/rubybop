@@ -55,7 +55,7 @@ void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
 #define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
-#define CAST_SH(h) ((union header *) (h))
+#define CAST_UH(h) ((union header *) (h))
 #define CAST_H(h) ((header*) (h))
 #define CHARP(p) (((char*) (p)))
 #define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))

@@ -59,7 +59,7 @@ static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
 static inline header* remove_from_alloc_list (header *);
 static inline header * extract_header_freed(size_t);
-static inline void add_alloc_list (header**, header *);
+static inline void add_next_list (header**, header *);
 static inline void add_freed_list (header*);
 static inline header *dm_split (int which);
 static inline int index_bigger (int);
@@ -249,7 +249,7 @@ void malloc_promise() {
         BOP_promise(head, HSIZE); //payload doesn't matter
     }
 }
-#warning "Using new grow function"
+
 static inline void grow (const int tasks) {
   //THIS IS THE NEW GROW FUNCTION!
     int class_index, blocks_left, size;
@@ -298,14 +298,14 @@ static inline void grow (const int tasks) {
           }
 #endif
           list_top = headers[class_index];
-          add_alloc_list( &headers[class_index], head);
+          add_next_list( &headers[class_index], head);
           if(list_top == NULL){
             headers[class_index] = head;
             head->free.next = head->free.prev = NULL;
           }
           else{
-            head->free.next = CAST_SH(list_top);
-            list_top->free.prev = CAST_SH(head);
+            head->free.next = CAST_UH(list_top);
+            list_top->free.prev = CAST_UH(head);
             headers[class_index] = head;
           }
         }
@@ -328,7 +328,7 @@ static inline header * extract_header_freed(size_t size){
   int index = get_index(size);
   header* head = freedlist[index];
   if(head){
-    freedlist[index] = head->free.next;
+    freedlist[index] = CAST_H(head->free.next);
     if(freedlist[index]){
       freedlist[index]->free.prev = NULL;
     }
@@ -365,7 +365,7 @@ static inline header * get_header (size_t size, int *which) {
 
   *which = temp;
 	if ( !SEQUENTIAL() ){
-  		if( found == NULL || (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) ) {
+  		if( found == NULL || (ends[temp] != NULL && CAST_UH(found) == ends[temp]->free.next) ) {
   		bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
       found = NULL;
   	}
@@ -422,7 +422,7 @@ void *dm_malloc (const size_t size) {
 		}
 	}
 	if(!SEQUENTIAL()){
-		add_alloc_list(&allocatedList, block);
+		add_next_list(&allocatedList, block);
   }
 
 	//actually allocate the block
@@ -481,7 +481,7 @@ static inline header* dm_split (int which) {
     //remove split up block
     block->allocated.blocksize = size_of_klass(which);
 
-    block->free.next = CAST_SH (split);
+    block->free.next = CAST_UH (split);
     split->free.next = split->free.prev = NULL;
 
     bop_assert (block->allocated.blocksize != 0);
@@ -633,8 +633,8 @@ static inline void free_now (header * head) {
         release_lock();
         return;
     }
-    free_stack->free.prev = CAST_SH (head);
-    head->free.next = CAST_SH (free_stack);
+    free_stack->free.prev = CAST_UH (head);
+    head->free.next = CAST_UH (free_stack);
     headers[which] = head;
 
     release_lock();
@@ -684,21 +684,21 @@ static inline bool list_contains (header * list, header * search_value) {
 static int added_n = 0;
 static int nseq_added_n = 0;
 
-static inline void add_alloc_list (header** list_head, header * item) {
+static inline void add_next_list (header** list_head, header * item) {
   added_n++;
   if(!SEQUENTIAL())
     nseq_added_n++;
   bop_assert(*list_head != item);
-  item->allocated.next = CAST_SH(*list_head); //works even if *list_head == NULL
+  item->allocated.next = CAST_UH(*list_head); //works even if *list_head == NULL
   *list_head = item;
 }
 
 static inline void add_freed_list(header* item){
   size_t size = item->allocated.blocksize;
   int index = get_index(size);
-  item->free.next = freedlist[index];
+  item->free.next = CAST_UH(freedlist[index]);
   if(freedlist[index]){
-    freedlist[index]->free.prev = item;
+    freedlist[index]->free.prev = CAST_UH(item);
   }
   freedlist[index] = item;
 }
