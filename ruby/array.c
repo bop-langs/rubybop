@@ -1180,7 +1180,7 @@ extern void BOP_record_read(void*, size_t);
 static inline VALUE
 rb_ary_elt(VALUE ary, long offset)
 {
-    
+
     long len = RARRAY_LEN(ary);
     if (len == 0) return Qnil;
     if (offset < 0 || len <= offset) {
