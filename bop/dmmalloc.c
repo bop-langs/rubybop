@@ -327,7 +327,9 @@ static inline header * extract_header_freed(size_t size){
   header* head = freedlist[index];
   if(head){
     freedlist[index] = head->free.next;
-    freedlist[index]->free.prev = NULL;
+    if(freedlist[index]){
+      freedlist[index]->free.prev = NULL;
+    }
   }
 	return head;
 }
@@ -362,7 +364,8 @@ static inline header * get_header (size_t size, int *which) {
   *which = temp;
 	if ( !SEQUENTIAL() ){
   		if( found == NULL || (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) ) {
-  		bop_msg(2, "Attempting to extract a header from the freed list:\n value of ends[which]: %p\n value of which: %d", ends[temp], temp);
+  		bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
+      found = NULL;
   	}
   }
 
@@ -508,7 +511,8 @@ static inline header* dm_split (int which) {
 				}else{
 					//go through dm_free
 					split->allocated.blocksize = size_of_klass(which);
-					dm_free(split);
+          release_lock(); //need to let dm_free have the lock
+					dm_free(PAYLOAD(split));
 				}
         which++;
     }
