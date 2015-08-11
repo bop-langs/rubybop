@@ -262,6 +262,7 @@ void malloc_promise() {
 }
 
 void dm_malloc_undy_init(){
+  return;
   //called when the under study begins. Free everything in the freed list
   bop_assert(SEQUENTIAL());
   header * current, *  next;
@@ -385,12 +386,15 @@ static inline header * get_header (size_t size, int *which) {
     found = headers[temp];
   }
 
-	if ( !SEQUENTIAL() ){
-      if(t2 == -1)
+	if ( !SEQUENTIAL() && found != NULL ){
+      //this will be useless in PPR mode, and useless if found == NULL
+      bop_assert(temp != FREEDLIST_IND);
+      if(t2 == -1){
         t2 = get_index(size);
-  		if( found == NULL || (ends[t2] != NULL && CAST_UH(found) == ends[t2]->free.next) ) {
-  		bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
-      found = NULL;
+      }
+  		if(ends[t2] != NULL && CAST_UH(found) == ends[t2]->free.next) {
+    		bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
+        found = NULL;
   	}
   }
   if(which != NULL)
@@ -685,9 +689,8 @@ static inline void free_now (header * head) {
     get_lock();
     header *free_stack = get_header (size, &which);
     if(which == FREEDLIST_IND){
-      //TODO ???? not safe...??
-      bop_msg(3, "Tried t free from alloc_curr_list returned head.");
       add_freed_list(head);
+      add_freed_list(free_stack);
       return;
     }
     if(which != -1)
