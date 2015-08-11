@@ -49,6 +49,8 @@ header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lis
 header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
 header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 
+int last_counts[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};
+
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -407,17 +409,9 @@ void *dm_malloc (const size_t size) {
 				goto malloc_begin; //try again
 			}
 		} else if (which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
-#ifndef NDEBUG
-			splits++;
-#endif
 			block = dm_split (which);
 			ASSERTBLK(block);
 		} else if (SEQUENTIAL()) {
-			//grow the allocated region
-#ifndef NDEBUG
-			if (index_bigger (which) != -1)
-			   missed_splits++;
-#endif
 			grow (1);
 			goto malloc_begin;
 		} else {
@@ -437,6 +431,7 @@ void *dm_malloc (const size_t size) {
 		// ASSERTBLK(block); //unneed
     bop_assert (headers[which] != CAST_H (block->free.next));
 		headers[which] = CAST_H (block->free.next);	//remove from free list
+    //headers[which]->free.prev = NULL; //this should be here...
 	}else{
     bop_msg(2, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
   }
@@ -444,9 +439,6 @@ void *dm_malloc (const size_t size) {
 	ASSERTBLK(block);
 	release_lock();
   block->allocated.next = NULL;
-
-  get_lock();
-  release_lock();
 	return PAYLOAD (block);
 }
 void print_headers(){
