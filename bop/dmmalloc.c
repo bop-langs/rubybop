@@ -367,40 +367,36 @@ static inline header * extract_header_freed(size_t size){
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
-	int temp = -1;
+	int temp = -1, t2 = -1;
   if (size > MAX_SIZE) {
 		found = NULL;
 		temp = -1;
-	} else {
-    //TODO clean this up
-    if(!SEQUENTIAL()){
-  		found =  extract_header_freed(size);
-  		if(found)
-  			temp = FREEDLIST_IND;
-      else{
-  	    temp = get_index (size);
-    		found = headers[temp];
-      }
-    }
-    else{
-	    temp = get_index (size);
-  		found = headers[temp];
-    }
+    goto cleanup;
 	}
-  if(which == NULL){
-    return found;
+  if(!SEQUENTIAL()){
+    found = extract_header_freed(size);
+    if(found){
+      t2 = temp = FREEDLIST_IND;
+    }else{
+      t2 = temp = get_index (size);
+      found = headers[temp];
+    }
+  } else{
+    temp = get_index (size);
+    found = headers[temp];
   }
-	//requested allocation is too big
 
-  *which = temp;
+  cleanup:
 	if ( !SEQUENTIAL() ){
-  		if( found == NULL || (ends[temp] != NULL && CAST_UH(found) == ends[temp]->free.next) ) {
+      if(t2 == -1)
+        t2 = get_index(size);
+  		if( found == NULL || (ends[t2] != NULL && CAST_UH(found) == ends[t2]->free.next) ) {
   		bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
       found = NULL;
   	}
   }
-
-  *which = temp;
+  if(which != NULL)
+    *which = temp;
 	return found;
 }
 extern void BOP_malloc_rescue(char *, size_t);
@@ -437,7 +433,7 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
-		} else if (0 && which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
+		} else if (which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
 			block = dm_split (which);
 			ASSERTBLK(block);
 		} else if (SEQUENTIAL()) {
@@ -462,7 +458,7 @@ void *dm_malloc (const size_t size) {
 		headers[which] = CAST_H (block->free.next);	//remove from free list
     //headers[which]->free.prev = NULL; //this should be here...
 	}else{
-    block->allocated.blocksize = size_of_klass(which);
+    block->allocated.blocksize = size_of_klass(get_index(alloc_size));
     bop_msg(4, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
   }
  checks:
@@ -483,19 +479,60 @@ static inline int index_bigger (int which) {
     if (which == -1)
         return -1;
     which++;
+    int index;
     while (which < DM_NUM_CLASSES) {
-        if (get_header(size_of_klass(which), NULL) != NULL)
-            return which;
-        which++;
+      if (get_header(size_of_klass(which), &index) != NULL){
+        if(index != FREEDLIST_IND)
+          return which;
+        else
+          return -1;
+      }
+      which++;
     }
     return -1;
 }
+#if 0
+// Repeatedly split a larger block into a block of the required size
+static inline header* dm_split (int which) {
+#ifndef NDEBUG
+  split_attempts[which]++;
+  split_gave_head[which]++;
+#endif
+  int ind,  larger = index_bigger (which);
+  size_t size = size_of_klass(larger);
 
+  header * const block = get_header(size, &ind);
+  bop_assert(ind == larger); //these should be identical if index_bigger is working correctly
+
+  char * split = CHARP(block) + (size_of_klass(which));
+  block->free.next = CAST_UH(split); //dmmalloc removes from headers[which]
+  headers[which] = block; //this is ok
+
+  split += size_of_klass(which);
+  for(which++; which < larger; which++){
+    //iteratively handle each successive split. Happens when classes are non-adjacent
+    //ensure that there wasn't a closer one
+    size = size_of_klass(which);
+    bop_assert(get_header(size, NULL) == NULL); //if fails, get_bigger is messed up
+
+    split += size;
+    CAST_H(split)->allocated.blocksize = size;
+    release_lock();
+    dm_free(PAYLOAD(size));
+    get_lock();
+
+  }
+  return block;
+}
+#else
 // Repeatedly split a larger block into a block of the required size
 static inline header* dm_split (int which) {
   if(which > 8){
     bop_msg(3, "In large split");
   }
+#ifdef VISUALIZE
+    printf("s");
+#endif
 #ifndef NDEBUG
     split_attempts[which]++;
     split_gave_head[which]++;
@@ -540,6 +577,7 @@ static inline header* dm_split (int which) {
     }
     return block;
 }
+#endif
 // standard calloc using malloc
 void * dm_calloc (size_t n, size_t size) {
     header * head;
