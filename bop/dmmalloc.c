@@ -646,21 +646,21 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static bool remove_from_alloc_list (header * val) {
-    //remove val from the list
-    if(allocatedList == val) { //was the head of the list
-        allocatedList = NULL;
-        return true;
+  //remove val from the list
+  if(allocatedList == val) { //was the head of the list
+    allocatedList = CAST_H(allocatedList->allocated.next);
+    return true;
+  }
+  header* current, * prev = NULL;
+  for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
+    if(current == val) {
+      bop_assert(prev != NULL);
+      prev->allocated.next = current->allocated.next;
+      return true;
     }
-    header* current, * prev = NULL;
-    for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
-      if(current == val) {
-        bop_assert(prev != NULL);
-        prev->allocated.next = current->allocated.next;
-        return true;
-      }
-    }
-    bop_msg(4, "Allocation not found on alloc list");
-    return false;
+  }
+  bop_msg(4, "Allocation not found on alloc list");
+  return false;
 }
 static inline bool list_contains (header * list, header * search_value) {
     if (list == NULL || search_value == NULL)
