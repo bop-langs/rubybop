@@ -46,6 +46,7 @@ static header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//
 static header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
 
 static header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
+static header* large_free_list = NULL;
 static header* allocated_lists[DM_NUM_CLASSES]= {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items allocated during PPR-mode NOTE: info of allocated block
 
 //helper prototypes
@@ -261,6 +262,10 @@ void malloc_promise() {
         frees++;
       }
     }
+    for(head = large_free_list; head != NULL; head = CAST_H(head->free.next)){
+      BOP_promise(head, HSIZE); //payload doesn't matter
+      frees++;
+    }
     bop_msg(3, "Number of promised frees: \t%d", frees);
     bop_msg(3, "Number of promised allocs: \t%d", allocs);
 }
@@ -276,6 +281,9 @@ void dm_malloc_undy_init(){
       dm_free(PAYLOAD(current));
     }
     freedlist[ind] = NULL;
+  }
+  for(current = large_free_list; current != NULL; current = CAST_H(current->free.next)){
+    dm_free(PAYLOAD(current));
   }
   for(ind = 0; ind < DM_NUM_CLASSES; ind++){
     for(current = allocated_lists[ind]; current != NULL; current = next){
@@ -694,7 +702,9 @@ static inline void add_next_list (header** list_head, header * item) {
 static inline void add_freed_list(header* item){
   size_t size = item->allocated.blocksize;
   int index = get_index(size);
-  bop_assert(index >= 0 && index < DM_NUM_CLASSES); //TODO we need to support this case, ie freeing large items from pre-ppr
+  if(index >= DM_NUM_CLASSES){
+    add_next_list(&large_free_list, item);
+  }
   item->free.next = CAST_UH(freedlist[index]);
   if(freedlist[index]){
     freedlist[index]->free.prev = CAST_UH(item);
