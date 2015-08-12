@@ -53,10 +53,10 @@ static inline int get_index (size_t);
 static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
-static inline header* remove_from_alloc_list (header *);
+static header* remove_from_alloc_list (header *);
 static inline void add_next_list (header**, header *);
 static inline void add_freed_list (header*);
-static inline header *dm_split (int which);
+static inline header *dm_split (int which, int larger);
 static inline int index_bigger (int);
 static inline size_t align(size_t size, size_t align);
 static inline void get_lock();
@@ -381,7 +381,7 @@ extern void BOP_malloc_rescue(char *, size_t);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
 	header * block = NULL;
-	int which;
+	int which, bigger = -1;
 	size_t alloc_size;
 	if(size == 0)
 	 return NULL;
@@ -411,8 +411,8 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
-		} else if (which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
-			block = dm_split (which);
+		} else if (which < DM_NUM_CLASSES - 1 && (bigger = index_bigger (which)) != -1) {
+			block = dm_split (which, bigger);
 			ASSERTBLK(block);
 		} else if (SEQUENTIAL()) {
 			grow (1);
@@ -459,42 +459,8 @@ static inline int index_bigger (int which) {
     }
     return -1;
 }
-#if 0
 // Repeatedly split a larger block into a block of the required size
-static inline header* dm_split (int which) {
-#ifndef NDEBUG
-  split_attempts[which]++;
-  split_gave_head[which]++;
-#endif
-  int ind,  larger = index_bigger (which);
-  size_t size = size_of_klass(larger);
-
-  header * const block = get_header(size, &ind);
-  bop_assert(ind == larger); //these should be identical if index_bigger is working correctly
-
-  char * split = CHARP(block) + (size_of_klass(which));
-  block->free.next = CAST_UH(split); //dmmalloc removes from headers[which]
-  headers[which] = block; //this is ok
-
-  split += size_of_klass(which);
-  for(which++; which < larger; which++){
-    //iteratively handle each successive split. Happens when classes are non-adjacent
-    //ensure that there wasn't a closer one
-    size = size_of_klass(which);
-    bop_assert(get_header(size, NULL) == NULL); //if fails, get_bigger is messed up
-
-    split += size;
-    CAST_H(split)->allocated.blocksize = size;
-    release_lock();
-    dm_free(PAYLOAD(size));
-    get_lock();
-
-  }
-  return block;
-}
-#else
-// Repeatedly split a larger block into a block of the required size
-static inline header* dm_split (int which) {
+static inline header* dm_split (int which, int larger) {
   if(which > 8){
     bop_msg(3, "In large split");
   }
@@ -505,7 +471,6 @@ static inline header* dm_split (int which) {
     split_attempts[which]++;
     split_gave_head[which]++;
 #endif
-    int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = CAST_H((CHARP (block) + size_of_klass(which)));	//cut in half
     bop_assert (block != split);
@@ -545,7 +510,6 @@ static inline header* dm_split (int which) {
     }
     return block;
 }
-#endif
 // standard calloc using malloc
 void * dm_calloc (size_t n, size_t size) {
     header * head;
@@ -680,7 +644,7 @@ inline size_t dm_malloc_usable_size(void* ptr) {
     return head_size - HSIZE; //even for system-allocated chunks.
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
-static inline header* remove_from_alloc_list (header * val) {
+static header* remove_from_alloc_list (header * val) {
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
