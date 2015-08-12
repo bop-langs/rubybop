@@ -32,7 +32,6 @@
 
 short malloc_panic = 0;
 
-#define FREEDLIST_IND -10
 //BOP macros & structures
 #define SEQUENTIAL() (malloc_panic || bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY)
 
@@ -55,7 +54,6 @@ static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
 static inline header* remove_from_alloc_list (header *);
-static inline header * extract_header_freed(size_t);
 static inline void add_next_list (header**, header *);
 static inline void add_freed_list (header*);
 static inline header *dm_split (int which);
@@ -357,48 +355,23 @@ static inline void grow (const int tasks) {
     }
 }
 
-static inline header * extract_header_freed(size_t size){
-	//find an free'd block that is large enough for size. Also removes from the list
-  int index = get_index(size);
-  header* head = freedlist[index];
-  if(head){
-    freedlist[index] = CAST_H(head->free.next);
-    if(freedlist[index]){
-      freedlist[index]->free.prev = NULL;
-    }
-  }
-	return head;
-}
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
-	int temp = -1, t2 = -1;
+	int temp = -1;
   if (size > MAX_SIZE) {
-		found = NULL;
-		temp = -1;
-	}
-  if(!SEQUENTIAL()){
-    found = extract_header_freed(size);
-    if(found){
-      t2 = temp = FREEDLIST_IND;
-    }else{
-      t2 = temp = get_index (size);
-      found = headers[temp];
-    }
-  } else{
+    found = NULL;
+    temp = -1;
+  }else{
     temp = get_index (size);
     found = headers[temp];
-  }
-
-	if ( !SEQUENTIAL() && found != NULL){
+    if ( !SEQUENTIAL() && found != NULL){
       //this will be useless in sequential mode, and useless if found == NULL
-      if(t2 == -1  || temp != FREEDLIST_IND){
-        t2 = get_index(size);
-      }
-  		if(ends[t2] != NULL && CAST_UH(found) == ends[t2]->free.next) {
-    		bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
+      if(ends[temp] != NULL && CAST_UH(found) == ends[temp]->free.next) {
+        bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
         found = NULL;
-  	}
+      }
+    }
   }
   if(which != NULL)
     *which = temp;
@@ -452,20 +425,13 @@ void *dm_malloc (const size_t size) {
 		}
 	}
 	if(!SEQUENTIAL()){
-		add_next_list(&allocatedList, block);
+    add_next_list(&allocatedList, block);
   }
-
-	//actually allocate the block
-	if(which != FREEDLIST_IND){
-		block->allocated.blocksize = size_of_klass(which);
-		// ASSERTBLK(block); //unneed
-    bop_assert (headers[which] != CAST_H (block->free.next));
-		headers[which] = CAST_H (block->free.next);	//remove from free list
-    //headers[which]->free.prev = NULL; //this should be here...
-	}else{
-    block->allocated.blocksize = size_of_klass(get_index(alloc_size));
-    bop_msg(4, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
-  }
+  block->allocated.blocksize = size_of_klass(which);
+  // ASSERTBLK(block); //unneed
+  bop_assert (headers[which] != CAST_H (block->free.next));
+  headers[which] = CAST_H (block->free.next);	//remove from free list
+  //headers[which]->free.prev = NULL; //this should be here...
  checks:
 	ASSERTBLK(block);
 	release_lock();
@@ -487,7 +453,6 @@ static inline int index_bigger (int which) {
     int index;
     while (which < DM_NUM_CLASSES) {
       if (get_header(size_of_klass(which), &index) != NULL){
-        if(index != FREEDLIST_IND)
           return which;
         else
           return -1;
@@ -691,11 +656,6 @@ static inline void free_now (header * head) {
     //synchronised region
     get_lock();
     header *free_stack = get_header (size, &which);
-    if(which == FREEDLIST_IND){
-      add_freed_list(head);
-      add_freed_list(free_stack);
-      return;
-    }
     if(which != -1)
       bop_assert (size_of_klass(which) == size);	//should exactly align
     if (free_stack == NULL) {
