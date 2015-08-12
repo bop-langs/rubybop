@@ -12,13 +12,13 @@ end
 task :miniruby => [:bop, :ruby_setup] do
   cd "ruby" do
     sh 'rm -f miniruby'
-    sh 'make -j4 miniruby'
+    sh 'make miniruby'
   end
 end
 task :ruby => [:bop, :ruby_setup] do
   #build ruby
   cd "ruby" do
-    sh 'make -j4' #make can run in parrallel. Big improvement in compile time
+    sh 'make' #make can run in parrallel. Big improvement in compile time
   end
 end
 

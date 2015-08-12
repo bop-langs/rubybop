@@ -3217,7 +3217,6 @@ void initialize_objspaces(){
   }
 
   objspace = old_objspace;
-  rb_gc_enable();
 }
 
 void zero_out_frees()
@@ -3228,8 +3227,6 @@ void zero_out_frees()
     assert(bop_objspaces[BOP_task]->bop_debug == BOP_task);
 
     bop_msg(3, "GC task init");
-
-    rb_gc_disable();
 
     assert(!during_gc && !ruby_gc_stressful);
 
@@ -3270,11 +3267,7 @@ void zero_out_frees()
         (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug);
     }
     assert (objspace->bop_debug != (GET_VM()->objspace)->bop_debug);
-
-    //TODO move this to ppr group init
-
-
-
+    rb_gc_enable();
     return;
 }
 
