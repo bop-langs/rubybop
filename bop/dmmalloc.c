@@ -264,7 +264,7 @@ void malloc_promise() {
 }
 
 void dm_malloc_undy_init(){
-  return;
+  return; //TODO this method should actually work, but it causes Travis to fail. 
   //called when the under study begins. Free everything in the freed list
   bop_assert(SEQUENTIAL());
   header * current, *  next;
@@ -584,7 +584,6 @@ void * dm_realloc (const void *ptr, size_t gsize) {
  *	A free is queued to be free'd at BOP commit time otherwise.
 */
 void dm_free (void *ptr) {
-  // return;
     header *free_header = HEADER (ptr);
     ASSERTBLK(free_header);
     get_lock();
@@ -599,7 +598,6 @@ void dm_free (void *ptr) {
 }
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
 static inline void free_now (header * head) {
-  // return;
     int which;
     size_t size = head->allocated.blocksize;
     ASSERTBLK(head);
