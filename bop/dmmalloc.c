@@ -46,7 +46,7 @@ static header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//
 static header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
 
 static header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
-static header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
+static header* allocated_lists[DM_NUM_CLASSES]= {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items allocated during PPR-mode NOTE: info of allocated block
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -249,9 +249,11 @@ void malloc_promise() {
     header* head;
     int i;
     int allocs = 0, frees = 0;
-    for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next)){
+    for(int i = 0; i < DM_NUM_CLASSES; i++){
+      for(head = allocated_lists[i]; head != NULL; head = CAST_H(head->allocated.next)){
         BOP_promise(head, head->allocated.blocksize); //playload matters
         allocs++;
+      }
     }
     for(i=0; i < DM_NUM_CLASSES; i++){
       for(head = freedlist[i]; head != NULL; head = CAST_H(head->free.next)){
@@ -264,7 +266,7 @@ void malloc_promise() {
 }
 
 void dm_malloc_undy_init(){
-  return; //TODO this method should actually work, but it causes Travis to fail. 
+  return; //TODO this method should actually work, but it causes Travis to fail.
   //called when the under study begins. Free everything in the freed list
   bop_assert(SEQUENTIAL());
   header * current, *  next;
@@ -275,11 +277,13 @@ void dm_malloc_undy_init(){
     }
     freedlist[ind] = NULL;
   }
-  for(current = allocatedList; current != NULL; current = next){
-    next = CAST_H(current->allocated.next);
-    current->allocated.next = NULL;
+  for(ind = 0; ind < DM_NUM_CLASSES; ind++){
+    for(current = allocated_lists[ind]; current != NULL; current = next){
+      next = CAST_H(current->allocated.next);
+      current->allocated.next = NULL;
+    }
+    allocated_lists[ind] = NULL;
   }
-  allocatedList = NULL;
 }
 
 static inline void grow (const int tasks) {
@@ -431,7 +435,8 @@ void *dm_malloc (const size_t size) {
   headers[which] = CAST_H (block->free.next);	//remove from free list
   // Write allocated next information
   if(  !SEQUENTIAL()){
-    add_next_list(&allocatedList, block);
+    bop_assert(which != -1); //valid because -1 == too large, can't do in PPR
+    add_next_list(&allocated_lists[which], block);
   }
  checks:
 	ASSERTBLK(block);
@@ -646,16 +651,18 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static bool remove_from_alloc_list (header * val) {
   //remove val from the list
-  if(allocatedList == val) { //was the head of the list
-    allocatedList = CAST_H(allocatedList->allocated.next);
-    return true;
-  }
   header* current, * prev = NULL;
-  for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
-    if(current == val) {
-      bop_assert(prev != NULL);
-      prev->allocated.next = current->allocated.next;
-      return true;
+  int index;
+  for(index = 0; index < DM_NUM_CLASSES; index++){
+    for(current = allocated_lists[index]; current; prev = current, current = CAST_H(current->allocated.next)) {
+      if(current == val) {
+        if(prev == NULL){
+          allocated_lists[index] = CAST_H(current->allocated.next);
+        }else{
+          prev->allocated.next =  CAST_UH(current->allocated.next);
+        }
+        return true;
+      }
     }
   }
   bop_msg(4, "Allocation not found on alloc list");
