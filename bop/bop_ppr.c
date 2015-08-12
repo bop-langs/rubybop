@@ -11,7 +11,8 @@
 
 #include <unistd.h>
 //#include <sys/siginfo.h>
-#include <ucontext.h>
+
+#include <sys/ucontext.h>
 #include <execinfo.h>
 
 #include "bop_api.h"
