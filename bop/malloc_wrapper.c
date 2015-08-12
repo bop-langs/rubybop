@@ -1,5 +1,4 @@
 //NOTE: do not compile with optimizations on. The hack to get calloc working (used in glibc/dlsym) is relies on undefined behavior, but has been tested to work correctly on redhat, fedora and ubuntu using GCC, and ubuntu with CLANG as well
-
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stdio.h>
@@ -7,6 +6,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdbool.h>
 
 #include "external/malloc.h"
@@ -92,6 +92,8 @@ struct mallinfo mallinfo() {
     printf("\nUNSUPPORTED OPERATION: mallinfo\n");
     _exit(0);
 }
+#else
+#error "not overriding unsupported"
 #endif
 void* malloc(size_t s) {
     SPEC_VISUALIZE("+");
