@@ -368,7 +368,7 @@ static inline header * get_header (size_t size, int *which) {
     if ( !SEQUENTIAL() && found != NULL){
       //this will be useless in sequential mode, and useless if found == NULL
       if(ends[temp] != NULL && CAST_UH(found) == ends[temp]->free.next) {
-        bop_msg(5, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
+        bop_msg(3, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
         found = NULL;
       }
     }
