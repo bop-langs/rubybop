@@ -166,6 +166,9 @@ bool waiting = false;
 void temp_sigint(int sigo){
   waiting = true;
 }
+void error_alert_monitor(){
+  kill(monitor_process_id, SIGUSR2);
+}
 extern void io_on_malloc_rescue(void);
 int spawn_undy(void);
 extern void print_headers(void);
@@ -468,7 +471,7 @@ void ErrorKillAll(int signo){
   int om = bop_mode;
   malloc_panic = true;
   print_backtrace();
-  kill(monitor_process_id, SIGUSR2);
+  error_alert_monitor();
   signal(signo, SIG_DFL);
   raise(signo);
   bop_mode = om;

@@ -11,7 +11,7 @@
 #else
 #define bop_debug(...)
 #endif
-
+void error_alert_monitor(void);
 #if defined(BOP)
 
 #include <stdarg.h>  /* for bop_msg */

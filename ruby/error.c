@@ -12,6 +12,7 @@
 #include "internal.h"
 #include "ruby/st.h"
 #include "vm_core.h"
+#include "bop_api.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -374,6 +375,7 @@ bug_report_end(FILE *out)
 	}
     }
     fprintf(out, REPORTBUG_MSG);
+		error_alert_monitor();
 }
 
 #define report_bug(file, line, fmt, ctx) do { \
