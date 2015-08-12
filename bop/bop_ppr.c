@@ -171,7 +171,7 @@ int spawn_undy(void);
 extern void print_headers(void);
 //if malloc cannot meet a request, it calls this funcion
 void BOP_malloc_rescue(char * msg, size_t size){
-  bop_msg(2, "Malloc rescue begin. Size: %u Failure: %s", size, msg);
+  bop_msg(2, "Malloc rescue begin. aligned size & header: %u Failure: %s", size, msg);
   // print_headers();
   if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
     bop_msg(1, "ERROR. Malloc failed while logically sequential");
@@ -384,7 +384,7 @@ void _BOP_group_over(int id){
   if(ppr_static_id != id){
     bop_msg(3, "Mis-matched ppr ids. Continuing");
   }else if(task_status == SPEC){
-    bop_msg(3, "Speculative process extended past PPR region. Aborting");
+    bop_msg(3, "Speculative process extended past PPR region. _exiting");
     _exit(0);
   }else{
     bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");
@@ -446,7 +446,6 @@ void MonitorInteruptFwd(int signo){
   }
 }
 void print_backtrace(void){
-  if(task_status != MAIN) return;
   bop_msg(1, "\nBACKTRACE pid = %d parent pid %d", getpid(), getppid());
   void *bt[1024];
   int bt_size;
@@ -467,7 +466,7 @@ void ErrorKillAll(int signo){
   /**Horrible things are happening. Go to SEQ mode so malloc won't have issues*/
   bop_msg(1, "ERROR CAUGHT %d", signo);
   int om = bop_mode;
-  bop_mode = SERIAL;
+  malloc_panic = true;
   print_backtrace();
   kill(monitor_process_id, SIGUSR2);
   signal(signo, SIG_DFL);

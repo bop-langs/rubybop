@@ -503,6 +503,7 @@ VALUE
 val_getter(ID id, void *data, struct global_variable *var)
 {
     //BOP_obj_use(data);
+    BOP_record_read(var, sizeof(struct global_variable));
     return (VALUE)data;
 }
 

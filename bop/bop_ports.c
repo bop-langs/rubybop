@@ -15,7 +15,7 @@ void register_port( bop_port_t *port, char * desc ) {
     num_ports = 0;
   }
   else if (num_ports == alloc_size) {
-    bop_ports = (bop_port_t **) 
+    bop_ports = (bop_port_t **)
       realloc( bop_ports, alloc_size*2*sizeof(bop_port_t*));
     alloc_size *= 2;
   }
@@ -23,7 +23,7 @@ void register_port( bop_port_t *port, char * desc ) {
   bop_ports[ num_ports ] = port;
   num_ports ++;
 
-  bop_msg( 3, "New BOP port %s (num. %d, %p) is added.", 
+  bop_msg( 3, "New BOP port %s (num. %d, %p) is added.",
 	   desc, num_ports, port );
 }
 
@@ -59,7 +59,7 @@ void report_conflict( void ) {
 int ppr_check_correctness( void ) {
   int i, passed = TRUE;
   for (i = 0; i < num_ports && passed; i ++)
-     passed = passed && 
+     passed = passed &&
        port_call_int_func( bop_ports[i]->ppr_check_correctness );
   if ( !passed ) report_conflict( );
   return passed;
@@ -76,6 +76,8 @@ void task_group_commit( void ) {
 }
 void task_group_succ_fini( void ) {
   int i;
+
+  bop_msg(3, "Task Group Succ Fini");
   for (i = 0; i < num_ports; i ++)
      port_call( bop_ports[i]->task_group_succ_fini );
 }
@@ -95,10 +97,10 @@ void undy_succ_fini( void ) {
 }
 
 /* Port code gen.  See [compiler repos]/tools/scripts/codegen.rb
-   
+
 methods = ["ppr_group_init", "ppr_task_init", "spec_check", "data_commit", "task_group_commit", "task_group_succ_fini", "undy_init", "undy_succ_fini"]
 
-def gen_decl( methods ) 
+def gen_decl( methods )
   a = "typedef struct {\n"
   methods.each { |m|
     a += "  void (*#{m})( void );\n"
@@ -125,5 +127,5 @@ end
 
 gen_decl(methods)
 gen_funcs(methods)
-   
+
 */

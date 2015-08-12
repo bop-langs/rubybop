@@ -5,18 +5,28 @@ ifeq ($(CC), cc)
   CC = gcc
 endif
 
-BUILD_DIR = .
-_OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o \
-				range_tree/dtree.o bop_ppr.o utils.o external/malloc.o\
-				bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o
+CI ?= false
+ifeq ($(CI), true)
+  CI_FLAGS = -D CI_BUILD
+else
+  CI_FLAGS = -U CI_BUILD
+endif
 
-CFLAGS_DEF = -Wall -fPIC -pthread -g3 -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF)
+
+BUILD_DIR ?= .
+_OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o \
+				range_tree/dtree.o bop_ppr.o utils.o external/malloc.o \
+				bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o libc_overrides.o
+
+CFLAGS_DEF = -Wall -fPIC -pthread -g3 -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF) $(CI_FLAGS)
 CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D USE_LOCKS -D UNSUPPORTED_MALLOC $(DEBUG_FLAGS)
 LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O0
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 LIB = inst.a
 CFLAGS = $(CFLAGS_DEF) $(OPITIMIZEFLAGS)
+
+
 
 LIB_SO = $(BUILD_DIR)/inst.a
 
@@ -37,11 +47,10 @@ print_info:
 
 $(LIB_SO): $(OBJS)
 	@echo building archive "$(LIB_SO)"
-	@@ar r $(LIB_SO) $(OBJS)
+	@ar r $(LIB_SO) $(OBJS)
 	@ranlib $(LIB_SO)
 
-
- $(BUILD_DIR)/%_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
+$(BUILD_DIR)/%_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
 		@mkdir -p $(@D)
 		@echo compiling $^
 		@$(CC) -c -o $@ $^ $(CFLAGS_DEF)

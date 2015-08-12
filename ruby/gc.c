@@ -1508,7 +1508,7 @@ heap_page_allocate(rb_objspace_t *objspace)
     page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
     if(!is_sequential()){
       check_heap_pages(1);
-      bop_msg(3, "NEW heap page: %p, page_body %p" ,page ,page_body);
+      bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
     }
     if (page == 0) {
 	aligned_free(page_body);
@@ -1540,7 +1540,7 @@ heap_page_allocate(rb_objspace_t *objspace)
 	}
     }
 
-    if(!is_sequential()) bop_msg(3, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
+    if(!is_sequential()) bop_msg(4, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
     if (hi < heap_allocated_pages) {
 	     MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
     }
@@ -1610,7 +1610,7 @@ heap_page_create(rb_objspace_t *objspace)
 	method = "allocate";
       check_heap_pages(0);
     }
-    if (1) bop_msg(3, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
+    if (1) bop_msg(4, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
 		   method, page, page->body, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length, objspace);
     return page;
 }
@@ -3280,7 +3280,7 @@ void initialize_objspaces(){
 
     gc_stress_set(objspace, ruby_initial_gc_stress);
     heap_pages_sorted_length = 0;
-    bop_msg(3, "gc_params.heap_init_slots = %d, HEAP_OBJ_LIMIT = %d", gc_params.heap_init_slots, HEAP_OBJ_LIMIT);
+    bop_msg(4, "gc_params.heap_init_slots = %d, HEAP_OBJ_LIMIT = %d", gc_params.heap_init_slots, HEAP_OBJ_LIMIT);
     heap_add_pages(objspace, heap_eden, 20);
     init_mark_stack(&objspace->mark_stack);
     objspace->profile.invoke_time = getrusage_time();
@@ -3323,7 +3323,7 @@ void zero_out_frees()
 
     (GET_VM()->objspace) = bop_objspaces[BOP_task];
 
-    bop_msg(0, "Set objspace %d", GET_VM()->objspace->bop_debug);
+    bop_msg(1, "Set objspace %d", GET_VM()->objspace->bop_debug);
 
     if((int) (GET_VM()->objspace->bop_debug) != (int) (bop_objspaces[BOP_task]->bop_debug))
       {

@@ -32,7 +32,6 @@
 
 short malloc_panic = 0;
 
-#define FREEDLIST_IND -10
 //BOP macros & structures
 #define SEQUENTIAL() (malloc_panic || bop_mode == SERIAL || BOP_task_status() == SEQ || BOP_task_status() == UNDY)
 
@@ -44,22 +43,20 @@ typedef struct {
 ppr_list *regions = NULL;
 //header info
 header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//current heads of free lists
-
-
-header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
-header* freedlist= NULL; //list of items freed during PPR-mode. NOTE: has info of an allocated block
-
 header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
+
+header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
+header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 
 //helper prototypes
 static inline int get_index (size_t);
 static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
-static inline header* remove_from_alloc_list (header *);
-static inline header * extract_header_freed(size_t);
+static header* remove_from_alloc_list (header *);
 static inline void add_next_list (header**, header *);
-static inline header *dm_split (int which);
+static inline void add_freed_list (header*);
+static inline header *dm_split (int which, int larger);
 static inline int index_bigger (int);
 static inline size_t align(size_t size, size_t align);
 static inline void get_lock();
@@ -106,24 +103,6 @@ const FORCE_INLINE int goal_blocks(int klass){
 			return 1;
 	}
 }
-
-static inline void lists_disjoint(){
-#ifndef NDEBUG
-  if(SEQUENTIAL()) return;
-
-  header * freed_current, * alloc_curr;
-  for(freed_current = freedlist; freed_current != NULL; freed_current = CAST_H(freed_current->free.next)){
-    for(alloc_curr = allocatedList; alloc_curr != NULL; alloc_curr = CAST_H(alloc_curr->free.next)){
-      bop_assert(freed_current != alloc_curr);
-    }
-  }
-  for(alloc_curr = allocatedList; alloc_curr != NULL; alloc_curr = CAST_H(alloc_curr->free.next)){
-    for(freed_current = freedlist; freed_current != NULL; freed_current = CAST_H(freed_current->free.next)){
-      bop_assert(freed_current != alloc_curr);
-    }
-  }
-#endif
-}
 static int * goal_counts(){
 	static int goal[DM_NUM_CLASSES] = {[0 ... (DM_NUM_CLASSES -1)] = -1};
 	int ind;
@@ -150,7 +129,6 @@ static inline int get_index (size_t size) {
     //Space is too big.
     if (size > MAX_SIZE)
         return -1;			//too big
-    //Computations for the actual index, off set of -5 from macro & array indexing
     int index = LOG(size) - DM_CLASS_OFFSET - 1;
 
     if (index == -1 || size_of_klass(index) < size)
@@ -194,8 +172,10 @@ static int* count_lists(bool is_locked){
 		release_lock();
 	return counts;
 }
+/** BOP Port functions */
 
 void carve () {
+  bop_assert(SEQUENTIAL());
   int tasks = BOP_get_group_size();
   if( regions != NULL){
     dm_free(regions); //dm_free -> don't have lock
@@ -235,22 +215,31 @@ void carve () {
 
 /**set the range of values to be used by this PPR task*/
 void initialize_group () {
-		bop_msg(2,"DM Malloc initializing spec task %d", spec_order);
-	  int group_num = spec_order;
-    ppr_list my_list = regions[group_num];
-    int ind;
-    for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
-        ends[ind] = my_list.end[ind];
-        headers[ind] = my_list.start[ind];
-        if(group_num != 0){
-          bop_assert(headers[ind] != NULL);
-        }else{
-          bop_assert(task_status == MAIN);
-        }
-				bop_assert(headers[ind] != ends[ind]);
-				// bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
+  bop_msg(2,"DM Malloc initializing spec task %d", spec_order);
+  // bop_assert(! SEQUENTIAL() );
+  int group_num = spec_order;
+  ppr_list my_list = regions[group_num];
+  int ind;
+  for (ind = 0; ind < DM_NUM_CLASSES; ind++) {
+    ends[ind] = my_list.end[ind];
+    if(task_status != MAIN)
+      headers[ind] = my_list.start[ind];
+    if(group_num != 0){
+      bop_assert(headers[ind] != NULL);
+    }else{
+      bop_assert(task_status == MAIN);
     }
+    bop_assert(headers[ind] != ends[ind]);
+    // bop_msg(3, "DM malloc task %d header[%d] = %p", spec_order, ind, headers[ind]);
+  }
+#ifndef NDEBUG
+  for(ind = 0; ind < DM_NUM_CLASSES; ind++){
+    bop_assert(headers[ind] != NULL);
+    bop_assert(headers[ind]->free.next != NULL);
+  }
+#endif
 }
+
 
 /** Merge
 1) Promise everything in both allocated and free list
@@ -258,12 +247,41 @@ void initialize_group () {
 //NOTE: only the heads should be promised. The payloads should be the job of the caller?
 void malloc_promise() {
     header* head;
-    for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next))
+    int i;
+    int allocs = 0, frees = 0;
+    for(head = allocatedList; head != NULL; head = CAST_H(head->allocated.next)){
         BOP_promise(head, head->allocated.blocksize); //playload matters
-    for(head = freedlist; head != NULL; head = CAST_H(head->free.next))
+        allocs++;
+    }
+    for(i=0; i < DM_NUM_CLASSES; i++){
+      for(head = freedlist[i]; head != NULL; head = CAST_H(head->free.next)){
         BOP_promise(head, HSIZE); //payload doesn't matter
+        frees++;
+      }
+    }
+    bop_msg(3, "Number of promised frees: \t%d", frees);
+    bop_msg(3, "Number of promised allocs: \t%d", allocs);
 }
-#warning "Using new grow function"
+
+void dm_malloc_undy_init(){
+  return;
+  //called when the under study begins. Free everything in the freed list
+  bop_assert(SEQUENTIAL());
+  header * current, *  next;
+  int ind;
+  for(ind = 0; ind < DM_NUM_CLASSES; ind++){
+    for(current = freedlist[ind]; current != NULL; current = CAST_H(current->free.next)){
+      dm_free(PAYLOAD(current));
+    }
+    freedlist[ind] = NULL;
+  }
+  for(current = allocatedList; current != NULL; current = next){
+    next = CAST_H(current->allocated.next);
+    current->allocated.next = NULL;
+  }
+  allocatedList = NULL;
+}
+
 static inline void grow (const int tasks) {
   //THIS IS THE NEW GROW FUNCTION!
     int class_index, blocks_left, size;
@@ -289,7 +307,7 @@ static inline void grow (const int tasks) {
     char * debug_ptr;
     for (class_index = 0; class_index < DM_NUM_CLASSES; class_index++) {
         size = size_of_klass(class_index);
-        space_head = sys_calloc (blocks[class_index], size + 1);	//system malloc, use byte-sized type
+        space_head = sys_calloc (blocks[class_index], size);	//system malloc, use byte-sized type
         bop_assert (blocks[class_index] == 0 || space_head != NULL);	//ran out of sys memory
 
         for(current_block = 0; current_block < blocks[class_index]; current_block++){
@@ -313,13 +331,15 @@ static inline void grow (const int tasks) {
 #endif
           list_top = headers[class_index];
           add_next_list( &headers[class_index], head);
-          // if(list_top == NULL)
-          //   headers[class_index] = head;
-          // else{
-          //   head->free.next = CAST_SH(list_top);
-          //   list_top->free.prev = CAST_SH(head);
-          //   headers[class_index] = head;
-          // }
+          if(list_top == NULL){
+            headers[class_index] = head;
+            head->free.next = head->free.prev = NULL;
+          }
+          else{
+            head->free.next = CAST_UH(list_top);
+            list_top->free.prev = CAST_UH(head);
+            headers[class_index] = head;
+          }
         }
         //post-size class division checks
 #ifndef NDEBUG
@@ -335,63 +355,33 @@ static inline void grow (const int tasks) {
     }
 }
 
-static inline header * extract_header_freed(size_t size){
-	//find an free'd block that is large enough for size. Also removes from the list
-	header * list_current,  * prev;
-	for(list_current = freedlist, prev = NULL; list_current != NULL;
-			prev = list_current, list_current = CAST_H(list_current->free.next)){
-        bop_assert(prev != list_current);
-        bop_assert(list_current != CAST_H(list_current->free.next));
-		if(list_current->allocated.blocksize >= size){
-			//remove and return
-			if(prev == NULL){
-				//list_current head of list
-        bop_assert(list_current == freedlist);
-        list_current->allocated.next = NULL;
-				freedlist = CAST_H(freedlist->free.next);
-				return list_current;
-			}else{
-				prev->free.next = list_current->free.next;
-				return list_current;
-			}
-		}
-	}
-	return NULL;
-}
 // Get the head of the free list. This uses get_index and additional logic for PPR execution
 static inline header * get_header (size_t size, int *which) {
 	header* found = NULL;
 	int temp = -1;
-	//requested allocation is too big
-	if (size > MAX_SIZE) {
-		found = NULL;
-		temp = -1;
-	} else {
-		temp = get_index (size);
-		found = headers[temp];
-		//don't jump to the end. need next conditional
-	}
-	if ( !SEQUENTIAL() ){
-  		if( found == NULL || (ends[temp] != NULL && CAST_SH(found) == ends[temp]->free.next) ) {
-  		bop_msg(2, "Area where get_header needs ends defined:\n value of ends[which]: %p\n value of which: %d", ends[temp], temp);
-  		//try to allocate from the freed list. Slower
-  		found =  extract_header_freed(size);
-  		if(found)
-  			temp = FREEDLIST_IND;
-  		else
-  			temp = -1;
-  		//don't need go to. just falls through
-  	}
+  if (size > MAX_SIZE) {
+    found = NULL;
+    temp = -1;
+  }else{
+    temp = get_index (size);
+    found = headers[temp];
+    if ( !SEQUENTIAL() && found != NULL){
+      //this will be useless in sequential mode, and useless if found == NULL
+      if(ends[temp] != NULL && CAST_UH(found) == ends[temp]->free.next) {
+        bop_msg(3, "Something may have gone wrong:\n value of ends[which]: %p\t value of which: %d", ends[temp], temp);
+        found = NULL;
+      }
+    }
   }
-	if(which != NULL)
-		*which = temp;
+  if(which != NULL)
+    *which = temp;
 	return found;
 }
 extern void BOP_malloc_rescue(char *, size_t);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
 	header * block = NULL;
-	int which;
+	int which, bigger = -1;
 	size_t alloc_size;
 	if(size == 0)
 	 return NULL;
@@ -421,18 +411,11 @@ void *dm_malloc (const size_t size) {
 				BOP_malloc_rescue("Large allocation in PPR", alloc_size);
 				goto malloc_begin; //try again
 			}
-		} else if (0 && which < DM_NUM_CLASSES - 1 && index_bigger (which) != -1) {
-#ifndef NDEBUG
-			splits++;
-#endif
-			block = dm_split (which);
+		} else if (which < DM_NUM_CLASSES - 1 && (bigger = index_bigger (which)) != -1) {
+			block = dm_split (which, bigger);
 			ASSERTBLK(block);
 		} else if (SEQUENTIAL()) {
-			//grow the allocated region
-#ifndef NDEBUG
-			if (index_bigger (which) != -1)
-			   missed_splits++;
-#endif
+      bop_msg(3, "Is in sequential. Growing");
 			grow (1);
 			goto malloc_begin;
 		} else {
@@ -443,26 +426,17 @@ void *dm_malloc (const size_t size) {
 		}
 	}
 	if(!SEQUENTIAL()){
-		add_next_list(&allocatedList, block);
+    add_next_list(&allocatedList, block);
   }
-
-	//actually allocate the block
-	if(which != FREEDLIST_IND){
-		block->allocated.blocksize = size_of_klass(which);
-		// ASSERTBLK(block); //unneed
-    bop_assert (headers[which] != CAST_H (block->free.next));
-		headers[which] = CAST_H (block->free.next);	//remove from free list
-	}else{
-    bop_msg(2, "Allocated from the headers list head addr %p size %u", block, block->allocated.blocksize);
-  }
+  block->allocated.blocksize = size_of_klass(which);
+  // ASSERTBLK(block); //unneed
+  bop_assert (headers[which] != CAST_H (block->free.next));
+  headers[which] = CAST_H (block->free.next);	//remove from free list
+  //headers[which]->free.prev = NULL; //this should be here...
  checks:
 	ASSERTBLK(block);
 	release_lock();
   block->allocated.next = NULL;
-
-  get_lock();
-  lists_disjoint();
-  release_lock();
 	return PAYLOAD (block);
 }
 void print_headers(){
@@ -477,16 +451,20 @@ static inline int index_bigger (int which) {
     if (which == -1)
         return -1;
     which++;
+    int index;
     while (which < DM_NUM_CLASSES) {
-        if (get_header(size_of_klass(which), NULL) != NULL)
-            return which;
-        which++;
+      if (get_header(size_of_klass(which), &index) != NULL){
+          return which;
+      }
+      which++;
     }
     return -1;
 }
-
 // Repeatedly split a larger block into a block of the required size
-static inline header* dm_split (int which) {
+static inline header* dm_split (int which, int larger) {
+  if(which > 8){
+    bop_msg(3, "In large split");
+  }
 #ifdef VISUALIZE
     printf("s");
 #endif
@@ -494,17 +472,17 @@ static inline header* dm_split (int which) {
     split_attempts[which]++;
     split_gave_head[which]++;
 #endif
-    int larger = index_bigger (which);
     header *block = headers[larger];	//block to split up
     header *split = CAST_H((CHARP (block) + size_of_klass(which)));	//cut in half
     bop_assert (block != split);
     //split-specific info sets
-    headers[which] = split;	// was null PPR Safe
+
+    // headers[which] = split;	// was null PPR Safe
     headers[larger] = CAST_H (headers[larger]->free.next); //PPR Safe
     //remove split up block
     block->allocated.blocksize = size_of_klass(which);
 
-    block->free.next = CAST_SH (split);
+    block->free.next = CAST_UH (split);
     split->free.next = split->free.prev = NULL;
 
     bop_assert (block->allocated.blocksize != 0);
@@ -526,7 +504,8 @@ static inline header* dm_split (int which) {
 				}else{
 					//go through dm_free
 					split->allocated.blocksize = size_of_klass(which);
-					dm_free(split);
+          release_lock(); //need to let dm_free have the lock
+					dm_free(PAYLOAD(split));
 				}
         which++;
     }
@@ -613,10 +592,10 @@ void dm_free (void *ptr) {
     if(SEQUENTIAL() || remove_from_alloc_list (free_header)){
         release_lock();
         free_now (free_header);
-    } else
-        add_next_list(&freedlist, free_header);
+    } else{
+       add_freed_list(free_header);
+    }
 
-    lists_disjoint();
 		release_lock();
 }
 //free a (regular or huge) block now. all saftey checks must be done before calling this function
@@ -632,7 +611,7 @@ static inline void free_now (header * head) {
         sys_free(head);
       }else{
         get_lock();
-        add_next_list(&freedlist, head);
+        add_freed_list(head);
         release_lock();
       }
       return;
@@ -640,12 +619,6 @@ static inline void free_now (header * head) {
     //synchronised region
     get_lock();
     header *free_stack = get_header (size, &which);
-    if(which == FREEDLIST_IND){
-      //TODO ???? not safe...??
-      bop_msg(3, "Tried t free from alloc_curr_list returned head.");
-      add_next_list(&freedlist, head);
-      return;
-    }
     if(which != -1)
       bop_assert (size_of_klass(which) == size);	//should exactly align
     if (free_stack == NULL) {
@@ -655,11 +628,10 @@ static inline void free_now (header * head) {
         release_lock();
         return;
     }
-    free_stack->free.prev = CAST_SH (head);
-    head->free.next = CAST_SH (free_stack);
+    free_stack->free.prev = CAST_UH (head);
+    head->free.next = CAST_UH (free_stack);
     headers[which] = head;
 
-    lists_disjoint();
     release_lock();
 }
 inline size_t dm_malloc_usable_size(void* ptr) {
@@ -673,7 +645,7 @@ inline size_t dm_malloc_usable_size(void* ptr) {
     return head_size - HSIZE; //even for system-allocated chunks.
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
-static inline header* remove_from_alloc_list (header * val) {
+static header* remove_from_alloc_list (header * val) {
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
@@ -690,7 +662,7 @@ static inline header* remove_from_alloc_list (header * val) {
             return current;
         }
     }
-    bop_msg(2, "Allocation not found on alloc list");
+    bop_msg(4, "Allocation not found on alloc list");
     return NULL;
 }
 static inline bool list_contains (header * list, header * search_value) {
@@ -706,19 +678,26 @@ static inline bool list_contains (header * list, header * search_value) {
 //add an allocated item to the allocated list
 static int added_n = 0;
 static int nseq_added_n = 0;
+
 static inline void add_next_list (header** list_head, header * item) {
   added_n++;
-  if(!SEQUENTIAL()) nseq_added_n++;
-    bop_assert(*list_head != item);
-    item->allocated.next = CAST_SH(*list_head); //works even if *list_head == NULL
-    *list_head = item;
-    header * current, * prev;
-    for(prev = NULL, current = *list_head; current != NULL; prev = current, current = CAST_H(current->free.next)){
-      bop_assert(current != CAST_H(current->free.next));
-      bop_assert(current != prev);
-      bop_assert(current != *list_head || prev == NULL);
-    }
+  if(!SEQUENTIAL())
+    nseq_added_n++;
+  bop_assert(*list_head != item);
+  item->allocated.next = CAST_UH(*list_head); //works even if *list_head == NULL
+  *list_head = item;
 }
+
+static inline void add_freed_list(header* item){
+  size_t size = item->allocated.blocksize;
+  int index = get_index(size);
+  item->free.next = CAST_UH(freedlist[index]);
+  if(freedlist[index]){
+    freedlist[index]->free.prev = CAST_UH(item);
+  }
+  freedlist[index] = item;
+}
+
 /**Print debug info*/
 void dm_print_info (void) {
 #ifndef NDEBUG
@@ -750,5 +729,6 @@ void dm_print_info (void) {
 bop_port_t bop_alloc_port = {
 	.ppr_group_init		= carve,
 	.ppr_task_init		= initialize_group,
-	.task_group_commit	= malloc_promise
+	.task_group_commit	= malloc_promise,
+  .undy_init = dm_malloc_undy_init
 };
