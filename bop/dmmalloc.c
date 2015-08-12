@@ -249,7 +249,7 @@ void malloc_promise() {
     header* head;
     int i;
     int allocs = 0, frees = 0;
-    for(int i = 0; i < DM_NUM_CLASSES; i++){
+    for(i = 0; i < DM_NUM_CLASSES; i++){
       for(head = allocated_lists[i]; head != NULL; head = CAST_H(head->allocated.next)){
         BOP_promise(head, head->allocated.blocksize); //playload matters
         allocs++;
