@@ -53,7 +53,7 @@ static inline int get_index (size_t);
 static inline void grow (int);
 static inline void free_now (header *);
 static inline bool list_contains (header * list, header * item);
-static header* remove_from_alloc_list (header *);
+static bool remove_from_alloc_list (header *);
 static inline void add_next_list (header**, header *);
 static inline void add_freed_list (header*);
 static inline header *dm_split (int which, int larger);
@@ -429,14 +429,14 @@ void *dm_malloc (const size_t size) {
     add_next_list(&allocatedList, block);
   }
   block->allocated.blocksize = size_of_klass(which);
-  // ASSERTBLK(block); //unneed
   bop_assert (headers[which] != CAST_H (block->free.next));
   headers[which] = CAST_H (block->free.next);	//remove from free list
-  //headers[which]->free.prev = NULL; //this should be here...
  checks:
+  if( !SEQUENTIAL() ){
+      block->allocated.next = NULL;
+  }
 	ASSERTBLK(block);
 	release_lock();
-  block->allocated.next = NULL;
 	return PAYLOAD (block);
 }
 void print_headers(){
@@ -645,25 +645,22 @@ inline size_t dm_malloc_usable_size(void* ptr) {
     return head_size - HSIZE; //even for system-allocated chunks.
 }
 /*malloc library utility functions: utility functions, debugging, list management etc */
-static header* remove_from_alloc_list (header * val) {
+static bool remove_from_alloc_list (header * val) {
     //remove val from the list
     if(allocatedList == val) { //was the head of the list
         allocatedList = NULL;
-        return val;
+        return true;
     }
     header* current, * prev = NULL;
     for(current = allocatedList; current; prev = current, current = CAST_H(current->allocated.next)) {
-        if(current == val) { //TODO simplify cases
-            if(prev != NULL){
-              prev->allocated.next = current->allocated.next;
-            }else{
-              allocatedList = NULL;
-            }
-            return current;
-        }
+      if(current == val) {
+        bop_assert(prev != NULL);
+        prev->allocated.next = current->allocated.next;
+        return true;
+      }
     }
     bop_msg(4, "Allocation not found on alloc list");
-    return NULL;
+    return false;
 }
 static inline bool list_contains (header * list, header * search_value) {
     if (list == NULL || search_value == NULL)
