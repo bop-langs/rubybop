@@ -47,7 +47,7 @@ print_info:
 
 $(LIB_SO): $(OBJS)
 	@echo building archive "$(LIB_SO)"
-	@@ar r $(LIB_SO) $(OBJS)
+	@ar r $(LIB_SO) $(OBJS)
 	@ranlib $(LIB_SO)
 
 $(BUILD_DIR)/%_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
