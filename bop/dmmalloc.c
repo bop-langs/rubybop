@@ -40,13 +40,13 @@ typedef struct {
     header *end[DM_NUM_CLASSES];
 } ppr_list;
 
-ppr_list *regions = NULL;
+static ppr_list *regions = NULL;
 //header info
-header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//current heads of free lists
-header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
+static header *headers[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};	//current heads of free lists
+static header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lists in PPR region
 
-header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
-header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
+static header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
+static header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 
 //helper prototypes
 static inline int get_index (size_t);
@@ -131,7 +131,7 @@ static inline int get_index (size_t size) {
         return -1;			//too big
     int index = LOG(size) - DM_CLASS_OFFSET - 1;
 
-    if (index == -1 || size_of_klass(index) < size)
+    if (index == -1 || size_of_klass(index) < size) // this is how it gets rounded up only if needed
         index++;
     bop_assert (index >= 0 && index < DM_NUM_CLASSES);
     bop_assert (size_of_klass(index) >= size); //this size class is large enough
@@ -330,7 +330,7 @@ static inline void grow (const int tasks) {
           }
 #endif
           list_top = headers[class_index];
-          add_next_list( &headers[class_index], head);
+          // add_next_list( &headers[class_index], head);
           if(list_top == NULL){
             headers[class_index] = head;
             head->free.next = head->free.prev = NULL;
@@ -377,6 +377,7 @@ static inline header * get_header (size_t size, int *which) {
     *which = temp;
 	return found;
 }
+int alist_added = 0;
 extern void BOP_malloc_rescue(char *, size_t);
 // BOP-safe malloc implementation based off of size classes.
 void *dm_malloc (const size_t size) {
@@ -425,16 +426,14 @@ void *dm_malloc (const size_t size) {
 			//bop_abort
 		}
 	}
-	if(!SEQUENTIAL()){
-    add_next_list(&allocatedList, block);
-  }
   block->allocated.blocksize = size_of_klass(which);
   bop_assert (headers[which] != CAST_H (block->free.next));
   headers[which] = CAST_H (block->free.next);	//remove from free list
- checks:
-  if( !SEQUENTIAL() ){
-      block->allocated.next = NULL;
+  // Write allocated next information
+  if(  !SEQUENTIAL()){
+    add_next_list(&allocatedList, block);
   }
+ checks:
 	ASSERTBLK(block);
 	release_lock();
 	return PAYLOAD (block);
@@ -619,6 +618,8 @@ static inline void free_now (header * head) {
     //synchronised region
     get_lock();
     header *free_stack = get_header (size, &which);
+    bop_assert(size <= MAX_SIZE);
+    bop_assert(which != -1);
     if(which != -1)
       bop_assert (size_of_klass(which) == size);	//should exactly align
     if (free_stack == NULL) {
@@ -688,6 +689,7 @@ static inline void add_next_list (header** list_head, header * item) {
 static inline void add_freed_list(header* item){
   size_t size = item->allocated.blocksize;
   int index = get_index(size);
+  bop_assert(index >= 0 && index < DM_NUM_CLASSES); //TODO we need to support this case, ie freeing large items from pre-ppr
   item->free.next = CAST_UH(freedlist[index]);
   if(freedlist[index]){
     freedlist[index]->free.prev = CAST_UH(item);
