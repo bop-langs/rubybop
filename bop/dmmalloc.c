@@ -49,9 +49,6 @@ header* ends[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //end of lis
 header* freedlist[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL}; //list of items freed during PPR-mode.
 header* allocatedList= NULL; //list of items allocated during PPR-mode NOTE: info of allocated block
 
-int last_counts[DM_NUM_CLASSES] = {[0 ... DM_NUM_CLASSES - 1] = NULL};
-
-
 //helper prototypes
 static inline int get_index (size_t);
 static inline void grow (int);
