@@ -415,6 +415,7 @@ void *dm_malloc (const size_t size) {
 			block = dm_split (which, bigger);
 			ASSERTBLK(block);
 		} else if (SEQUENTIAL()) {
+      bop_msg(3, "Is in sequential. Growing");
 			grow (1);
 			goto malloc_begin;
 		} else {
