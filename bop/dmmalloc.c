@@ -454,8 +454,6 @@ static inline int index_bigger (int which) {
     while (which < DM_NUM_CLASSES) {
       if (get_header(size_of_klass(which), &index) != NULL){
           return which;
-        else
-          return -1;
       }
       which++;
     }

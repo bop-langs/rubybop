@@ -27,7 +27,7 @@ extern int spec_order;
 
 #define task_parallel_p (ppr_pos == PPR && (task_status == MAIN || task_status == SPEC))
 
-// should be defined in the files that include bop_ports.h: extern mspace metacow_space;  
+// should be defined in the files that include bop_ports.h: extern mspace metacow_space;
 #define meta_malloc(type) (type *)mspace_malloc(metacow_space, sizeof(type))
 #define meta_calloc(num, type) (type*)mspace_calloc(metacow_space, (num), sizeof(type))
 
