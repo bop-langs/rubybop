@@ -47,6 +47,9 @@
 #undef rb_str_cat2
 #undef rb_str_cat_cstr
 
+extern void BOP_record_read(void *addr, size_t size);
+extern void BOP_record_write(void *addr, size_t size);
+
 static VALUE rb_str_clear(VALUE str);
 
 VALUE rb_cString;
