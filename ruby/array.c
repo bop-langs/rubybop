@@ -2832,7 +2832,7 @@ rb_ary_ppr_collect(VALUE ary){
 
   RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
   collect = rb_ary_new2(RARRAY_LEN(ary));
-  ARY_SET_LEN(ary, RARRAY_LEN(ary));)
+  ARY_SET_LEN(ary, RARRAY_LEN(ary));
   for (i = 0; i < RARRAY_LEN(ary); i++) {
     BOP_ppr_begin(1);
     ret = rb_yield(RARRAY_AREF(ary, i));
@@ -2881,6 +2881,7 @@ static VALUE
 rb_ary_ppr_collect_bang(VALUE ary)
 {
     long i;
+    VALUE ret;
     rb_gc_enable();
     RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
     for (i = 0; i < RARRAY_LEN(ary); i++) {
