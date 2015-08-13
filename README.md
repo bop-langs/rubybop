@@ -16,7 +16,7 @@ PPR{
   arr.each{|n| $partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
 }
 ```
-The programmer does not need to handle race conditions or any other problem from parallel programmer since everything is handled by the runtime.
+The programmer does not need to handle race conditions or any other problem from parallel programming since everything is handled by the runtime.
 
 ##Build & Test & Install
 0. Prereqs: To install rubybop, you will need (on path):
