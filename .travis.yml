@@ -4,7 +4,7 @@ compiler:
   - clang
 os:
   - linux
-  #- osx
+  - osx
 env:
   - BOP_GroupSize=2
   - BOP_GroupSize=4 #normal understudy, more PPR tasks

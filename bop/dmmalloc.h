@@ -38,12 +38,20 @@ void malloc_merge(void);
 void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 
 //Alignment based on word size
+#ifdef __WORDSIZE
 #if __WORDSIZE == 64
 #define ALIGNMENT 8
 #elif __WORDSIZE == 32
 #define ALIGNMENT 4
 #else
 #error "need 32 or 64 bit word size"
+#endif
+#elif defined(_x86_64__) || defined(__amd64__) || defined(_M_X64)
+#define ALIGNMENT 8
+#elif defined(__i386) || defined(_M_IX86)
+#define ALIGNMENT 4
+#else
+#error "Not supported architecture"
 #endif
 
 //malloc config macros
