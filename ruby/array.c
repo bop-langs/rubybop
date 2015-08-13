@@ -2824,10 +2824,23 @@ rb_ary_collect(VALUE ary)
 }
 
 //TODO get this working (involves writing an actual object use promiser)
-// static VALUE
-// rb_ary_ppr_collect(VALUE ary){
-//   return;
-// }
+static VALUE
+rb_ary_ppr_collect(VALUE ary){
+  long i;
+  VALUE collect;
+  VALUE ret;
+
+  RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+  collect = rb_ary_new2(RARRAY_LEN(ary));
+  ARY_SET_LEN(ary)
+  for (i = 0; i < RARRAY_LEN(ary); i++) {
+    BOP_ppr_begin(1);
+    ret = rb_yield(RARRAY_AREF(ary, i));
+    rb_ary_store(collect, i, ret);
+    BOP_ppr_end(1);
+  }
+  return collect;
+}
 
 
 /*
@@ -2863,6 +2876,23 @@ rb_ary_collect_bang(VALUE ary)
     }
     return ary;
 }
+
+static VALUE
+rb_ary_ppr_collect_bang(VALUE ary)
+{
+    long i;
+    rb_gc_enable();
+    RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+    for (i = 0; i < RARRAY_LEN(ary); i++) {
+      BOP_ppr_begin(1);
+      ret = rb_yield(RARRAY_AREF(ary, i));
+      rb_ary_store(ary, i, ret);
+      BOP_ppr_end(1);
+    }
+    rb_ary_modify(ary);
+    return ary;
+}
+
 
 VALUE
 rb_get_values_at(VALUE obj, long olen, int argc, const VALUE *argv, VALUE (*func) (VALUE, long))
@@ -5875,8 +5905,13 @@ Init_Array(void)
     rb_define_method(rb_cArray, "sort_by!", rb_ary_sort_by_bang, 0);
     rb_define_method(rb_cArray, "collect", rb_ary_collect, 0);
     rb_define_method(rb_cArray, "collect!", rb_ary_collect_bang, 0);
+    rb_define_method(rb_cArray, "ppr_collect", rb_ary_ppr_collect, 0);
+    rb_define_method(rb_cArray, "ppr_collect!", rb_ary_ppr_collect_bang, 0);
     rb_define_method(rb_cArray, "map", rb_ary_collect, 0);
     rb_define_method(rb_cArray, "map!", rb_ary_collect_bang, 0);
+    rb_define_method(rb_cArray, "ppr_map", rb_ary_ppr_collect, 0);
+    rb_define_method(rb_cArray, "ppr_map!", rb_ary_ppr_collect_bang, 0);
+    //TODO make the rest of the ppr functional functions
     rb_define_method(rb_cArray, "select", rb_ary_select, 0);
     rb_define_method(rb_cArray, "select!", rb_ary_select_bang, 0);
     rb_define_method(rb_cArray, "keep_if", rb_ary_keep_if, 0);
