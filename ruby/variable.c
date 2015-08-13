@@ -766,6 +766,7 @@ VALUE
 rb_gvar_get(struct global_entry *entry)
 {
     struct global_variable *var = entry->var;
+    BOP_record_read(var, sizeof(struct global_variable));
     return (*var->getter)(entry->id, var->data, var);
 }
 
@@ -800,7 +801,7 @@ rb_gvar_set(struct global_entry *entry, VALUE val)
 {
     struct trace_data trace;
     struct global_variable *var = entry->var;
-
+    BOP_record_write(var, sizeof(struct global_variable));
     (*var->setter)(val, entry->id, var->data, var);
 
     if (var->trace && !var->block_trace) {
