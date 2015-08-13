@@ -1,4 +1,4 @@
-# rubybop
+# Rubybop
 Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rubybop-introduction/)
 
 [Ruby Version 2.2 commit c5a6913](https://github.com/ruby/ruby/tree/c5a691323201ace5f5299b6914c8e1709918c521)
@@ -9,6 +9,14 @@ Master  | Latest
 ------------- | -------------
 [![Master Status](https://travis-ci.org/dcompiler/rubybop.svg?branch=master)](https://travis-ci.org/dcompiler/rubybop)  | [![Latest Status](https://travis-ci.org/dcompiler/rubybop.svg)](https://travis-ci.org/dcompiler/rubybop)
 
+##Example
+Several exaple scripts are included in [ruby/test/bop](/ruby/test/bop). The simplest test is the [simple_add.rb](/ruby/test/bop/simple_add.rb) which adds a large set of numbers in parallel using arrays. The total sum is the first number passed in as an argument to the script. The difference between a sequential program (in regular Ruby) and the Rubybop equivalent is just adding a PPR call:
+```ruby
+PPR{
+  arr.each{|n| $partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
+}
+```
+The programmer does not need to handle race conditions or any other problem from parallel programmer since everything is handled by the runtime.
 
 ##Build & Test & Install
 0. Prereqs: To install rubybop, you will need (on path):
