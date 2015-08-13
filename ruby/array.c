@@ -131,6 +131,40 @@ static ID id_cmp, id_div, id_power;
 
 #define ARY_SET(a, i, v) RARRAY_ASET((assert(!ARY_SHARED_P(a)), (a)), (i), (v))
 
+extern void BOP_record_write(void*, size_t);
+extern void BOP_record_read(void*, size_t);
+
+void
+promise_ary_elm(VALUE ary, int idx){
+  BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
+}
+void
+use_ary_elm(VALUE ary, int idx){
+  BOP_record_read((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
+}
+
+void
+promise_ary(VALUE ary){
+  for (i=0; i<RARRAY_LEN(ary); i++) {
+    promise_ary_elm(ary, i);
+  }
+}
+
+void
+use_ary(VALUE ary){
+  for (i=0; i<RARRAY_LEN(ary); i++) {
+    use_ary_elm(ary, i);
+  }
+}
+
+void
+use_promise_ary(VALUE ary){
+  for (i=0; i<RARRAY_LEN(ary); i++) {
+    use_ary_elm(ary, i);
+    promise_ary_elm(ary, i);
+  }
+}
+
 void
 rb_mem_clear(register VALUE *mem, register long size)
 {
@@ -348,6 +382,7 @@ rb_ary_modify(VALUE ary)
 
 	rb_gc_writebarrier_remember(ary);
     }
+    use_promise_ary(ary);
 }
 
 static VALUE
@@ -796,7 +831,6 @@ rb_ary_s_create(int argc, VALUE *argv, VALUE klass)
     return ary;
 }
 
-extern void BOP_record_write(void*, size_t);
 
 void
 rb_ary_store(VALUE ary, long idx, VALUE val)
@@ -827,7 +861,8 @@ rb_ary_store(VALUE ary, long idx, VALUE val)
     }
     ARY_SET(ary, idx, val);
 
-    BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
+    // BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
+    promise_ary_elm(ary, idx);
 }
 
 static VALUE
@@ -841,6 +876,7 @@ ary_make_partial(VALUE ary, VALUE klass, long offset, long len)
         VALUE result = ary_alloc(klass);
 	ary_memcpy(result, 0, len, RARRAY_CONST_PTR(ary) + offset);
         ARY_SET_EMBED_LEN(result, len);
+    use_promise_ary(ary);
         return result;
     }
     else {
@@ -854,6 +890,7 @@ ary_make_partial(VALUE ary, VALUE klass, long offset, long len)
 
         ARY_INCREASE_PTR(result, offset);
         ARY_SET_LEN(result, len);
+    use_promise_ary(ary);
         return result;
     }
 }
@@ -905,7 +942,7 @@ ary_take_first_or_last(int argc, const VALUE *argv, VALUE ary, enum ary_take_pos
  *             #=>  [ 1, 2, "c", "d", [ 3, 4 ] ]
  *
  */
-
+//BOP TODO record write
 VALUE
 rb_ary_push(VALUE ary, VALUE item)
 {
@@ -915,9 +952,10 @@ rb_ary_push(VALUE ary, VALUE item)
 	RB_OBJ_WRITE(target_ary, &ptr[idx], item);
     });
     ARY_SET_LEN(ary, idx + 1);
+    use_promise_ary(ary);
     return ary;
 }
-
+//BOP TODO record
 VALUE
 rb_ary_cat(VALUE ary, const VALUE *argv, long len)
 {
@@ -925,6 +963,7 @@ rb_ary_cat(VALUE ary, const VALUE *argv, long len)
     VALUE target_ary = ary_ensure_room_for_push(ary, len);
     ary_memcpy0(ary, oldlen, len, argv, target_ary);
     ARY_SET_LEN(ary, oldlen + len);
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -949,7 +988,7 @@ rb_ary_push_m(int argc, VALUE *argv, VALUE ary)
 {
     return rb_ary_cat(ary, argv, argc);
 }
-
+//BOP TODO record
 VALUE
 rb_ary_pop(VALUE ary)
 {
@@ -965,6 +1004,7 @@ rb_ary_pop(VALUE ary)
     }
     --n;
     ARY_SET_LEN(ary, n);
+    use_promise_ary(ary);
     return RARRAY_AREF(ary, n);
 }
 
@@ -1016,6 +1056,7 @@ rb_ary_shift(VALUE ary)
 		MEMMOVE(ptr, ptr+1, VALUE, len-1);
 	    }); /* WB: no new reference */
             ARY_INCREASE_LEN(ary, -1);
+    use_promise_ary(ary);
 	    return top;
 	}
         assert(!ARY_EMBED_P(ary)); /* ARY_EMBED_LEN_MAX < ARY_DEFAULT_SIZE */
@@ -1028,6 +1069,7 @@ rb_ary_shift(VALUE ary)
     }
     ARY_INCREASE_PTR(ary, 1);		/* shift ptr */
     ARY_INCREASE_LEN(ary, -1);
+    use_promise_ary(ary);
 
     return top;
 }
@@ -1054,7 +1096,7 @@ rb_ary_shift(VALUE ary)
  *     args.shift(2)  #=> ["-m", "-q"]
  *     args           #=> ["filename"]
  */
-
+//BOP TODO record
 static VALUE
 rb_ary_shift_m(int argc, VALUE *argv, VALUE ary)
 {
@@ -1080,7 +1122,7 @@ rb_ary_shift_m(int argc, VALUE *argv, VALUE ary)
 	}); /* WB: no new reference */
     }
     ARY_INCREASE_LEN(ary, -n);
-
+    use_promise_ary(ary);
     return result;
 }
 
@@ -1127,6 +1169,7 @@ ary_ensure_room_for_unshift(VALUE ary, int argc)
 	}
 	ARY_SET_PTR(ary, head - argc);
 	assert(ARY_SHARED_OCCUPIED(ARY_SHARED(ary)));
+    use_promise_ary(ary);
 	return ARY_SHARED(ary);
     }
     else {
@@ -1135,6 +1178,7 @@ ary_ensure_room_for_unshift(VALUE ary, int argc)
 	    MEMMOVE(ptr + argc, ptr, VALUE, len);
 	});
 
+    use_promise_ary(ary);
 	return ary;
     }
 }
@@ -1150,7 +1194,7 @@ ary_ensure_room_for_unshift(VALUE ary, int argc)
  *     a.unshift("a")   #=> ["a", "b", "c", "d"]
  *     a.unshift(1, 2)  #=> [ 1, 2, "a", "b", "c", "d"]
  */
-
+//BOP TODO record
 static VALUE
 rb_ary_unshift_m(int argc, VALUE *argv, VALUE ary)
 {
@@ -1165,6 +1209,7 @@ rb_ary_unshift_m(int argc, VALUE *argv, VALUE ary)
     target_ary = ary_ensure_room_for_unshift(ary, argc);
     ary_memcpy0(ary, 0, argc, argv, target_ary);
     ARY_SET_LEN(ary, len + argc);
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -1174,7 +1219,6 @@ rb_ary_unshift(VALUE ary, VALUE item)
     return rb_ary_unshift_m(1,&item,ary);
 }
 
-extern void BOP_record_read(void*, size_t);
 
 /* faster version - use this if you don't need to treat negative offset */
 static inline VALUE
@@ -1186,7 +1230,7 @@ rb_ary_elt(VALUE ary, long offset)
     if (offset < 0 || len <= offset) {
 	return Qnil;
     }
-    BOP_record_read((void*)&RARRAY_AREF(ary, offset),(size_t) (&RARRAY_AREF(ary, offset+1) - &RARRAY_AREF(ary, offset)));
+    use_ary_elm(ary, offset);
     return RARRAY_AREF(ary, offset);
 }
 
@@ -1326,9 +1370,11 @@ rb_ary_first(int argc, VALUE *argv, VALUE ary)
 {
     if (argc == 0) {
 	if (RARRAY_LEN(ary) == 0) return Qnil;
+  use_ary_elm(ary, 0);
 	return RARRAY_AREF(ary, 0);
     }
     else {
+  use_ary_elm(ary, 0);
 	return ary_take_first_or_last(argc, argv, ary, ARY_TAKE_FIRST);
     }
 }
@@ -1354,9 +1400,11 @@ rb_ary_last(int argc, const VALUE *argv, VALUE ary)
     if (argc == 0) {
 	long len = RARRAY_LEN(ary);
 	if (len == 0) return Qnil;
+  use_ary_elm(ary, RARRAY_LEN(ary)-1);
 	return RARRAY_AREF(ary, len-1);
     }
     else {
+  use_ary_elm(ary, RARRAY_LEN(ary)-1);
 	return ary_take_first_or_last(argc, argv, ary, ARY_TAKE_LAST);
     }
 }
@@ -1383,7 +1431,7 @@ rb_ary_last(int argc, const VALUE *argv, VALUE ary)
  *     a.fetch(100) { |i| puts "#{i} is out of bounds" }
  *                              #=> "100 is out of bounds"
  */
-
+//BOP TODO record
 static VALUE
 rb_ary_fetch(int argc, VALUE *argv, VALUE ary)
 {
@@ -1402,13 +1450,17 @@ rb_ary_fetch(int argc, VALUE *argv, VALUE ary)
 	idx +=  RARRAY_LEN(ary);
     }
     if (idx < 0 || RARRAY_LEN(ary) <= idx) {
-	if (block_given) return rb_yield(pos);
+	if (block_given){
+    use_ary_elm(ary,idx);
+    return rb_yield(pos);
+  }
 	if (argc == 1) {
 	    rb_raise(rb_eIndexError, "index %ld outside of array bounds: %ld...%ld",
 			idx - (idx < 0 ? RARRAY_LEN(ary) : 0), -RARRAY_LEN(ary), RARRAY_LEN(ary));
 	}
 	return ifnone;
     }
+    use_ary_elm(ary,idx);
     return RARRAY_AREF(ary, idx);
 }
 
@@ -1444,7 +1496,7 @@ rb_ary_index(int argc, VALUE *argv, VALUE ary)
     const VALUE *ptr;
     VALUE val;
     long i, len;
-
+    use_ary(ary);
     if (argc == 0) {
 	RETURN_ENUMERATOR(ary, 0, 0);
 	for (i=0; i<RARRAY_LEN(ary); i++) {
@@ -1506,7 +1558,7 @@ rb_ary_rindex(int argc, VALUE *argv, VALUE ary)
     const VALUE *ptr;
     VALUE val;
     long i = RARRAY_LEN(ary), len;
-
+    use_ary(ary);
     if (argc == 0) {
 	RETURN_ENUMERATOR(ary, 0, 0);
 	while (i--) {
@@ -1555,7 +1607,7 @@ rb_ary_splice(VALUE ary, long beg, long len, VALUE rpl)
 {
     long rlen;
     long olen;
-
+    use_promise_ary(ary);
     if (len < 0) rb_raise(rb_eIndexError, "negative length (%ld)", len);
     olen = RARRAY_LEN(ary);
     if (beg < 0) {
@@ -1610,6 +1662,7 @@ rb_ary_splice(VALUE ary, long beg, long len, VALUE rpl)
 	}
     }
     RB_GC_GUARD(rpl);
+    use_promise_ary(ary);
 }
 
 void
@@ -1625,6 +1678,7 @@ rb_ary_set_len(VALUE ary, long len)
 	rb_bug("probable buffer overflow: %ld for %ld", len, capa);
     }
     ARY_SET_LEN(ary, len);
+    use_promise_ary(ary);
 }
 
 /*!
@@ -1639,7 +1693,7 @@ VALUE
 rb_ary_resize(VALUE ary, long len)
 {
     long olen;
-
+    use_ary(ary);
     rb_ary_modify(ary);
     olen = RARRAY_LEN(ary);
     if (len == olen) return ary;
@@ -1670,6 +1724,7 @@ rb_ary_resize(VALUE ary, long len)
 	}
 	ARY_SET_HEAP_LEN(ary, len);
     }
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -1770,6 +1825,7 @@ rb_ary_insert(int argc, VALUE *argv, VALUE ary)
 	pos++;
     }
     rb_ary_splice(ary, pos, 0, rb_ary_new4(argc - 1, argv + 1));
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -1810,6 +1866,7 @@ rb_ary_each(VALUE array)
     for (i=0; i<RARRAY_LEN(ary); i++) {
 	rb_yield(RARRAY_AREF(ary, i));
     }
+    use_ary(ary);
     return ary;
 }
 
@@ -1840,6 +1897,7 @@ rb_ary_each_index(VALUE ary)
     for (i=0; i<RARRAY_LEN(ary); i++) {
 	rb_yield(LONG2NUM(i));
     }
+    use_ary(ary);
     return ary;
 }
 
@@ -1873,6 +1931,7 @@ rb_ary_reverse_each(VALUE ary)
 	    len = nlen;
 	}
     }
+    use_ary(ary);
     return ary;
 }
 
@@ -1890,6 +1949,7 @@ static VALUE
 rb_ary_length(VALUE ary)
 {
     long len = RARRAY_LEN(ary);
+    use_ary(ary);
     return LONG2NUM(len);
 }
 
@@ -1917,6 +1977,8 @@ rb_ary_dup(VALUE ary)
     VALUE dup = rb_ary_new2(len);
     ary_memcpy(dup, 0, len, RARRAY_CONST_PTR(ary));
     ARY_SET_LEN(dup, len);
+    use_ary(ary);
+    use_promise_ary(dup);
     return dup;
 }
 
@@ -1962,6 +2024,7 @@ ary_join_0(VALUE ary, VALUE sep, long max, VALUE result)
 	rb_str_buf_append(result, val);
 	if (OBJ_TAINTED(val)) OBJ_TAINT(result);
     }
+    use_promise_ary(ary);
 }
 
 static void
@@ -2015,6 +2078,7 @@ ary_join_1(VALUE obj, VALUE ary, VALUE sep, long i, VALUE result, int *first)
 	    goto str_join;
 	}
     }
+    use_promise_ary(ary);
 }
 
 VALUE
@@ -2098,6 +2162,7 @@ inspect_ary(VALUE ary, VALUE dummy, int recur)
     }
     rb_str_buf_cat2(str, "]");
     if (tainted) OBJ_TAINT(str);
+    use_promise_ary(ary);
     return str;
 }
 
@@ -2211,6 +2276,7 @@ rb_ary_reverse(VALUE ary)
 	    ary_reverse(p1, p2);
 	}); /* WB: no new reference */
     }
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -2246,13 +2312,14 @@ rb_ary_reverse_m(VALUE ary)
 {
     long len = RARRAY_LEN(ary);
     VALUE dup = rb_ary_new2(len);
-
+    use_ary(ary);
     if (len > 0) {
 	const VALUE *p1 = RARRAY_CONST_PTR(ary);
 	VALUE *p2 = (VALUE *)RARRAY_CONST_PTR(dup) + len - 1;
 	do *p2-- = *p1++; while (--len > 0);
     }
     ARY_SET_LEN(dup, RARRAY_LEN(ary));
+    use_promise_ary(dup);
     return dup;
 }
 
@@ -2276,6 +2343,7 @@ rb_ary_rotate(VALUE ary, long cnt)
 	    if (cnt < len) ary_reverse(ptr + cnt, ptr + len);
 	    if (--cnt > 0) ary_reverse(ptr, ptr + cnt);
 	    if (len > 0) ary_reverse(ptr, ptr + len);
+    use_promise_ary(ary);
 	    return ary;
 	}
     }
@@ -2504,6 +2572,7 @@ rb_ary_sort_bang(VALUE ary)
         /* tmp will be GC'ed. */
         RBASIC_SET_CLASS_RAW(tmp, rb_cArray); /* rb_cArray must be marked */
     }
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -2532,8 +2601,10 @@ rb_ary_sort_bang(VALUE ary)
 VALUE
 rb_ary_sort(VALUE ary)
 {
+    use_ary(ary);
     ary = rb_ary_dup(ary);
     rb_ary_sort_bang(ary);
+    use_promise_ary(ary);
     return ary;
 }
 
@@ -2593,6 +2664,7 @@ rb_ary_sort(VALUE ary)
 static VALUE
 rb_ary_bsearch(VALUE ary)
 {
+    use_ary(ary);
     long low = 0, high = RARRAY_LEN(ary), mid;
     int smaller = 0, satisfied = 0;
     VALUE v, val;
@@ -2923,6 +2995,7 @@ ary_resize_smaller(VALUE ary, long len)
 VALUE
 rb_ary_delete(VALUE ary, VALUE item)
 {
+    use_promise_ary(ary);
     VALUE v = item;
     long i1, i2;
 
@@ -2946,7 +3019,7 @@ rb_ary_delete(VALUE ary, VALUE item)
     }
 
     ary_resize_smaller(ary, i2);
-
+    use_promise_ary(ary);
     return v;
 }
 
@@ -2991,7 +3064,7 @@ rb_ary_delete_at(VALUE ary, long pos)
 	MEMMOVE(ptr+pos, ptr+pos+1, VALUE, len-pos-1);
     });
     ARY_INCREASE_LEN(ary, -1);
-
+      use_promise_ary(ary);
     return del;
 }
 
@@ -3186,6 +3259,8 @@ rb_ary_reject(VALUE ary)
  *     scores = [ 97, 42, 75 ]
  *     scores.delete_if {|score| score < 80 }   #=> [97]
  */
+
+//TODO look at functions under here
 
 static VALUE
 rb_ary_delete_if(VALUE ary)
