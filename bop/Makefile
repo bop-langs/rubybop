@@ -18,15 +18,12 @@ _OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o \
 				range_tree/dtree.o bop_ppr.o utils.o external/malloc.o \
 				bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o libc_overrides.o
 
-CFLAGS_DEF = -Wall -fPIC -pthread -g3 -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF) $(CI_FLAGS)
-CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D USE_LOCKS -D UNSUPPORTED_MALLOC $(DEBUG_FLAGS)
+CFLAGS_DEF = -Wall -fPIC -pthread -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF) $(CI_FLAGS)
+CUSTOMDEF = -D USE_DL_PREFIX -D BOP -D USE_LOCKS -D UNSUPPORTED_MALLOC
 LDFLAGS = -Wl,--no-as-needed -ldl
-OPITIMIZEFLAGS = -O0
+OPITIMIZEFLAGS = -O3
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 LIB = inst.a
-CFLAGS = $(CFLAGS_DEF) $(OPITIMIZEFLAGS)
-
-
 
 LIB_SO = $(BUILD_DIR)/inst.a
 
@@ -34,12 +31,17 @@ OBJS = $(patsubst %,$(BUILD_DIR)/%,$(_OBJS))
 _HEADERS = $(wildcard *.h) $(wildcard external/*.h) $(wildcard range_tree/*.h)
 HEADERS = $(patsubst %,$(BUILD_DIR)/%,$(_HEADERS))
 
-debug: CFLAGS = $(CFLAGS_DEF)  $(DEFBUG_FLAGS)
-debug: library
+DEBUG ?= 1
+ifeq ($(DEBUG), 1)
+	CFLAGS = $(CFLAGS_DEF) $(DEBUG_FLAGS) -O0
+else
+ 	CFLAGS = $(CFLAGS_DEF) $(OPITIMIZEFLAGS)
+endif
+
 library: print_info $(LIB_SO) # $(HEADERS)
 
 print_info:
-	@echo Build info
+	@echo Build info debug build = $(DEBUG)
 	@echo cc = $(CC)
 	@echo CFLAGS = $(CFLAGS)
 	@echo LDFLAGS = $(LDFLAGS)

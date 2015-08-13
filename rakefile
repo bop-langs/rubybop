@@ -22,6 +22,16 @@ task :ruby => [:bop, :ruby_setup] do
   end
 end
 
+task :release => :ruby_setup do
+  cd "bop" do
+    sh 'make -B -j4 DEBUG=0'
+  end
+  cd 'ruby' do
+    sh 'make clean'
+    sh 'make -j4'
+  end
+end
+
 task :smoke_test do
   cd 'ruby' do
     sh 'make check' if File.exists? 'Makefile'
