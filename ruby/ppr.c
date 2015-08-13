@@ -75,6 +75,11 @@ void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* fun
     }
   }
 }
+
+void obj_get_mem_pointers(VALUE obj){
+
+}
+
 extern void set_rheap_nulll(void);
 
 static VALUE
@@ -130,22 +135,23 @@ ppr_promise(VALUE ppr, VALUE obj)
     return obj;
 }
 
-static VALUE
+VALUE
 ppr_yield(VALUE val)
 {
-    VALUE ret = Qnil;
+    VALUE * ret = NULL;
     bool ppr_ok = pre_bop_begin();
     if(ppr_ok)
       BOP_ppr_begin(1);
         rb_gc_disable();
         //set_rheap_null();
         bop_msg(3,"yielding block...");
-        ret = rb_yield(val);
-        BOP_promise(ret, sizeof(ret));  // TODO write an actual object promiser
+        ret = calloc(1, sizeof(VALUE));
+        *ret = rb_yield(val);
+        BOP_promise(ret, sizeof(*ret));  // TODO write an actual object promiser
         rb_gc_enable();
     if(ppr_ok)
       BOP_ppr_end(1);
-    return ret;
+    return *ret;
 }
 static VALUE
 ordered_yield()

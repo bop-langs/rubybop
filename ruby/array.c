@@ -1875,7 +1875,7 @@ rb_ary_each(VALUE array)
     use_ary(ary);
     return ary;
 }
-
+VALUE
 rb_ary_ppr_each(VALUE array){
     long i;
     volatile VALUE ary = array;
@@ -1917,7 +1917,7 @@ rb_ary_each_index(VALUE ary)
     use_ary(ary);
     return ary;
 }
-
+static VALUE
 rb_ary_ppr_each_index(VALUE array){
     long i;
     volatile VALUE ary = array;
@@ -2824,10 +2824,10 @@ rb_ary_collect(VALUE ary)
 }
 
 //TODO get this working (involves writing an actual object use promiser)
-static VALUE
-rb_ary_ppr_collect(VALUE ary){
-  return;
-}
+// static VALUE
+// rb_ary_ppr_collect(VALUE ary){
+//   return;
+// }
 
 
 /*
@@ -5854,8 +5854,8 @@ Init_Array(void)
     rb_define_method(rb_cArray, "unshift", rb_ary_unshift_m, -1);
     rb_define_method(rb_cArray, "insert", rb_ary_insert, -1);
     rb_define_method(rb_cArray, "each", rb_ary_each, 0);
-    rb_define_method(rb_cArray, "each_index", rb_ary_each_index, 0);
     rb_define_method(rb_cArray, "ppr_each", rb_ary_ppr_each, 0);
+    rb_define_method(rb_cArray, "each_index", rb_ary_each_index, 0);
     rb_define_method(rb_cArray, "ppr_each_index", rb_ary_ppr_each_index, 0);
     rb_define_method(rb_cArray, "reverse_each", rb_ary_reverse_each, 0);
     rb_define_method(rb_cArray, "ppr_reverse_each", rb_ary_ppr_reverse_each, 0);
