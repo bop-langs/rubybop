@@ -47,7 +47,7 @@ end
 
 task :bop_debug do
   cd "bop" do
-    sh 'make debug'
+    sh 'make DEBUG=1'
   end
 end
 task :ruby_test_run do
@@ -68,6 +68,7 @@ task :ruby_test => :ruby do
 end
 
 task :bop_test => :bop do
+  sh 'make -C ./bop/ clean'
   test_dir.each do |dir|
 		cd 'tests/' + dir do
 			sh 'rake; rake run' do |ok, res|

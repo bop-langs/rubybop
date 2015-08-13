@@ -55,7 +55,7 @@ $(LIB_SO): $(OBJS)
 $(BUILD_DIR)/%_wrapper.o: %_wrapper.c #any _wrapper class needs the optimization filtering
 		@mkdir -p $(@D)
 		@echo compiling $^
-		@$(CC) -c -o $@ $^ $(CFLAGS_DEF)
+		@$(CC) -c -o $@ $^ -O0 $(CFLAGS_DEF)
 
 all: $(OBJS)
 
