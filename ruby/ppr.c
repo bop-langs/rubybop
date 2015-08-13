@@ -144,18 +144,12 @@ ppr_yield(VALUE val)
     if(ppr_ok)
       BOP_ppr_begin(1);
         rb_gc_disable();
-        //set_rheap_null();
         bop_msg(3,"yielding block...");
-        // ret = calloc(1, sizeof(VALUE));
         rb_yield(val);
-        // BOP_promise(ret, sizeof(*ret));  // TODO write an actual object promiser
         rb_gc_enable();
     if(ppr_ok)
       BOP_ppr_end(1);
-    // if(ret == NULL){
     return Qnil;
-    // }
-    // return *ret;
 }
 static VALUE
 ordered_yield()

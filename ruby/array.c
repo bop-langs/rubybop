@@ -1895,7 +1895,7 @@ rb_ary_ppr_each(VALUE array){
 
     RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
     for (i=0; i<RARRAY_LEN(ary); i++) {
-	ppr_yield(RARRAY_AREF(ary, i));
+	     ppr_yield(RARRAY_AREF(ary, i));
     }
     return ary;
 }

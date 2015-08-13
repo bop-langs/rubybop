@@ -7,7 +7,7 @@ puts "array is #{$array.length} long"
 $arrays = $array.each_slice($numbers/$groups).to_a
 $partial_sums = Array.new($groups, 0)
 $arrays.each_with_index do |arr, spec_group|
-    arr.ppr_map{|n| $partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
+    arr.ppr_each{|n| $partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
 end
 
 PPR.over
