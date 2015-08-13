@@ -145,6 +145,7 @@ use_ary_elm(VALUE ary, int idx){
 
 void
 promise_ary(VALUE ary){
+  int i;
   for (i=0; i<RARRAY_LEN(ary); i++) {
     promise_ary_elm(ary, i);
   }
@@ -152,6 +153,7 @@ promise_ary(VALUE ary){
 
 void
 use_ary(VALUE ary){
+  int i;
   for (i=0; i<RARRAY_LEN(ary); i++) {
     use_ary_elm(ary, i);
   }
@@ -159,6 +161,7 @@ use_ary(VALUE ary){
 
 void
 use_promise_ary(VALUE ary){
+  int i;
   for (i=0; i<RARRAY_LEN(ary); i++) {
     use_ary_elm(ary, i);
     promise_ary_elm(ary, i);
