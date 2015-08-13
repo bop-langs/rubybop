@@ -133,17 +133,19 @@ ppr_promise(VALUE ppr, VALUE obj)
 static VALUE
 ppr_yield(VALUE val)
 {
+    VALUE ret = Qnil;
     bool ppr_ok = pre_bop_begin();
     if(ppr_ok)
       BOP_ppr_begin(1);
         rb_gc_disable();
         //set_rheap_null();
         bop_msg(3,"yielding block...");
-        rb_yield(val);
+        ret = rb_yield(val);
+        BOP_promise(ret, sizeof(ret));  // TODO write an actual object promiser
         rb_gc_enable();
     if(ppr_ok)
       BOP_ppr_end(1);
-    return Qnil;
+    return ret;
 }
 static VALUE
 ordered_yield()

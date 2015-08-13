@@ -133,6 +133,9 @@ static ID id_cmp, id_div, id_power;
 
 extern void BOP_record_write(void*, size_t);
 extern void BOP_record_read(void*, size_t);
+extern void BOP_ppr_begin(int);
+extern void BOP_ppr_end(int);
+extern VALUE ppr_yield(VALUE);
 
 void
 promise_ary_elm(VALUE ary, int idx){
@@ -1873,6 +1876,17 @@ rb_ary_each(VALUE array)
     return ary;
 }
 
+rb_ary_ppr_each(VALUE array){
+    long i;
+    volatile VALUE ary = array;
+
+    RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+    for (i=0; i<RARRAY_LEN(ary); i++) {
+	ppr_yield(RARRAY_AREF(ary, i));
+    }
+    return ary;
+}
+
 /*
  *  call-seq:
  *     ary.each_index { |index| block }  -> ary
@@ -1901,6 +1915,17 @@ rb_ary_each_index(VALUE ary)
 	rb_yield(LONG2NUM(i));
     }
     use_ary(ary);
+    return ary;
+}
+
+rb_ary_ppr_each_index(VALUE array){
+    long i;
+    volatile VALUE ary = array;
+
+    RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+    for (i=0; i<RARRAY_LEN(ary); i++) {
+	ppr_yield(LONG2NUM(i));
+    }
     return ary;
 }
 
@@ -1935,6 +1960,24 @@ rb_ary_reverse_each(VALUE ary)
 	}
     }
     use_ary(ary);
+    return ary;
+}
+
+static VALUE
+rb_ary_ppr_reverse_each(VALUE ary)
+{
+    long len;
+
+    RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+    len = RARRAY_LEN(ary);
+    while (len--) {
+	long nlen;
+	ppr_yield(RARRAY_AREF(ary, len));
+	nlen = RARRAY_LEN(ary);
+	if (nlen < len) {
+	    len = nlen;
+	}
+    }
     return ary;
 }
 
@@ -2778,6 +2821,12 @@ rb_ary_collect(VALUE ary)
 	rb_ary_push(collect, rb_yield(RARRAY_AREF(ary, i)));
     }
     return collect;
+}
+
+//TODO get this working (involves writing an actual object use promiser)
+static VALUE
+rb_ary_ppr_collect(VALUE ary){
+  return;
 }
 
 
@@ -5806,7 +5855,10 @@ Init_Array(void)
     rb_define_method(rb_cArray, "insert", rb_ary_insert, -1);
     rb_define_method(rb_cArray, "each", rb_ary_each, 0);
     rb_define_method(rb_cArray, "each_index", rb_ary_each_index, 0);
+    rb_define_method(rb_cArray, "ppr_each", rb_ary_ppr_each, 0);
+    rb_define_method(rb_cArray, "ppr_each_index", rb_ary_ppr_each_index, 0);
     rb_define_method(rb_cArray, "reverse_each", rb_ary_reverse_each, 0);
+    rb_define_method(rb_cArray, "ppr_reverse_each", rb_ary_ppr_reverse_each, 0);
     rb_define_method(rb_cArray, "length", rb_ary_length, 0);
     rb_define_alias(rb_cArray,  "size", "length");
     rb_define_method(rb_cArray, "empty?", rb_ary_empty_p, 0);
