@@ -11,7 +11,8 @@
 
 #include <unistd.h>
 //#include <sys/siginfo.h>
-#include <ucontext.h>
+
+#include <sys/ucontext.h>
 #include <execinfo.h>
 
 #include "bop_api.h"
@@ -165,12 +166,15 @@ bool waiting = false;
 void temp_sigint(int sigo){
   waiting = true;
 }
+void error_alert_monitor(){
+  kill(monitor_process_id, SIGUSR2);
+}
 extern void io_on_malloc_rescue(void);
 int spawn_undy(void);
 extern void print_headers(void);
 //if malloc cannot meet a request, it calls this funcion
 void BOP_malloc_rescue(char * msg, size_t size){
-  bop_msg(2, "Malloc rescue begin. Size: %u Failure: %s", size, msg);
+  bop_msg(2, "Malloc rescue begin. aligned size & header: %u Failure: %s", size, msg);
   // print_headers();
   if(task_status == SEQ || task_status == UNDY || bop_mode == SERIAL){
     bop_msg(1, "ERROR. Malloc failed while logically sequential");
@@ -383,7 +387,7 @@ void _BOP_group_over(int id){
   if(ppr_static_id != id){
     bop_msg(3, "Mis-matched ppr ids. Continuing");
   }else if(task_status == SPEC){
-    bop_msg(3, "Speculative process extended past PPR region. Aborting");
+    bop_msg(3, "Speculative process extended past PPR region. _exiting");
     _exit(0);
   }else{
     bop_msg(3, "Valid state while hitting BOP_group_over. Allowing to pass barrier");
@@ -455,17 +459,22 @@ void print_backtrace(void){
   bt_syms = backtrace_symbols(bt, bt_size);
   for (i = 1; i < bt_size; i++) {
     size_t len = strlen(bt_syms[i]);
-    bop_msg(1, "\nBT: %s", bt_syms[i], len);
+    bop_msg(1, "\tBT: %s", bt_syms[i], len);
   }
   bop_msg(1, "\nEND BACKTRACE");
 }
 void ErrorKillAll(int signo){
   //don't need to reap children. We know that it's an erroring-exit,
   //intecept the call, allert monitor process, execute def behavior
+  /**Horrible things are happening. Go to SEQ mode so malloc won't have issues*/
   bop_msg(1, "ERROR CAUGHT %d", signo);
-  kill(monitor_process_id, SIGUSR2);
+  int om = bop_mode;
+  malloc_panic = true;
+  print_backtrace();
+  error_alert_monitor();
   signal(signo, SIG_DFL);
   raise(signo);
+  bop_mode = om;
 }
 void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR1 == signo );
@@ -810,6 +819,7 @@ static void BOP_fini(void) {
     kill(monitor_process_id, SIGUSR1);
     bop_msg(3, "Terminal process %d exiting with value %d", getpid(), exitv);
     bop_terminal_to_monitor();
+    // dm_print_info();
     if(exitv)
       _exit(exitv);
     //don't need to call normal exit,

@@ -22,7 +22,7 @@ typedef union {
 
 //prototypes
 void * dm_malloc(size_t);
-void * dm_realloc(void *, size_t);
+void * dm_realloc(const void *, size_t);
 void dm_free(void *);
 void * dm_calloc(size_t, size_t);
 void dm_print_info(void);
@@ -48,14 +48,14 @@ void malloc_merge_counts(bool); //counts get updated AFTER abort status is known
 
 //malloc config macros
 #ifndef DM_BLOCK_SIZE
-#define DM_BLOCK_SIZE 200
+#define DM_BLOCK_SIZE 500
 #endif
 
 //alignement/ header macros
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 #define HSIZE (ALIGN((sizeof(header))))
 #define HEADER(vp) ((header *) (((char *) (vp)) - HSIZE))
-#define CAST_SH(h) ((union header *) (h))
+#define CAST_UH(h) ((union header *) (h))
 #define CAST_H(h) ((header*) (h))
 #define CHARP(p) (((char*) (p)))
 #define PAYLOAD(hp) ((header *) (((char *) (hp)) + HSIZE))

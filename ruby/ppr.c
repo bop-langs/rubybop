@@ -133,7 +133,6 @@ ppr_promise(VALUE ppr, VALUE obj)
 static VALUE
 ppr_yield(VALUE val)
 {
-    //set_rheap_null();
     bool ppr_ok = pre_bop_begin();
     if(ppr_ok)
       BOP_ppr_begin(1);

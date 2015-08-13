@@ -90,7 +90,7 @@ addr_t conflict_addr;
    base of a conflict range.  0 if there is no conflict.  */
 static addr_t check_for_overlap( map_t *my_access, char is_write_map ) {
   int i;
-  bop_msg( 3, "%d ranges in %s", my_access->size, my_access->name );
+  bop_msg( 2, "%d ranges in %s", my_access->size, my_access->name );
   map_inspect(5, my_access);
 
   if ( write_union->size == 0 ) return 0;
@@ -211,7 +211,7 @@ void create_patch( map_t *patch, map_t *change_set, mspace space ) {
   map_inject( change_set, &sum, add_range_block );
 
   bop_stats.data_copied += sum.total;
-  bop_msg(4, "Created a patch with %d range(s) for a total of %d bytes.", patch->size, sum.total);
+  bop_msg(2, "Created a patch with %d range(s) for a total of %d bytes.", patch->size, sum.total);
 }
 
 static void apply_range_block( void *_sum, mem_range_t *range ) {
@@ -239,9 +239,9 @@ void clear_patch( map_t *patch ) {
 
 static void ppr_commit( void ) {
   assert( spec_order >= 0 );
-  bop_msg(4, "Data commit start");
+  bop_msg(3, "Data commit start");
   create_patch( & patches[ spec_order ], & write_map, commit_space );
-  bop_msg(4, "Data commit done");
+  bop_msg(3, "Data commit done");
 }
 
 static void ppr_group_commit( void ) {
