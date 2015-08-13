@@ -35,8 +35,7 @@ IRB/IRBOP is supported in early stages. To run IRB with the Rubybop interpreter,
 In addition, all ruby code that was executed with the GVL is now forced to use the GVL. The __only__ exception to this rule is IO, since Ruby is too slow if IO requires the GVL. If a script attempts to enter a parallel region with multiple threads running, an `ThreadError` is thrown and Rubybop will terminate. Although there are currently no checks, the data structures used by BOP do not support concurrent modification, so only one thread should be active inside a PPR region.
 
 
-Any issues installing should be reported here.
-Note: There is currently no working IRB (interactive ruby interpreter).
 
+Any issues installing or running should be reported [here](https://github.com/dcompiler/rubybop/issues).
 
 [(outdated) Work Notes etc.](https://docs.google.com/document/d/1qkXeVAgK56vHWjxyXntOxC4MxRF4oelftWkvHx1V8eM/edit?usp=sharing)

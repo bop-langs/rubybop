@@ -3290,7 +3290,7 @@ void initialize_objspaces(){
   objspace = old_objspace;
 }
 
-void zero_out_frees()
+void set_task_objspace()
 {
     int BOP_task = spec_order;
     rb_objspace_t *objspace = &rb_objspace;
@@ -3348,7 +3348,7 @@ void zero_out_frees()
     return;
 }
 
-void frees_restore()
+void reset_objspace()
 {
   //check_heap_pages(0);
   //TODO Merge the heap pages
@@ -9238,6 +9238,6 @@ Init_GC(void)
 
 bop_port_t rubyheap_port = {
     .ppr_group_init = initialize_objspaces,
-    .ppr_task_init = zero_out_frees,
-    .task_group_commit = frees_restore
+    .ppr_task_init = set_task_objspace,
+    .task_group_commit = reset_objspace
 };

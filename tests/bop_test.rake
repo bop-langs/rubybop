@@ -95,7 +95,7 @@ desc "Compile non-BOP test(s)"
 task :orig # Prereqs to be added by bop_test
 
 task :boplib do
-  sh "cd #{$bop_src}; make --silent debug"
+  sh "cd #{$bop_src}; make --silent DEBUG=1"
   puts 'bop library (re-) built'
 end
 
