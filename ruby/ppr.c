@@ -13,7 +13,7 @@
 extern bop_port_t rubyheap_port;
 
 extern int _BOP_ppr_begin();
-extern int _BOP_ppr_end();
+extern void _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
 extern void BOP_use(void*, size_t);
@@ -137,7 +137,7 @@ ppr_promise(VALUE ppr, VALUE obj)
 
 //DOES NOT HAVE THE SAME RETURN VALUE AS YIELD WOULD. THIS NEEDS MORE THOUGHT
 VALUE
-ppr_yield(VALUE val)
+ppr_yield()
 {
     // VALUE * ret = NULL;
     bool ppr_ok = pre_bop_begin();
@@ -145,7 +145,7 @@ ppr_yield(VALUE val)
       BOP_ppr_begin(1);
         rb_gc_disable();
         bop_msg(3,"yielding block...");
-        rb_yield(val);
+        rb_yield(INT2FIX(BOP_spec_order()));
         rb_gc_enable();
     if(ppr_ok)
       BOP_ppr_end(1);
@@ -291,7 +291,7 @@ Init_PPR() {
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
     rb_define_singleton_method(rb_cPPR, "use", ppr_use, 1);
     rb_define_singleton_method(rb_cPPR, "promise", ppr_promise, 1);
-    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 1);
+    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 0);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
     //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);

@@ -2,7 +2,8 @@
 
 $number1 = ARGV[0].to_i
 $number2 = ARGV[1].to_i
-
+@var1 = 0
+@var2 = 0
 
 puts "creating new instance variable"
 
