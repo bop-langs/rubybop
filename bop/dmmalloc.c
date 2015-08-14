@@ -112,12 +112,6 @@ static int * goal_counts(){
   		goal[ind] = goal_blocks(ind);
   return goal;
 }
-void dm_check(void* payload) {
-    if(payload == NULL)
-			return;
-    header* head = HEADER (payload);
-    ASSERTBLK (head);
-}
 static inline size_t align(size_t size, size_t alignment) {
     int log = LOG(alignment);
     bop_assert(alignment == (1 << log));
