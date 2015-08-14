@@ -11,6 +11,9 @@ env:
 matrix:
   fast_finish: true
 #dependencies for the ruby language
+exclude:
+  - os: osx
+    env: BOP_UndyFinish=0 BOP_GroupSize=4
 
 sudo: false
 addons:
