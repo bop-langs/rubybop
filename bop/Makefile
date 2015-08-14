@@ -24,6 +24,7 @@ LDFLAGS = -Wl,--no-as-needed -ldl
 OPITIMIZEFLAGS = -O3
 DEBUG_FLAGS = -ggdb3 -g3 -pg -D CHECK_COUNTS -U NDEBUG
 LIB = inst.a
+TEST_DIRS = add  sleep # mem str/BOP_strcmp str/BOP_string str/strsub str/strsub2
 
 LIB_SO = $(BUILD_DIR)/inst.a
 
@@ -68,5 +69,9 @@ $(BUILD_DIR)/%.h: %.h
 	@mkdir -p $(@D)
 	@cp  $^ $@
 
+test: $(LIB_SO)
+	@$(foreach dir,$(TEST_DIRS),cd tests/$(dir); rake; rake run; cd -;)
+
 clean:
 	rm -f $(OBJS) $(LIB_SO)
+	@$(foreach dir,$(TEST_DIRS),cd tests/$(dir); rake clean; cd -;)
