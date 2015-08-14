@@ -1,8 +1,6 @@
 #require 'math'
 #require 'test/unit/assertions.rb'
 
-#require 'bop_api.h'
-
 class BOP_add
 
   def main()
@@ -51,13 +49,9 @@ class BOP_add
 
   def lots_of_computation_on_block( s, e )
     @total = 0;
-    j = s
-    while j < e do
-      #@total += sin($data[ j ]) * sin($data[ j ]) + cos($data[ j ]) * cos($data[ j ])
-      @total += ($data[j]**2) + ($data[j]**3) - ($data[j]**5) + 1
-      j += 1
+    for i in (s ... e) do
+      @total += ($data[i]**2) + ($data[i]**3) - ($data[i]**5) + 1
     end
-    # BOP_record_read( &data[j], sizeof( double )*(end - start) ); What are the ruby commands that we have for bop_read, bop_write, and bop_ordered?
     return @total;
   end
 
