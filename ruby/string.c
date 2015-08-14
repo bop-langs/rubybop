@@ -47,6 +47,9 @@
 #undef rb_str_cat2
 #undef rb_str_cat_cstr
 
+extern void BOP_use(void *addr, size_t size);
+extern void BOP_promise(void *addr, size_t size);
+
 static VALUE rb_str_clear(VALUE str);
 
 VALUE rb_cString;
@@ -72,7 +75,9 @@ VALUE rb_cSymbol;
 	STR_SET_EMBED_LEN((str), (n));\
     }\
     else {\
+	BOP_use(&(RSTRING(str)->as.heap.len));\
 	RSTRING(str)->as.heap.len = (n);\
+	BOP_promise(&(RSTRING(str)->as.heap.len));\
     }\
 } while (0)
 
