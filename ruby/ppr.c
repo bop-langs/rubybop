@@ -281,6 +281,10 @@ VALUE ppr_over(){
   BOP_this_group_over();
   return Qnil;
 }
+extern char * BOP_task_status_str(void);
+static VALUE rb_task_status(){
+  return rb_str_new2( BOP_task_status_str() );
+}
 
 void
 Init_PPR() {
@@ -303,6 +307,7 @@ Init_PPR() {
     rb_define_singleton_method(rb_cPPR, "get_group_size", get_group_size, 0);
     rb_define_singleton_method(rb_cPPR, "start", ppr_start, 1);
 
+    rb_define_singleton_method(rb_cPPR, "task_status", rb_task_status, 0);
 
     rb_define_method(rb_mKernel, "PPR", ppr_yield, 0);
 
