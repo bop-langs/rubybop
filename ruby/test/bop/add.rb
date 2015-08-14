@@ -54,7 +54,7 @@ class BOP_add
     j = s
     while j < e do
       #@total += sin($data[ j ]) * sin($data[ j ]) + cos($data[ j ]) * cos($data[ j ])
-      @total += ($data[j]**2) + ($data[j]**3) - ($data[j]**5) + 1
+      @total += ($data[j]**10) + ($data[j]**20) - ($data[j]**30) + 1
       j += 1
     end
     # BOP_record_read( &data[j], sizeof( double )*(end - start) ); What are the ruby commands that we have for bop_read, bop_write, and bop_ordered?
