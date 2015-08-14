@@ -20,6 +20,26 @@ sem_t *bopmsg_sem = NULL;
 task_status_t BOP_task_status(void) {
   return task_status;
 }
+/*typedef enum {
+  SEQ = -2, // sequential mode, ready to change at next PPR
+  UNDY,  // the understudy
+  MAIN,  // first PPR task after SEQ mode
+  SPEC   // a speculation process
+} task_status_t; */
+char * BOP_task_status_str(void){
+  switch(task_status){
+    case SEQ:
+      return "Sequential";
+    case UNDY:
+      return "Understudy";
+    case MAIN:
+      return "Main Speculation";
+    case SPEC:
+      return "Speculation";
+    default:
+      return "UNKOWN";
+  }
+}
 
 ppr_pos_t BOP_ppr_pos( void ) {
   return ppr_pos;
