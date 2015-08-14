@@ -136,8 +136,6 @@ static ID id_cmp, id_div, id_power;
 
 extern void BOP_record_write(void*, size_t);
 extern void BOP_record_read(void*, size_t);
-extern void _BOP_ppr_begin(int);
-extern void _BOP_ppr_end(int);
 extern VALUE ppr_yield(VALUE);
 
 static void inline

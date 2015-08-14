@@ -70,7 +70,7 @@ void BOP_ordered_end( addr_t );
 void BOP_ordered_skip( addr_t );
 
 void _BOP_ppr_end(int);
-int _BOP_ppr_begin(int);
+extern int _BOP_ppr_begin(int);
 
 int BOP_get_group_size(void);
 int BOP_get_verbose(void);

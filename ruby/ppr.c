@@ -12,8 +12,6 @@
 //extern bop_port_t ruby_monitor;
 extern bop_port_t rubyheap_port;
 
-extern int _BOP_ppr_begin();
-extern void _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
 extern void BOP_use(void*, size_t);
