@@ -75,9 +75,9 @@ VALUE rb_cSymbol;
 	STR_SET_EMBED_LEN((str), (n));\
     }\
     else {\
-	BOP_use(&(RSTRING(str)->as.heap.len), sizeof(long));\
+	BOP_record_read(&(RSTRING(str)->as.heap.len), sizeof(long));\
 	RSTRING(str)->as.heap.len = (n);\
-	BOP_promise(&(RSTRING(str)->as.heap.len), sizeof(long));\
+	BOP_record_write(&(RSTRING(str)->as.heap.len), sizeof(long));\
     }\
 } while (0)
 
