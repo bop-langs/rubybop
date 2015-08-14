@@ -1,3 +1,3 @@
-set detach_on_fork off
-set follow_fork_mode child
+set detach-on-fork off
+set follow-fork-mode child
 catch fork
