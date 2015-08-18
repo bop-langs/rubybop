@@ -19,14 +19,14 @@ typedef struct{
 
 typedef struct {
   volatile struct object_info * next;
-  obj_entry * reads; // length == GROUPSIZE
-  obj_entry * writes; // length == GROUPSIZE
+  obj_entry ** reads; // length == GROUPSIZE
+  obj_entry ** writes; // length == GROUPSIZE
   mspace mspace;
 } object_info;
 
-void record_str_pr(object_info *, char * key, char * value);
-void record_ind_pr(object_info *, int ind, void* value, size_t v_size);
-void record_str_array(object_info *, int ind, char * value);
+void record_str_pr(object_info *, mem_op, char * key, char * value);
+void record_ind_pr(object_info *,mem_op, int ind, void* value, size_t v_size);
+void record_str_array(object_info *, mem_op, int ind, char * value);
 object_info * new_obj_info(void);
 
 #endif
