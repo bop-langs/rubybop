@@ -23,7 +23,6 @@ typedef struct {
   volatile struct key_val_object * next;
   key_val_entry ** reads; // length == GROUPSIZE
   key_val_entry ** writes; // length == GROUPSIZE
-  mspace mspace;
 } key_val_object;
 
 void record_str_pr(key_val_object *, mem_op, char * key, char * value);

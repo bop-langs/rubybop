@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 
+static mspace kv_mspace;
 static key_val_object * objects = NULL; /** head of linked - list*/
 static pthread_mutex_t lock; /** Lock for the list operations */
 void get_lock();
@@ -33,13 +34,13 @@ void record_str_array(key_val_object * obj, mem_op op, int ind, char * value){
 }
 
 
-key_val_entry * make_new_entry(key_val_object * obj, void* key, void* value, size_t key_size, size_t value_size){
-  key_val_entry * new_entry = mspace_calloc(obj->mspace, 1, sizeof(key_val_entry));
+key_val_entry * make_new_entry(void* key, void* value, size_t key_size, size_t value_size){
+  key_val_entry * new_entry = mspace_malloc(kv_mspace, sizeof(key_val_entry));
   new_entry->key.size = key_size;
   new_entry->value.size = value_size;
   //need to copy the memory address
-  new_entry->key.start = mspace_malloc(obj->mspace, key_size);
-  new_entry->value.start = mspace_malloc(obj->mspace, value_size);
+  new_entry->key.start = mspace_malloc(kv_mspace, key_size);
+  new_entry->value.start = mspace_malloc(kv_mspace, value_size);
   //mem copy the address
   memcpy(new_entry->key.start, key, key_size);
   memcpy(new_entry->value.start, value, value_size);
@@ -49,9 +50,10 @@ key_val_entry * make_new_entry(key_val_object * obj, void* key, void* value, siz
 
 extern int spec_order; //used to index into the array
 static inline void record_internal(key_val_object * obj, mem_op op, void* key, void* value, size_t key_size, size_t value_size){
-  bop_assert(obj->mspace != NULL);
+  bop_assert(key_size > 0);
+  bop_assert(value_size > 0);
   //fill in all the entry book keeping information
-  key_val_entry * new_entry = make_new_entry(obj, key, value, key_size, value_size);
+  key_val_entry * new_entry = make_new_entry(key, value, key_size, value_size);
   get_lock();
   //add to the write/read region
   bop_assert(spec_order > 0 && spec_order < BOP_get_group_size()); //sanity checks
@@ -60,9 +62,9 @@ static inline void record_internal(key_val_object * obj, mem_op op, void* key, v
     obj->reads[spec_order] = new_entry;
   }else if(op == WRITE || op == READ_AND_WRITE){
     if(op == READ_AND_WRITE){
-      //entries need to be in seperate list or have next_read and next_write fields
-      new_entry = make_new_entry(obj, key, value, key_size, value_size);
+      new_entry = make_new_entry(key, value, key_size, value_size);
     }
+    bop_assert(new_entry->next != NULL);
     CAST_SET(new_entry->next, obj->writes[spec_order]); //I think
     obj->writes[spec_order] = new_entry;
   }else{
@@ -80,7 +82,7 @@ Plan (there's lots of for loops)
 If any 2 spec tasks R/W the same KEY pair with different VALUE writes, its a failure.
 The check for this is a little messy because theres lots of loops to check.
 */
-static inline int mem_range_equal(data_range read, data_range write){
+static inline int data_range_eq(data_range read, data_range write){
   int i;
   if(read.size != write.size)
     return 0;
@@ -90,9 +92,14 @@ static inline int mem_range_equal(data_range read, data_range write){
   }
   return 1;
 }
-
-static inline int entry_conflicts(key_val_entry * one, key_val_entry * two){
-  return mem_range_equal(one->key, two->value) ||  mem_range_equal(one->value, two->value);
+//compare the same part in each struct
+static inline int entry_conflicts(key_val_entry * read, key_val_entry * write){
+  //only care if keys are equal
+  if(! data_range_eq(read->key, write->key)){
+    return 0; //accessed different parts of the data structure
+  }
+  //they accessed the save parts of the struct. Values are the same, then it's still valid
+  return data_range_eq(read->value, write->value);
 }
 
 int obj_correct(){
