@@ -32,14 +32,12 @@ void record_str_array(key_val_object * obj, mem_op op, int ind, char * value){
 
 
 key_val_entry * make_new_entry(key_val_object * obj, void* key, void* value, size_t key_size, size_t value_size){
-#define MIRROR(field) new_entry->field = field
   key_val_entry * new_entry = mspace_calloc(obj->mspace, 1, sizeof(key_val_entry));
-  MIRROR(key_size);
-  MIRROR(value_size);
-  MIRROR(key);
-  MIRROR(value);
+  new_entry->key.start = key;
+  new_entry->key.size = key_size;
+  new_entry->value.start = value;
+  new_entry->value.size = value_size;
   return new_entry;
-#undef MIRROR
 }
 
 
@@ -76,20 +74,19 @@ Plan (there's lots of for loops)
 If any 2 spec tasks R/W the same KEY pair with different VALUE writes, its a failure.
 The check for this is a little messy because theres lots of loops to check.
 */
-static inline int mem_range_equal(char * a, char* b, size_t a_size, size_t b_size){
+static inline int mem_range_equal(data_range read, data_range write){
   int i;
-  if(a_size != b_size)
+  if(read.size != write.size)
     return 0;
-  for(i = 0; i < a_size; i++){
-    if(a[i] != b[i])
+  for(i = 0; i < read.size; i++){
+    if(read.start[i] != write.start[i])
     return 0;
   }
   return 1;
 }
 
 static inline int entry_conflicts(key_val_entry * one, key_val_entry * two){
-  return mem_range_equal(one->key, two->value, one->key_size, two->value_size) ||
-  mem_range_equal(two->key, one->value, two->key_size, one->value_size);
+  return mem_range_equal(one->key, two->value) ||  mem_range_equal(one->value, two->value);
 }
 
 int obj_correct(){

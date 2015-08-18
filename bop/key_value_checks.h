@@ -8,12 +8,14 @@ typedef enum{
   WRITE,
   READ_AND_WRITE
 } mem_op;
+typedef struct{
+  char * start;
+  size_t size;
+} data_range;
 
 typedef struct{
-  char * key;
-  char * value;
-  size_t key_size;
-  size_t value_size;
+  data_range key;
+  data_range value;
   struct key_val_entry * next; // used in BOP lib
 } key_val_entry;
 
