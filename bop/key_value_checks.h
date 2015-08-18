@@ -8,6 +8,7 @@ typedef enum{
   WRITE,
   READ_AND_WRITE
 } mem_op;
+
 typedef struct{
   char * start;
   size_t size;
@@ -16,18 +17,18 @@ typedef struct{
 typedef struct{
   data_range key;
   data_range value;
-  struct key_val_entry * next; // used in BOP lib
-} key_val_entry;
+  void * next; // used in BOP lib
+} __raw_kv_entry_t, * kv_entry_t;
 
 typedef struct {
-  volatile struct key_val_object * next;
-  key_val_entry ** reads; // length == GROUPSIZE
-  key_val_entry ** writes; // length == GROUPSIZE
-} key_val_object;
+  struct __raw_kv_object_t * next;
+  kv_entry_t * reads; //anther pointer because of arrays
+  kv_entry_t * writes; // ^ length == GROUPSIZE
+} __raw_kv_object_t, *kv_object_t;
 
-void record_str_pr(key_val_object *, mem_op, char * key, char * value);
-void record_ind_pr(key_val_object *,mem_op, int ind, void* value, size_t v_size);
-void record_str_array(key_val_object *, mem_op, int ind, char * value);
-key_val_object * new_obj_info(void);
+void record_str_pr(kv_object_t, mem_op, char * key, char * value);
+void record_ind_pr(kv_object_t,mem_op, int ind, void* value, size_t v_size);
+void record_str_array(kv_object_t, mem_op, int ind, char * value);
+kv_object_t new_obj_info(void);
 
 #endif
