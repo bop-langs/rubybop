@@ -22,10 +22,12 @@ void record_str_pr(key_val_object * obj, mem_op op, char * key, char * value){
   size_t vs = strlen(value);
   record_internal(obj, op, key, value, ks, vs);
 }
+
 void record_ind_pr(key_val_object * obj, mem_op op, int ind, void* value, size_t v_size){
   size_t ks = sizeof(int);
   record_internal(obj, op, &ind, value, ks, v_size);
 }
+
 void record_str_array(key_val_object * obj, mem_op op, int ind, char * value){
   record_ind_pr(obj,  op, ind, value, strlen(value));
 }
@@ -33,10 +35,14 @@ void record_str_array(key_val_object * obj, mem_op op, int ind, char * value){
 
 key_val_entry * make_new_entry(key_val_object * obj, void* key, void* value, size_t key_size, size_t value_size){
   key_val_entry * new_entry = mspace_calloc(obj->mspace, 1, sizeof(key_val_entry));
-  new_entry->key.start = key;
   new_entry->key.size = key_size;
-  new_entry->value.start = value;
   new_entry->value.size = value_size;
+  //need to copy the memory address
+  new_entry->key.start = mspace_malloc(obj->mspace, key_size);
+  new_entry->value.start = mspace_malloc(obj->mspace, value_size);
+  //mem copy the address
+  memcpy(new_entry->key.start, key, key_size);
+  memcpy(new_entry->value.start, value, value_size);
   return new_entry;
 }
 
