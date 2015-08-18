@@ -27,6 +27,7 @@ extern bop_port_t bop_merge_port;
 extern bop_port_t postwait_port;
 extern bop_port_t bop_ordered_port;
 extern bop_port_t bop_alloc_port;
+extern bop_port_t object_rw_port;
 
 volatile task_status_t task_status = SEQ;
 volatile ppr_pos_t ppr_pos = GAP;
@@ -42,7 +43,6 @@ static int bopgroup;
 int monitor_process_id = 0;
 int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
-static bool errored = false;
 
 void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
@@ -742,6 +742,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_ordered_port, "Bop Ordered Port");
   register_port(&bop_io_port, "I/O Port");
   register_port(&bop_alloc_port, "Malloc Port");
+  register_port(&object_rw_port, "Object Monitoring Port");
   bop_msg(3, "Library initialized successfully.");
 }
 char* status_name(){

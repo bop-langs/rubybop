@@ -15,7 +15,7 @@ endif
 
 BUILD_DIR ?= .
 _OBJS = malloc_wrapper.o dmmalloc.o ary_bitmap.o postwait.o bop_merge.o \
-				range_tree/dtree.o bop_ppr.o utils.o external/malloc.o \
+				range_tree/dtree.o bop_ppr.o utils.o external/malloc.o obj_marking.o \
 				bop_ppr_sync.o bop_io.o bop_ports.o bop_ordered.o libc_overrides.o
 
 CFLAGS_DEF = -Wall -fPIC -pthread -I. -Wno-unused-function $(PLATFORM) $(CUSTOMDEF) $(CI_FLAGS)
