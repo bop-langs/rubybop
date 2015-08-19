@@ -9,6 +9,7 @@
 #ifndef DM_MALLOC_H
 #define DM_MALLOC_H
 
+//! Used with Debug flags
 #define DM_DEBUG
 #include <stddef.h>
 #include <stdbool.h>
@@ -67,7 +68,10 @@ void dm_print_info(void);
  */
 size_t dm_malloc_usable_size(void*);
 
-//! bop-related functions
+/** @name BopFunctions
+ *      bop-related functions
+ */
+///@{
 /** @brief Dive up available memory
  *  @return void
  */
@@ -76,17 +80,20 @@ void carve();
  *  @return void
  */
 void initialize_group();
+///@}
 
-//! data accessors for merge time
+/** @name DataAccess
+ *  @brief data accessors for merge time
+ */
+///@{
 void malloc_merge(void);
 /** @brief Counts get updated AFTER abort status is known
  *  @return void
  */
 void malloc_merge_counts(bool);
+///@}
 
-/** alignment based on word size
- *  depends on 32 or 64 bit
- */
+//! alignment based on word size. depends on 32 or 64 bit
 #if __WORDSIZE == 64
 #define ALIGNMENT 8
 #elif __WORDSIZE == 32
