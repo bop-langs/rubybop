@@ -5,13 +5,13 @@
 
 /* The program makes an array of randomly initialized integers and adds them together. */
 
-#include "bop_api.h"
+#include "../../bop/bop_api.h"
 
 double * data;
 double sum;
 
 void initialize( int );
-double lots_of_computation_on_block( int start, int end );
+double lots_of_computation_on_block( int start, int end , int index);
 
 int main(int argc, char ** argv)
 {
@@ -32,31 +32,39 @@ int main(int argc, char ** argv)
   initialize(data_size );
 
   printf("%d: adding %d million numbers\n", getpid(), data_size/1000000);
+
   block_size = ceil( (float) data_size / num_blocks );
+
+  int** sums_per_task = malloc(sizeof(void*)*block_size);
   int index = 0;
   while ( data_size > 0 ) {
     int block_end = data_size;
     data_size -= block_size;
     int block_begin = data_size >= 0 ? data_size : 0 ;
-
     BOP_ppr_begin(1);  /* Begin PPR */
 
-       double block_sum = lots_of_computation_on_block( block_begin, block_end );
+       double block_sum = lots_of_computation_on_block( block_begin, block_end ,index);
 
+       sums_per_task[index] = malloc(sizeof(double));
+       *sums_per_task[index] = block_sum;
+       BOP_promise( &sums_per_task[index], sizeof(void*));
+       BOP_promise( sums_per_task[index], sizeof(double));
        sums[ index ] = block_sum;
 
        BOP_promise( &sums[ index ], sizeof( double ) );
 
     BOP_ppr_end(1);  /* End PPR */
+
     index ++;
   }
 
   int i;
-  for ( i = 0; i < index; i ++ )
+  for ( i = 0; i < index; i ++ ){
     sum += sums[ i ];
-
+    printf("The sum of index %d is %d\n", i, *sums_per_task[i]);
+  }
   printf("%d: The sum is %.0f million (%.0f) \n", getpid(), sum/1000000, sum);
-  return 0;
+  exit(0);
 }
 
 
@@ -75,12 +83,13 @@ void initialize( int data_size ) {
   sum = 0;
 }
 
-double lots_of_computation_on_block( int start, int end ) {
+double lots_of_computation_on_block( int start, int end , int index) {
   int j;
   double total = 0;
-  for ( j = start ; j < end ; j ++ )
+  for ( j = start ; j < end ; j ++ ){
     total += sin(data[ j ]) * sin(data[ j ]) + cos(data[ j ]) * cos(data[ j ]);
-
+  }
+  total+=index;
   BOP_record_read( &data[j], sizeof( double )*(end - start) );
 
   return total;

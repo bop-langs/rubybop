@@ -17,11 +17,11 @@ $params = '' if $params.nil?
 
 # Location of BOP
 #$bop_dir = (Pathname.new(__FILE__).dirname + '../build/bop/').cleanpath if $bop_dir.nil?
-$bop_src = (Pathname.new(__FILE__).dirname + '..').cleanpath if $bop_src.nil?
+$bop_src = (Pathname.new(__FILE__).dirname + '../bop/').cleanpath if $bop_src.nil?
 $bop_dir = $bop_src
 $bop_lib = $bop_dir + "inst.a" if $bop_lib.nil?
 
-$incl = "../bop/"
+$incl = "../bop/build"
 $incl = $bop_src
 # Objects and programs for clean and realclean
 $objs = [] if $objs.nil?
