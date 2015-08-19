@@ -531,7 +531,7 @@ void * dm_calloc (size_t n, size_t size) {
 }
 
 // Reallocator: use sytem realloc with large->large sizes in SEQUENTIAL() mode. Otherwise use standard realloc implementation
-void * dm_realloc (const void *ptr, size_t gsize) {
+void * dm_realloc (void *ptr, size_t gsize) {
     header* old_head,  * new_head;
     size_t new_size = ALIGN(gsize + HSIZE), old_size;
     if(gsize == 0)
