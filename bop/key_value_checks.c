@@ -14,58 +14,30 @@ static pthread_mutex_t lock; /** Lock for the list operations */
 void get_lock();
 void release_lock();
 
-#define CAST_SET(var, new_val) var = (typeof((var))) (new_val) //who needs type safety?
-static inline void record_internal(kv_object_t obj, mem_op, void*, void*, size_t, size_t);
 
-/** Utility methods for user programs*/
-void record_str_pr(kv_object_t obj, mem_op op, char * key, char * value){
-  size_t ks = strlen(key);
-  size_t vs = strlen(value);
-  record_internal(obj, op, key, value, ks, vs);
-}
+#define SIZE(dr) (dr.data.complex.size)
+#define DATA(dr) (dr.data.complex.start)
+#define SET(var, new_val) var = (typeof((var))) (new_val)
 
-void record_ind_pr(kv_object_t obj, mem_op op, int ind, void* value, size_t v_size){
-  size_t ks = sizeof(int);
-  record_internal(obj, op, &ind, value, ks, v_size);
-}
-
-void record_str_array(kv_object_t obj, mem_op op, int ind, char * value){
-  record_ind_pr(obj,  op, ind, value, strlen(value));
-}
-
-
-kv_entry_t make_new_entry(void* key, void* value, size_t key_size, size_t value_size){
-  kv_entry_t new_entry = mspace_malloc(kv_mspace, sizeof(__raw_kv_entry_t));
-  new_entry->key.size = key_size;
-  new_entry->value.size = value_size;
-  //need to copy the memory address
-  new_entry->key.start = mspace_malloc(kv_mspace, key_size);
-  new_entry->value.start = mspace_malloc(kv_mspace, value_size);
-  //mem copy the address
-  memcpy(new_entry->key.start, key, key_size);
-  memcpy(new_entry->value.start, value, value_size);
-  return new_entry;
-}
-
-
+static inline void record_internal(kv_object_t, mem_op, kv_entry_t);
 extern int spec_order; //used to index into the array
-static inline void record_internal(kv_object_t obj, mem_op op, void* key, void* value, size_t key_size, size_t value_size){
-  bop_assert(key_size > 0);
-  bop_assert(value_size > 0);
-  //fill in all the entry book keeping information
-  kv_entry_t new_entry = make_new_entry(key, value, key_size, value_size);
+
+
+//recording functions
+static inline void record_internal(kv_object_t obj, mem_op op, kv_entry_t new_entry){
   get_lock();
   //add to the write/read region
   bop_assert(spec_order > 0 && spec_order < BOP_get_group_size()); //sanity checks
   if(op == READ || op == READ_AND_WRITE){
-    CAST_SET(new_entry->next, obj->reads[spec_order]); //I think
+    SET(new_entry->next, obj->reads[spec_order]);
     obj->reads[spec_order] = new_entry;
   }else if(op == WRITE || op == READ_AND_WRITE){
     if(op == READ_AND_WRITE){
-      new_entry = make_new_entry(key, value, key_size, value_size);
+      const kv_entry_t prev_entry = new_entry;
+      new_entry = mspace_malloc(kv_mspace, sizeof(__raw_kv_entry_t));
+      memcpy(new_entry, prev_entry, sizeof(__raw_kv_entry_t));
     }
-    bop_assert(new_entry->next != NULL);
-    CAST_SET(new_entry->next, obj->writes[spec_order]); //I think
+    SET(new_entry->next, obj->writes[spec_order]);
     obj->writes[spec_order] = new_entry;
   }else{
     bop_msg(1, "Unkown mem_op for object-level monitoring");
@@ -83,11 +55,18 @@ If any 2 spec tasks R/W the same KEY pair with different VALUE writes, its a fai
 The check for this is a little messy because theres lots of loops to check.
 */
 static inline int data_range_eq(data_range read, data_range write){
-  int i;
-  if(read.size != write.size)
+
+  int index;
+
+  if(read.is_simple != write.is_simple)
     return 0;
-  for(i = 0; i < read.size; i++){
-    if(read.start[i] != write.start[i])
+  if(read.is_simple)
+    return read.data.simple == write.data.simple;
+  //here: both are complex
+  if(SIZE(read) != SIZE(write))
+    return 0;
+  for(index = 0; index < SIZE(read); index++){
+    if(DATA(read)[index] != DATA(write)[index])
     return 0;
   }
   return 1;
@@ -95,23 +74,20 @@ static inline int data_range_eq(data_range read, data_range write){
 //compare the same part in each struct
 static inline int entry_conflicts(kv_entry_t read, kv_entry_t write){
   //only care if keys are equal
-  if(! data_range_eq(read->key, write->key)){
-    return 0; //accessed different parts of the data structure
-  }
-  //they accessed the save parts of the struct. Values are the same, then it's still valid
-  return ! data_range_eq(read->value, write->value);
+  return data_range_eq(read->key, write->key) &&  //accessed the same part of struct
+    ! data_range_eq(read->value, write->value); //didn't see the same things
 }
-
+//TODO this needs to be stored in hash tables. Lists are bad.
 int obj_correct(){
   kv_object_t kv_obj;
   const int gs = BOP_get_group_size();
   int read_index, write_index;
   kv_entry_t read_data, write_data;
-  for(kv_obj = kv_list; kv_obj != NULL; CAST_SET(kv_obj, kv_obj->next)){
+  for(kv_obj = kv_list; kv_obj != NULL; SET(kv_obj, kv_obj->next)){
     for(read_index = 0; read_index < gs; read_index++){
-      for(CAST_SET(read_data, kv_obj->reads[read_index]); read_data != NULL; CAST_SET(read_data, read_data->next)){
+      for(SET(read_data, kv_obj->reads[read_index]); read_data != NULL; SET(read_data, read_data->next)){
         for(write_index = read_index + 1; write_index < gs; write_index++){
-          for(CAST_SET(write_data, kv_obj->writes[write_index]); write_data != NULL; CAST_SET(write_data, write_data->next)){
+          for(SET(write_data, kv_obj->writes[write_index]); write_data != NULL; SET(write_data, write_data->next)){
             if( entry_conflicts(read_data, write_data) ){
               return 0;
             }
@@ -124,7 +100,7 @@ int obj_correct(){
   return 1;
 }
 //inter-process locking set-up
-static inline typeof(lock) * initialize_obj_lock(){
+static inline typeof(lock) * init_obj_lock(){
   static pthread_mutexattr_t attr; //don't want this too die after the process is over
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
@@ -138,8 +114,9 @@ static inline void init_mspace(){
   if(!kv_mspace)
     kv_mspace = create_mspace(0, 1, 1); //same as bop io
 }
+
 void obj_marking_init(){
-  initialize_obj_lock();
+  init_obj_lock();
   init_mspace();
 }
 
@@ -158,10 +135,56 @@ void release_lock(){
 kv_object_t register_new_object(){
   init_mspace();
   kv_object_t kvo= mspace_calloc(kv_mspace, 1, sizeof(__raw_kv_object_t));
-  CAST_SET(kvo->next, kv_list);
+  SET(kvo->next, kv_list);
   kv_list = kvo;
   return kvo;
 }
+
+static inline void * copy_range(void * data, size_t size){
+  void * dest = mspace_malloc(kv_mspace, size);
+  return memcpy(dest, data, size);
+}
+static inline void complex_data(data_range * data_range, void * data, size_t len){
+  data_range->is_simple = 0;
+  data_range->data.complex.start = copy_range(data, len);
+  data_range->data.complex.size = len;
+}
+static inline void simple_data(data_range * data_range, int num){
+  data_range->is_simple = 1;
+  data_range->data.simple = num;
+}
+void record_str_pr(kv_object_t obj, mem_op op, char * key, char * value){
+  kv_entry_t entry = mspace_malloc(kv_mspace, sizeof(__raw_kv_entry_t));
+  complex_data(&entry->key, key, strlen(key));
+  complex_data(&entry->value, value, strlen(value));
+  record_internal(obj, op, entry);
+}
+void record_array(kv_object_t obj, mem_op op, void* array, int index, size_t array_data_size){
+  kv_entry_t entry = mspace_malloc(kv_mspace, sizeof(__raw_kv_entry_t));
+  //for generic arrays, we store the index (KEY) and the (complex) data, array[index].
+  //indexing etc for the array[index] in a generic way
+  char * chars = (char*) array;
+  char * value = chars + (index * array_data_size);
+  complex_data(&entry->value, value, array_data_size);
+  simple_data(&entry->key, index); //easy part
+  record_internal(obj, op, entry);
+}
+void record_str_array(kv_object_t obj, mem_op op, int ind, char * value){
+  kv_entry_t entry = mspace_malloc(kv_mspace, sizeof(__raw_kv_entry_t));
+  simple_data(&entry->key, ind);
+  complex_data(&entry->value, value, strlen(value));
+  record_internal(obj, op, entry);
+}
+void record_int_array(kv_object_t obj, mem_op op, int ind, int * array){
+  record_int_pair(obj, op, ind, array[ind]);
+}
+void record_int_pair(kv_object_t obj, mem_op op, int ind, int value){
+  kv_entry_t entry = mspace_malloc(kv_mspace, sizeof(__raw_kv_entry_t));
+  simple_data(&entry->key, ind);
+  simple_data(&entry->value, value);
+  record_internal(obj, op, entry);
+}
+
 bop_port_t object_rw_port = {
   .ppr_check_correctness = obj_correct,
   .ppr_group_init = obj_marking_init
