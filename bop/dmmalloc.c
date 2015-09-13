@@ -663,17 +663,15 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 static bool remove_from_alloc_list (header * val) {
   //remove val from the list
   header* current, * prev = NULL;
-  int index;
-  for(index = 0; index < DM_NUM_CLASSES; index++){
-    for(current = allocated_lists[index]; current; prev = current, current = CAST_H(current->allocated.next)) {
-      if(current == val) {
-        if(prev == NULL){
-          allocated_lists[index] = CAST_H(current->allocated.next);
-        }else{
-          prev->allocated.next =  CAST_UH(current->allocated.next);
-        }
-        return true;
+  int index = get_index(val->allocated.blocksize);
+  for(current = allocated_lists[index]; current; prev = current, current = CAST_H(current->allocated.next)) {
+    if(current == val) {
+      if(prev == NULL){
+        allocated_lists[index] = CAST_H(current->allocated.next);
+      }else{
+        prev->allocated.next =  CAST_UH(current->allocated.next);
       }
+      return true;
     }
   }
   bop_msg(5, "Allocation not found on alloc list");
