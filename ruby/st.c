@@ -281,6 +281,12 @@ st_init_strcasetable_with_size(st_index_t size)
     return st_init_table_with_size(&type_strcasehash, size);
 }
 
+st_table*
+st_init_bop_bookkeepingtable(int bop_order){
+  st_table* table= st_init_numtable();
+  table->bop_flags = bop_order;
+}
+
 void
 st_clear(st_table *table)
 {
@@ -1762,12 +1768,21 @@ st_numhash(st_data_t n)
     return (st_index_t)((n>>s1|(n<<s2)) ^ (n>>s2));
 }
 
-static ** st_table upper_level_sets;
+static *** st_table upper_level_read_sets;
+static *** st_table upper_level_write_sets;
 
 void
 create_rw_set_space() {
+  int group_size = BOP_get_group_size();
+  int n;
   bop_msg(3, "St group init");
-  upper_level_sets = malloc(sizeof(void *) * 100);
+  upper_level_read_sets = (st_table **) calloc(sizeof(void *), 100);
+  upper_level_write_sets = (st_table **) calloc(sizeof(void *), 100);
+  for(n = 0 ; n < group_size ; n++){
+    upper_level_write_sets[n] =
+    upper_level_read_sets[n] =
+  }
+
 
   /* code */
 }
@@ -1775,7 +1790,7 @@ create_rw_set_space() {
 void
 set_tast_objspace(){
   bop_msg(3, "St task init");
-  
+
 
 }
 

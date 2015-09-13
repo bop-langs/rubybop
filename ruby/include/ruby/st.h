@@ -93,7 +93,7 @@ struct st_table {
 	    st_index_t real_entries;
 	} packed;
     } as;
-    unsigned long bop_flags;
+    unsigned short bop_flags : -1;
 };
 
 #define st_is_member(table,key) st_lookup((table),(key),(st_data_t *)0)
