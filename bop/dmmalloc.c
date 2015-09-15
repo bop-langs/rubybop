@@ -63,6 +63,8 @@ static inline size_t align(size_t size, size_t align);
 static inline void get_lock();
 static inline void release_lock();
 
+static int free_n = 0;
+
 #ifndef NDEBUG
 static int grow_count = 0;
 static int growth_size = 0;
@@ -268,6 +270,7 @@ void malloc_promise() {
     }
     bop_msg(3, "Number of promised frees: \t%d", frees);
     bop_msg(3, "Number of promised allocs: \t%d", allocs);
+    bop_msg(3, "Expected frees: \t%d", free_n);
 }
 
 void dm_malloc_undy_init(){
@@ -475,7 +478,7 @@ static inline int index_bigger (int which) {
 // Repeatedly split a larger block into a block of the required size
 static inline header* dm_split (int which, int larger) {
   if(which > 8){
-    bop_msg(3, "In large split");
+    bop_msg(3, "In large split %d", which);
   }
 #ifdef VISUALIZE
     printf("s");
@@ -660,20 +663,18 @@ inline size_t dm_malloc_usable_size(void* ptr) {
 static bool remove_from_alloc_list (header * val) {
   //remove val from the list
   header* current, * prev = NULL;
-  int index;
-  for(index = 0; index < DM_NUM_CLASSES; index++){
-    for(current = allocated_lists[index]; current; prev = current, current = CAST_H(current->allocated.next)) {
-      if(current == val) {
-        if(prev == NULL){
-          allocated_lists[index] = CAST_H(current->allocated.next);
-        }else{
-          prev->allocated.next =  CAST_UH(current->allocated.next);
-        }
-        return true;
+  int index = get_index(val->allocated.blocksize);
+  for(current = allocated_lists[index]; current; prev = current, current = CAST_H(current->allocated.next)) {
+    if(current == val) {
+      if(prev == NULL){
+        allocated_lists[index] = CAST_H(current->allocated.next);
+      }else{
+        prev->allocated.next =  CAST_UH(current->allocated.next);
       }
+      return true;
     }
   }
-  bop_msg(4, "Allocation not found on alloc list");
+  bop_msg(5, "Allocation not found on alloc list");
   return false;
 }
 static inline bool list_contains (header * list, header * search_value) {
@@ -699,7 +700,9 @@ static inline void add_next_list (header** list_head, header * item) {
   *list_head = item;
 }
 
+
 static inline void add_freed_list(header* item){
+  free_n ++;
   size_t size = item->allocated.blocksize;
   int index = get_index(size);
   if(index >= DM_NUM_CLASSES){
