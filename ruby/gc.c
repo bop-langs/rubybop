@@ -3288,7 +3288,6 @@ void initialize_objspaces(){
   }
 
   objspace = old_objspace;
-  rb_gc_enable();
 }
 
 void set_task_objspace()
@@ -3300,7 +3299,7 @@ void set_task_objspace()
 
     bop_msg(3, "GC task init");
 
-    // rb_gc_disable();
+    rb_gc_disable();
 
     assert(!during_gc && !ruby_gc_stressful);
 

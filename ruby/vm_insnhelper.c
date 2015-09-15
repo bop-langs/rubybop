@@ -832,12 +832,12 @@ vm_search_method(rb_call_info_t *ci, VALUE recv)
 {
     VALUE klass = CLASS_OF(recv);
 
-// #if OPT_INLINE_METHOD_CACHE
-//     if (LIKELY(GET_GLOBAL_METHOD_STATE() == ci->method_state && RCLASS_SERIAL(klass) == ci->class_serial)) {
-// 	/* cache hit! */
-// 	return;
-//     }
-// #endif
+#if OPT_INLINE_METHOD_CACHE
+    if (LIKELY(GET_GLOBAL_METHOD_STATE() == ci->method_state && RCLASS_SERIAL(klass) == ci->class_serial)) {
+	/* cache hit! */
+	return;
+    }
+#endif
 
     ci->me = rb_method_entry(klass, ci->mid, &ci->defined_class);
     ci->klass = klass;
