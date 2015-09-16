@@ -64,7 +64,7 @@ assert_equal %q{[1250, 1250, 1250, 1250, 5000]} ,%q{
 
 }
 
-assert_equal %q(5) %q{
+assert_equal %q(5), %q{
   t1 = Time.now.to_f
 
   puts "start"
