@@ -75,6 +75,6 @@ assert_equal %q(5) %q{
     PPR{ sleep(1); Ordered.new{ $a += 1 }.call }
   end
 
-  %a
+  $a
 
 }
