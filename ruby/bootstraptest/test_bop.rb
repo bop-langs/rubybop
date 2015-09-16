@@ -72,9 +72,9 @@ assert_equal %q(5), %q{
 
 
   5.times do
-    PPR{ sleep(1); Ordered.new{ $a += 1 }.call }
+    PPR{ sleep(1); Ordered.new{ $a += 1 } }
   end
 
-  $a
+  puts $a
 
 }
