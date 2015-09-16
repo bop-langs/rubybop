@@ -7,7 +7,7 @@ Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rub
 
 Master  | Latest
 ------------- | -------------
-[![Master Status](https://travis-ci.org/dcompiler/rubybop.svg?branch=master)](https://travis-ci.org/dcompiler/rubybop)  | [![Latest Status](https://travis-ci.org/dcompiler/rubybop.svg)](https://travis-ci.org/dcompiler/rubybop)
+[![Master Status](https://travis-ci.org/bop-langs/rubybop.svg?branch=master)](https://travis-ci.org/dcompiler/rubybop)  | [![Latest Status](https://travis-ci.org/bop-langs/rubybop.svg)](https://travis-ci.org/dcompiler/rubybop)
 
 
 ##Build & Test & Install
