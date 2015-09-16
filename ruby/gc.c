@@ -3344,7 +3344,7 @@ void set_task_objspace()
     //TODO move this to ppr group init
 
 
-    rb_gc_enable();
+    // rb_gc_enable();
     return;
 }
 

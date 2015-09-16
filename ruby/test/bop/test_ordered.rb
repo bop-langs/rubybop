@@ -4,8 +4,8 @@ puts "start"
 $a = 0
 
 
-5.times do
-  PPR{ sleep(1); Ordered.new{ $a += 1 }.call }
+6.times do
+  PPR{ sleep(1); Ordered{ $a += 1 } }
 end
 
 PPR.puts "a is #{$a}"
