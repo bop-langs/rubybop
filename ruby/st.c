@@ -227,6 +227,14 @@ st_init_table_with_size(const struct st_hash_type *type, st_index_t size)
     tbl->bins = st_alloc_bins(size);
     tbl->head = 0;
     tbl->tail = 0;
+    tbl->bop_tables = calloc(1, sizeof(struct bop_table_heap));
+    if(is_sequential()){
+      tbl->bop_tables->parent_table=tbl;
+      tbl->bop_tables->bop_tables= calloc(BOP_get_group_size(), sizeof(struct st_table *));// TODO BOP_get_group_size may not fit here (it can vary);
+    }
+    else{
+      tbl->bop_tables
+    }
 
     return tbl;
 }
@@ -271,6 +279,12 @@ st_table*
 st_init_strcasetable_with_size(st_index_t size)
 {
     return st_init_table_with_size(&type_strcasehash, size);
+}
+
+st_table*
+st_init_bop_bookkeepingtable(int bop_order){
+  st_table* table= st_init_numtable();
+  table->bop_flags = bop_order;
 }
 
 void
@@ -1753,3 +1767,37 @@ st_numhash(st_data_t n)
     enum {s1 = 11, s2 = 3};
     return (st_index_t)((n>>s1|(n<<s2)) ^ (n>>s2));
 }
+
+static *** st_table upper_level_read_sets;
+static *** st_table upper_level_write_sets;
+
+void
+create_rw_set_space() {
+  int group_size = BOP_get_group_size();
+  int n;
+  bop_msg(3, "St group init");
+  upper_level_read_sets = (st_table **) calloc(sizeof(void *), 100);
+  upper_level_write_sets = (st_table **) calloc(sizeof(void *), 100);
+  for(n = 0 ; n < group_size ; n++){
+    upper_level_write_sets[n] =
+    upper_level_read_sets[n] =
+  }
+
+
+  /* code */
+}
+
+void
+set_tast_objspace(){
+  bop_msg(3, "St task init");
+
+
+}
+
+
+
+bop_port_t rubyst_port = {
+    .ppr_group_init = create_rw_set_space,
+    .ppr_task_init = set_task_objspace,
+    .task_group_commit = reset_objspace
+};

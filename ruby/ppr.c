@@ -12,8 +12,6 @@
 //extern bop_port_t ruby_monitor;
 extern bop_port_t rubyheap_port;
 
-extern int _BOP_ppr_begin();
-extern int _BOP_ppr_end();
 //VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
 extern void BOP_use(void*, size_t);
@@ -75,6 +73,11 @@ void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* fun
     }
   }
 }
+
+void obj_get_mem_pointers(VALUE obj){
+
+}
+
 extern void set_rheap_nulll(void);
 
 static VALUE
@@ -130,17 +133,18 @@ ppr_promise(VALUE ppr, VALUE obj)
     return obj;
 }
 
-static VALUE
-ppr_yield(VALUE val)
+//DOES NOT HAVE THE SAME RETURN VALUE AS YIELD WOULD. THIS NEEDS MORE THOUGHT
+VALUE
+ppr_yield()
 {
+    // VALUE * ret = NULL;
     bool ppr_ok = pre_bop_begin();
     if(ppr_ok)
       BOP_ppr_begin(1);
-        // rb_gc_disable();
-        //set_rheap_null();
+        rb_gc_disable();
         bop_msg(3,"yielding block...");
-        rb_yield(val);
-        // rb_gc_enable();
+        rb_yield(INT2FIX(BOP_spec_order()));
+        rb_gc_enable();
     if(ppr_ok)
       BOP_ppr_end(1);
     return Qnil;
@@ -277,6 +281,10 @@ VALUE ppr_over(){
   BOP_this_group_over();
   return Qnil;
 }
+extern char * BOP_task_status_str(void);
+static VALUE rb_task_status(){
+  return rb_str_new2( BOP_task_status_str() );
+}
 
 void
 Init_PPR() {
@@ -285,7 +293,7 @@ Init_PPR() {
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
     rb_define_singleton_method(rb_cPPR, "use", ppr_use, 1);
     rb_define_singleton_method(rb_cPPR, "promise", ppr_promise, 1);
-    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 1);
+    rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 0);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
     //rb_define_singleton_method(rb_cPPR, "pot", get_pot, 0);
@@ -299,6 +307,7 @@ Init_PPR() {
     rb_define_singleton_method(rb_cPPR, "get_group_size", get_group_size, 0);
     rb_define_singleton_method(rb_cPPR, "start", ppr_start, 1);
 
+    rb_define_singleton_method(rb_cPPR, "task_status", rb_task_status, 0);
 
     rb_define_method(rb_mKernel, "PPR", ppr_yield, 0);
 

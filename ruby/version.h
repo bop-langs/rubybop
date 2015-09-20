@@ -1,6 +1,8 @@
 #define RUBY_VERSION "2.2.3"
 #define RUBY_RELEASE_DATE "2015-05-21"
 #define RUBY_PATCHLEVEL 115
+#define RUBYBOP_VERSION "Rubybop version: Alpha 1"
+#define RUBYBOP_DATE "2015-08"
 
 #define RUBY_RELEASE_YEAR 2015
 #define RUBY_RELEASE_MONTH 5
@@ -40,13 +42,15 @@
 # define RUBY_REVISION_STR ""
 #endif
 #define BOP_DESCRIPTION \
-  "bop verion " BOP_VERSION
+  "BOP library: " BOP_VERSION
 # define RUBY_DESCRIPTION	    \
-    "rubybop "RUBY_VERSION		    \
+    "Ruby "RUBY_VERSION		    \
     RUBY_PATCHLEVEL_STR		    \
     " ("RUBY_RELEASE_DATE	    \
     RUBY_REVISION_STR") "	    \
     "["RUBY_PLATFORM"]"
+#define RUBYBOP_DESCRIPTION \
+    "Rubybop version " RUBYBOP_VERSION
 # define RUBY_COPYRIGHT		    \
     "ruby - Copyright (C) "	    \
     STRINGIZE(RUBY_BIRTH_YEAR)"-"   \

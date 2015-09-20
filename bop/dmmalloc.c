@@ -659,6 +659,7 @@ inline size_t dm_malloc_usable_size(void* ptr) {
     }
     return head_size - HSIZE; //even for system-allocated chunks.
 }
+static int subtracted_n=0;
 /*malloc library utility functions: utility functions, debugging, list management etc */
 static bool remove_from_alloc_list (header * val) {
   //remove val from the list
