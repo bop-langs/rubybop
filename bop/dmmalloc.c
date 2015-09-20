@@ -114,12 +114,6 @@ static int * goal_counts(){
   		goal[ind] = goal_blocks(ind);
   return goal;
 }
-void dm_check(void* payload) {
-    if(payload == NULL)
-			return;
-    header* head = HEADER (payload);
-    ASSERTBLK (head);
-}
 static inline size_t align(size_t size, size_t alignment) {
     int log = LOG(alignment);
     bop_assert(alignment == (1 << log));
@@ -540,7 +534,7 @@ void * dm_calloc (size_t n, size_t size) {
 }
 
 // Reallocator: use sytem realloc with large->large sizes in SEQUENTIAL() mode. Otherwise use standard realloc implementation
-void * dm_realloc (const void *ptr, size_t gsize) {
+void * dm_realloc (void *ptr, size_t gsize) {
     header* old_head,  * new_head;
     size_t new_size = ALIGN(gsize + HSIZE), old_size;
     if(gsize == 0)

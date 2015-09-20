@@ -26,7 +26,6 @@
 
 #define TABLESIZE 100000
 #define CHARSIZE 100
-//#define PTR_CHECK
 
 //http://stackoverflow.com/questions/262439/create-a-wrapper-function-for-malloc-and-free-in-c
 
@@ -55,21 +54,11 @@ static size_t (*libc_malloc_usable_size)(void*) = NULL;
 static int (*libc_posix_memalign)(void**, size_t, size_t) = NULL;
 static void *(*calloc_func)(size_t, size_t) = tempcalloc; //part of dlsym workaround
 
-#ifdef PTR_CHECK
-static void *mallocs[TABLESIZE];
-static void *callocs[TABLESIZE];
-static void *reallocs[TABLESIZE];
-static void *frees[TABLESIZE];
-static long long mc=0LL;
-static long long cc=0LL;
-static long long rc=0LL;
-static long long fc=0LL;
-#endif
-
 static char calloc_hack[CHARSIZE];
 static short initializing = 0;
 
 //Warning: Unsupported functions are currently ignored unless UNSUPPORTED_MALLOC is defined at compile time
+
 #ifdef UNSUPPORTED_MALLOC
 //unsupported malloc operations are aborted immediately
 void* memalign(size_t size, size_t boundary) {
@@ -95,15 +84,11 @@ struct mallinfo mallinfo() {
 #else
 #error "not overriding unsupported"
 #endif
+
 void* malloc(size_t s) {
     SPEC_VISUALIZE("+");
     VISUALIZE("+");
     void* p = u_malloc(s);
-#ifdef PTR_CHECK
-    mallocs[mc] = p;
-    mc++;
-    dm_check(p);
-#endif
     return p;
 }
 void* realloc(void *p , size_t s) {
@@ -111,23 +96,12 @@ void* realloc(void *p , size_t s) {
     VISUALIZE(".");
     assert (p != calloc_hack);
     void* p2 = u_realloc(p, s);
-#ifdef PTR_CHECK
-    reallocs[rc] = p2;
-    rc++;
-    dm_check(p);
-#endif
     return p2;
 }
 void free(void * p) {
     SPEC_VISUALIZE("-");
     VISUALIZE("-");
     if(p == NULL || p == calloc_hack) return;
-#ifdef PTR_CHECK
-    frees[fc] = p;
-    fc++;
-    check_pointer(p);
-    dm_check(p);
-#endif
     u_free(p);
 }
 
@@ -135,10 +109,6 @@ size_t malloc_usable_size(void* ptr) {
     SPEC_VISUALIZE(" ");
     VISUALIZE(" ");
     assert(ptr != calloc_hack);
-#ifdef PTR_CHECK
-    check_pointer(ptr);
-    dm_check(ptr);
-#endif
     size_t size = u_malloc_usable_size(ptr);
     return size;
 }
@@ -153,14 +123,6 @@ void * calloc(size_t sz, size_t n) {
     assert( (initializing && calloc_func == tempcalloc) ||
             (!initializing && calloc_func == dm_calloc) );
     void* p = calloc_func(sz, n);
-    if(calloc_func == u_calloc) {
-      #ifdef PTR_CHECK
-          callocs[cc] = p;
-          cc++;
-          check_pointer(p);
-      #endif
-      dm_check(p);
-    }
     return p;
 }
 
@@ -227,46 +189,4 @@ inline void * sys_calloc(size_t s, size_t n) {
     void* p = libc_calloc(s, n);
     return p;
 }
-static inline char* check_pointer(void* raw_pointer) {
-    if(raw_pointer == NULL)
-      return "null, always valid\n";
-#ifdef PTR_CHECK
-    long long m = 0LL;
-    long long c =  0LL;
-    long long r = 0LL;
-    bool found = false;
-    for(m = 0LL; !found && m < mc; m++) {
-        if(mallocs[m] == raw_pointer)
-            return "mallocd";
-    }
-    for(c = 0LL; !found && c < cc; c++) {
-        if(callocs[c] == raw_pointer)
-            return "callocd";
-    }
-    for(r = 0LL; !found && r < rc; r++) {
-        return "reallocd";
-    }
-    printf("Freed unallocated block: %p", raw_pointer);
-    _exit(0);
-    return NULL;
-#else
-    return "not tracking pointers";
-#endif
-}
-//debug information
-void wrapper_debug() {
-#ifdef PTR_CHECK
-    /*printf("\nmalloc count %lld\n", mc);
-    printf("calloc count %lld\n", cc);
-    printf("realloc count %lld\n", rc);
-    printf("free count %lld\n", fc);*/
-    long long f = 0LL;
-    for(f = 0LL; f < fc; f++) {
-        check_pointer(frees[f]);
-    }
-    //printf("ALL FREES PASS\n");
-#endif
-    fflush(stdout);
-}
-
 #undef CHARSIZE
