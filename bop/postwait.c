@@ -60,9 +60,9 @@ static void postwait_init( void ) {
     pw_space = create_mspace( init_size, use_lock, is_shared_mem );
     bop_msg( 3, "created postwait (shared memory) mspace at %p", pw_space );
     switch_board.size = 10 * BOP_get_group_size();
-    switch_board.channels = 
-      (channel_t *) mspace_calloc( pw_space, 
-				   switch_board.size, 
+    switch_board.channels =
+      (channel_t *) mspace_calloc( pw_space,
+				   switch_board.size,
 				   sizeof( channel_t ));
     assert( metacow_space != NULL );  /* bop_merge_port.ppr_group_init needed */
     init_empty_map( & local_ch_data, metacow_space, "local_ch_data" );
@@ -74,8 +74,8 @@ static void postwait_init( void ) {
     unsigned newsize = 10 * BOP_get_group_size( );
     if ( switch_board.size < newsize ) {
       switch_board.size = newsize;
-      switch_board.channels = 
-	(channel_t *) mspace_realloc( pw_space, 
+      switch_board.channels =
+	(channel_t *) mspace_realloc( pw_space,
 				    switch_board.channels,
 				    switch_board.size * sizeof( channel_t ));
     }
@@ -85,7 +85,7 @@ static void postwait_init( void ) {
 	  switch_board.size * sizeof( channel_t ) );
   bop_lock_clear( & switch_board.lock );
 
-  bop_msg(4, "postwait_init: (%d) channels (re-)initialized", 
+  bop_msg(4, "postwait_init: (%d) channels (re-)initialized",
 	  switch_board.size );
 }
 
@@ -131,7 +131,7 @@ void channel_post( addr_t id ) {
   if ( ch->id != 0 && ch->id != id ) {
     bop_msg( 1, "channel "PRIdPTR" conflict with "PRIdPTR" (task %u), fail to allocate", id, ch->id, ch->sender );
     bop_lock_release( & switch_board.lock );
-    return; 
+    return;
   }
   ch->id = id;
   if ( ch->is_posted ) {
@@ -210,7 +210,7 @@ void channel_chain( addr_t id1, addr_t id2 ) {
     set_chain( ch2, ch1, NULL, posted );
   }
   else {
-    if ( ch1->cc_first != NULL ) 
+    if ( ch1->cc_first != NULL )
       connect_chain( ch1->cc_first, ch2, posted );
     else
       connect_chain( ch2->cc_first, ch1, posted );
@@ -269,7 +269,7 @@ mem_range_t *map_add_range_from_task(map_t *map, addr_t base, size_t size, void 
   addr_t cbase; size_t csize;
   mem_range_t *target = &top->r;
   char has_overlap = overlap( &n->r, target, &cbase, &csize);
-  if ( ! has_overlap && top->lc != NULL )  { 
+  if ( ! has_overlap && top->lc != NULL )  {
     target = &top->lc->r; /* could be overlapping with left child */
     has_overlap = overlap( &n->r, target, &cbase, &csize);
   }
@@ -316,7 +316,7 @@ mem_range_t *map_add_range_from_task(map_t *map, addr_t base, size_t size, void 
   return NULL;
 
   /* overlapping cases not implemented
-  range_node_t *leftover = 
+  range_node_t *leftover =
     range_remove_overlap_return_leftover( &top->r, map->residence,
 					  cbase, csize );
   */
@@ -345,8 +345,8 @@ static char assert_no_overlap( map_t *map1, map_t *map2 ) {
 
 static void receive_range( void *sum, mem_range_t *range ) {
   channel_t *ch = (channel_t *) sum;
-  mem_range_t *approved = 
-    map_add_range_from_task( & received, range->base, range->size, 
+  mem_range_t *approved =
+    map_add_range_from_task( & received, range->base, range->size,
 			     range->rec, ch->sender );
   memcpy( (void *) approved->base, approved->rec, approved->size );
 }
@@ -359,16 +359,16 @@ static inline void wait_until_posted( channel_t *ch ) {
 }
 
 void channel_wait( addr_t id ) {
-  if ( task_status == SEQ || task_status == UNDY || task_status == MAIN ) 
+  if ( task_status == SEQ || task_status == UNDY || task_status == MAIN )
     return;
   bop_msg( 3, "waiting for channel %d", id );
   unsigned index = id % switch_board.size;
   channel_t *ch = & switch_board.channels[ index ];
   wait_until_posted( ch );
-  if ( ch->id != id ) 
+  if ( ch->id != id )
     BOP_abort_spec( "no forthcoming post" );
   bop_msg( 4, "received channel %d", id );
-  
+
   if ( ch->cc_first != NULL ) { /* there is chaining */
     ch = ch->cc_first;
     while ( ch->data.size == 0 && ch->cc_next != NULL )
@@ -382,7 +382,7 @@ void channel_wait( addr_t id ) {
     return;
     } */
 
-  if ( ! assert_no_overlap( & ch->data, & read_map ) || 
+  if ( ! assert_no_overlap( & ch->data, & read_map ) ||
        ! assert_no_overlap( & ch->data, & write_map ) ) {
     bop_msg( 1, "channel wait abandoned due to a access-before-wait conflict" );
     return;
@@ -414,7 +414,7 @@ static void ppr_commit( void ) {
   /* check for modify-after-post conflicts */
   map_foreach( & received_n_used, mdfy_aftr_pst_chk );
 
-  bop_msg( 4, "finish checking modify-after-post conflicts" ); 
+  bop_msg( 4, "finish checking modify-after-post conflicts" );
 }
 
 char channel_is_posted( addr_t id ) {
@@ -429,4 +429,3 @@ bop_port_t postwait_port = {
   .ppr_task_init         = ppr_reset,
   .data_commit           = ppr_commit,
 };
-

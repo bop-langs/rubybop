@@ -27,6 +27,7 @@ extern bop_port_t bop_merge_port;
 extern bop_port_t postwait_port;
 extern bop_port_t bop_ordered_port;
 extern bop_port_t bop_alloc_port;
+extern bop_port_t object_rw_port;
 
 volatile task_status_t task_status = SEQ;
 volatile ppr_pos_t ppr_pos = GAP;
@@ -42,7 +43,6 @@ static int bopgroup;
 int monitor_process_id = 0;
 int monitor_group = 0; //the process group that PPR tasks are using
 static bool is_monitoring = false;
-static bool errored = false;
 
 void BOP_abort_spec_2(bool, const char*); //only for in this function
 static void __attribute__((noreturn)) wait_process(void);
@@ -167,7 +167,7 @@ void temp_sigint(int sigo){
   waiting = true;
 }
 void error_alert_monitor(){
-  kill(monitor_process_id, SIGUSR2);
+  kill(monitor_process_id, SIGUSR1);
 }
 extern void io_on_malloc_rescue(void);
 int spawn_undy(void);
@@ -500,11 +500,8 @@ void SigUsr1(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
 void SigUsr2(int signo, siginfo_t *siginfo, ucontext_t *cntxt) {
   assert( SIGUSR2 == signo );
   assert( cntxt );
-  if(getpid() == monitor_process_id){
-    bop_msg(1, "Monitor process exiting main loop because of SIGUSR2 (error)", siginfo->si_pid);
-    is_monitoring = false;
-    errored = true;
-  }else if (task_status == SPEC || task_status == MAIN) {
+  bop_assert(getpid() != monitor_process_id); //removing this
+  if (task_status == SPEC || task_status == MAIN) {
     bop_msg(3,"PID %d exit upon receiving SIGUSR2", getpid());
     _exit(0);
   }
@@ -546,10 +543,6 @@ int report_child(pid_t child, int status){
     msg = "Child %d exit unkown status = %d";
     val = status;
   }
-  // if(child == -monitor_group){
-  //   //edge case: first child is dead, monitor wind down
-  //   is_monitoring = false;
-  // }
   if(val != -1)
     bop_msg(1, msg, child, val);
   else
@@ -558,7 +551,7 @@ int report_child(pid_t child, int status){
 }
 static inline void block_wait(){
   sigset_t set;
-  sigemptyset(&set); //block everything
+  sigemptyset(&set); //block SIGUSR#s
   sigaddset(&set, SIGUSR2);
   sigaddset(&set, SIGUSR1);
   sigprocmask(SIG_BLOCK,&set, NULL);
@@ -566,7 +559,7 @@ static inline void block_wait(){
 static inline void unblock_wait(){
   //set blocking signals to what it was before block_wait
   sigset_t set;
-  sigemptyset(&set); //block everything
+  sigemptyset(&set); //unblock SIGUSR#s
   sigaddset(&set, SIGUSR2);
   sigaddset(&set, SIGUSR1);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
@@ -596,8 +589,7 @@ static void wait_process() {
     perror("Error in wait_process. errno != ECHILD. Monitor process endings");
     _exit(EXIT_FAILURE);
   }
-  my_exit = my_exit || errored;
-  my_exit = my_exit ? 1 : 0;
+  my_exit = !!my_exit; //!! --> 1 or 0
   bop_msg(1, "Monitoring process %d ending with exit value %d", getpid(), my_exit);
   msg_destroy();
   kill(monitor_group, SIGKILL); //ensure that everything is killed.
@@ -750,6 +742,7 @@ void __attribute__ ((constructor)) BOP_init(void) {
   register_port(&bop_ordered_port, "Bop Ordered Port");
   register_port(&bop_io_port, "I/O Port");
   register_port(&bop_alloc_port, "Malloc Port");
+  register_port(&object_rw_port, "Object Monitoring Port");
   bop_msg(3, "Library initialized successfully.");
 }
 char* status_name(){

@@ -149,6 +149,7 @@ static inline void release_lock() {
     pthread_mutex_unlock(&lock);
 }
 #else
+#warning DMALLOC not compiled with locking enabled! Proceed with caution
 static inline void get_lock() {/*Do nothing*/}
 static inline void release_lock() {/*Do nothing*/}
 #endif //use locks

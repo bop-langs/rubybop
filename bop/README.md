@@ -6,7 +6,7 @@ PPR Task Memory Allocators
 
 * dmmalloc.* -> Divide and Merge Malloc. This is the default and most tested malloc.
 * comalloc.* -> Co-malloc. An alternative alpha malloc implementation which is bop safe.
-* malloc_wrapper.* -> Provides malloc family of functions. Calling malloc yields malloc_wrapper:malloc -> dmmalloc:dm_malloc. 
+* malloc_wrapper.* -> Provides malloc family of functions. Calling malloc yields malloc_wrapper:malloc -> dmmalloc:dm_malloc.
 
 The wrapper also provides references to the system (eg libc or dlmalloc) malloc functions, which is how dmmalloc gets more memory.
 
@@ -34,3 +34,12 @@ free: when one of these is freed, check the block size. if it’s too large for 
 # Comalloc
 
 This approach to PPR Memory allocation uses Doug Lea's memory allocator (dlmalloc) to allocate private heaps that are then managed by the separate allocator, comalloc. The allocator identifies the allocations done by itself and dlmalloc by a special bit chosen by the programmer. When not executing a PPR task, the allocator simple forwards allocation calls to dlmalloc.
+
+
+# Key-Value monitoring
+Some initial bookkeeping code is included in key_value_checks.* files. The goal of this is to have special monitoring that allows memory to be moved around between speculative tasks and to allow higher-level things like growing an array in Ruby (<< operator) to be marked more explicitly. The old pure-memory address monitoring is mostly correct except in the case of growing an array.
+The correctness here is slightly different. Each operation stores a R/W with the key-value pairs. These are stored in ```key_val_entry``` structs. Correctness is still, of course, based on the R/W sets for each speculative task and are now further broken down by object
+Intended use:
+An existing struct representing a key-value data structure (eg arrays, hashtables) will add a reference to a ```kv_object``` structure which will need to be initialized at group init.
+Instead of storing the memory address and size, the key/value instances are stored for each marking.
+There are several improvements that are going to be made to this, but the corrent implementation includes error checking and function prototypes are unlikely to change significantly. Most changes will be in performance by switching to a hashtable and reducint the memory footprint.
