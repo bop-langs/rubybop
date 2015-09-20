@@ -3268,10 +3268,9 @@ void set_task_objspace()
     }
     assert (objspace->bop_debug != (GET_VM()->objspace)->bop_debug);
 
-    //TODO move this to ppr group init
 
 
-    // rb_gc_enable();
+    rb_gc_enable();
     return;
 }
 
@@ -7394,7 +7393,7 @@ aligned_malloc(size_t alignment, size_t size)
 #error "the incorrect things"
     res = memalign(alignment, size);
 #else
-#warning "the correct things"
+// #warning "the correct things"
     char* aligned;
     res = malloc(alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);

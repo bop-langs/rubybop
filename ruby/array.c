@@ -399,7 +399,7 @@ rb_ary_modify(VALUE ary)
 
 	rb_gc_writebarrier_remember(ary);
     }
-    use_promise_ary(ary);
+    // use_promise_ary(ary);
 }
 
 static VALUE

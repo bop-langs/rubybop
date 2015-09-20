@@ -16,6 +16,8 @@ extern bop_port_t rubyheap_port;
 
 extern void BOP_use(void*, size_t);
 extern void BOP_promise(void*, size_t);
+extern void _BOP_ppr_begin(int);
+extern void _BOP_ppr_end(int);
 
 #ifndef SEQUENTIAL
 #define SEQUENTIAL (BOP_task_status() == SEQ || BOP_task_status() == UNDY)
