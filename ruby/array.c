@@ -138,20 +138,20 @@ extern void BOP_record_write(void*, size_t);
 extern void BOP_record_read(void*, size_t);
 extern VALUE ppr_yield(VALUE);
 
-static void inline
+inline static void
 promise_ary_elm(VALUE ary, int idx){
   if(is_sequential())
     return;
   BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
 }
-static void inline
+inline static void
 use_ary_elm(VALUE ary, int idx){
   if(is_sequential())
     return;
   BOP_record_read((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
 }
 
-static void inline
+inline static void
 promise_ary(VALUE ary){
   if(is_sequential())
     return;
@@ -161,7 +161,7 @@ promise_ary(VALUE ary){
   }
 }
 
-static void inline
+inline static void
 use_ary(VALUE ary){
   if(is_sequential())
     return;
@@ -171,7 +171,7 @@ use_ary(VALUE ary){
   }
 }
 
-static void inline
+inline static void
 use_promise_ary(VALUE ary){
   if(is_sequential())
     return;

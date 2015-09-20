@@ -56,13 +56,13 @@ task :ruby_test_run do
     ok = system 'echo \'Rubybop terminal io\' | ./miniruby -e \'puts "Hi #{gets}"\''
     fail 'Rubybop failed to read from STDIN' if ! ok
 
-    ok, res = sh './rubybop --disable-gems ./bootstraptest/runner.rb'
+    ok, res = sh './miniruby ./bootstraptest/runner.rb'
     fail "Ruby tests failed with exit code = #{res.exitstatus}" if ! ok
   end
 
   puts "All ruby tests passed"
 end
-task :ruby_test => :ruby do
+task :ruby_test => :miniruby do
   Rake::Task[:ruby_test_run].invoke
 end
 
