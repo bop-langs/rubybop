@@ -15,7 +15,7 @@
 #include "ruby/st.h"
 #include "ruby/re.h"
 #include "ruby/io.h"
-#include "../bop/bop_ports.h"
+#include "bop_ports.h"
 #include "ruby/thread.h"
 #include "ruby/util.h"
 #include "ruby/debug.h"

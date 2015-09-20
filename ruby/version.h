@@ -9,7 +9,7 @@
 #define RUBY_RELEASE_DAY 21
 
 #include "ruby/version.h"
-#include "../bop/bop_info.h"
+#include "bop_info.h"
 
 #if !defined RUBY_LIB_VERSION && defined RUBY_LIB_VERSION_STYLE
 # if RUBY_LIB_VERSION_STYLE == 3

@@ -2,8 +2,8 @@
 #include "ppr.h"
 #include "gc.h"
 #include "internal.h"
-#include "../bop/bop_api.h"
-#include "../bop/bop_ports.h"
+#include "bop_api.h"
+#include "bop_ports.h"
 
 //TODO get get ppr_mon to work
 
@@ -283,7 +283,7 @@ VALUE ppr_over(){
 }
 extern char * BOP_task_status_str(void);
 static VALUE rb_task_status(){
-  return rb_str_new2( BOP_task_status_str() );
+  return rb_str_new2( "BOP_task_status_str()" );
 }
 
 void

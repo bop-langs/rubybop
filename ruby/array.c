@@ -17,8 +17,8 @@
 #include "probes.h"
 #include "id.h"
 
-#include "../bop/bop_api.h"
-#include "../bop/bop_ports.h"
+#include "bop_api.h"
+#include "bop_ports.h"
 
 #ifndef ARRAY_DEBUG
 # define NDEBUG

@@ -9,7 +9,7 @@ exec = exec
 NULL = /dev/null
 PATH_SEPARATOR = @PATH_SEPARATOR@
 #bop configs
-BOPDIR = ../bop
+BOPDIR = ../cbop
 WRAPPER = $(BOPDIR)/dmmalloc.o $(BOPDIR)/malloc_wrapper.o $(BOPDIR)/sys_wrapper.o
 BOPFLAGS = -DBOP -pthread -Wno-declaration-after-statement -O0
 BOPLIB = $(BOPDIR)/inst.a
