@@ -4,13 +4,16 @@ compiler:
   - clang
 os:
   - linux
-  #- osx
+  - osx
 env:
   - BOP_GroupSize=2
   - BOP_GroupSize=4 #normal understudy, more PPR tasks
 matrix:
   fast_finish: true
 #dependencies for the ruby language
+exclude:
+  - os: osx
+    env: BOP_UndyFinish=0 BOP_GroupSize=4
 
 sudo: false
 addons:
