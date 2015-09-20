@@ -1,4 +1,4 @@
-assert_finish 4, %q{
+assert_finish 5, %q{
 $a = "1"
 $b = "2"
 $c = "3"
