@@ -6,7 +6,7 @@ Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rub
 ##Build Status
 
 Master  | Latest | CBop Dependency
-------------- | -------------
+------------- | ------------- | -------------
 [![Master Status](https://travis-ci.org/bop-langs/rubybop.svg?branch=master)](https://travis-ci.org/bop-langs/rubybop)  | [![Latest Status](https://travis-ci.org/bop-langs/rubybop.svg)](https://travis-ci.org/bop-langs/rubybop) | [![CBop Status](https://travis-ci.org/bop-langs/cbop.svg?branch=master)](https://travis-ci.org/bop-langs/cbop)
 
 ##Example
