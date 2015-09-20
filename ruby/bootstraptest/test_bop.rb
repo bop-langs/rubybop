@@ -64,14 +64,14 @@ assert_equal %q{[1250, 1250, 1250, 1250, 5000]} ,%q{
 
 }
 
-assert_equal %q(5), %q{
+assert_equal %q(4), %q{
   t1 = Time.now.to_f
 
   puts "start"
   $a = 0
 
 
-  5.times do
+  4.times do
     PPR{ sleep(1); Ordered{ $a += 1 } }
   end
 
