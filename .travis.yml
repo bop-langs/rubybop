@@ -36,5 +36,4 @@ before_script: #before tests run
 
 #test script
 script:
-  - rake bop_test
   - rake ruby_test_run
