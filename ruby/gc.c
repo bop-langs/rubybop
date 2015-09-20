@@ -3267,7 +3267,11 @@ void set_task_objspace()
         (GET_VM()->objspace), (GET_VM()->objspace)->bop_debug);
     }
     assert (objspace->bop_debug != (GET_VM()->objspace)->bop_debug);
-    rb_gc_enable();
+
+    //TODO move this to ppr group init
+
+
+    // rb_gc_enable();
     return;
 }
 

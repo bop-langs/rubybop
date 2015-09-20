@@ -63,3 +63,18 @@ assert_equal %q{[1250, 1250, 1250, 1250, 5000]} ,%q{
   $partial_sums << $partial_sums.inject{|sum,x| sum + x }
 
 }
+
+assert_equal %q(4), %q{
+  t1 = Time.now.to_f
+
+  puts "start"
+  $a = 0
+
+
+  4.times do
+    PPR{ sleep(1); Ordered{ $a += 1 } }
+  end
+
+  puts $a
+
+}

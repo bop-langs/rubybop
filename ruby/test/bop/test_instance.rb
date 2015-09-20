@@ -1,20 +1,35 @@
-# Tests ppr allocation of an instance variable and retrieves it
+class Main
+  @a=0
+  @b=0
+  @c=0
+  @d=0
 
-$number1 = ARGV[0].to_i
-$number2 = ARGV[1].to_i
-@var1 = 0
-@var2 = 0
+  def run()
+    PPR{
+      sleep(1)
+      @a=1
+    }
+    PPR{
+      sleep(1)
+      @b=2
+    }
+    PPR{
+      sleep(1)
+      @c=3
+    }
+    PPR{
+      sleep(1)
+      @d=4
+    }
+    return self
+  end
 
-puts "creating new instance variable"
+  def pl()
+    puts @a
+    puts @b
+    puts @c
+    puts @d
 
-PPR {
-    @var1 = $number1
-    sleep(1)
-}
-PPR {
-    @var2 = $number2
-    sleep(1)
-}
-PPR.over
-puts "instance variable 1: #{@var1}"
-puts "instance variable 2: #{@var2}"
+  end
+end
+Main.new().run().pl()
