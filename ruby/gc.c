@@ -7393,12 +7393,10 @@ aligned_malloc(size_t alignment, size_t size)
 #error "the incorrect things"
     res = memalign(alignment, size);
 #else
-// #warning "the correct things"
     char* aligned;
     res = malloc(alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);
     aligned -= ((VALUE)aligned & (alignment - 1));
-    assert(aligned > res);
     ((void**)aligned)[-1] = res;
     res = (void*)aligned;
 #endif
