@@ -44,6 +44,4 @@ In addition, all ruby code that was executed with the GVL is now forced to use t
 
 
 
-Any issues installing or running should be reported [here](https://github.com/dcompiler/rubybop/issues).
-
-[(outdated) Work Notes etc.](https://docs.google.com/document/d/1qkXeVAgK56vHWjxyXntOxC4MxRF4oelftWkvHx1V8eM/edit?usp=sharing)
+Any issues installing or running should be reported [here](https://github.com/bop-langs/rubybop/issues).
