@@ -4,7 +4,7 @@ puts "start"
 $a = 0
 
 
-6.times do
+5.times do
   PPR{ sleep(1); Ordered{ $a += 1 } }
 end
 
