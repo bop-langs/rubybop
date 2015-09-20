@@ -21,6 +21,11 @@ task :ruby => [:bop, :ruby_setup] do
   end
 end
 
+task :full do
+  Rake::Task[:ruby].invoke
+end
+  
+
 task :release => :ruby_setup do
   cd $bop_dir do
     sh 'make -B -j4 DEBUG=0'
