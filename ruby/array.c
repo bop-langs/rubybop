@@ -134,8 +134,8 @@ static ID id_cmp, id_div, id_power;
 
 #define ARY_SET(a, i, v) RARRAY_ASET((assert(!ARY_SHARED_P(a)), (a)), (i), (v))
 
-extern void BOP_record_write(void*, size_t);
-extern void BOP_record_read(void*, size_t);
+extern void _BOP_record_write(void*, size_t);
+extern void _BOP_record_read(void*, size_t);
 extern VALUE ppr_yield(VALUE);
 
 inline static void
@@ -878,7 +878,6 @@ rb_ary_store(VALUE ary, long idx, VALUE val)
     }
     ARY_SET(ary, idx, val);
 
-    // BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
     promise_ary_elm(ary, idx);
 }
 
@@ -2835,23 +2834,23 @@ rb_ary_collect(VALUE ary)
 }
 
 //TODO get this working (involves writing an actual object use promiser)
-static VALUE
-rb_ary_ppr_collect(VALUE ary){
-  long i;
-  VALUE collect;
-  VALUE ret;
-
-  RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
-  collect = rb_ary_new2(RARRAY_LEN(ary));
-  ARY_SET_LEN(ary, RARRAY_LEN(ary));
-  for (i = 0; i < RARRAY_LEN(ary); i++) {
-    _BOP_ppr_begin(1);
-    ret = rb_yield(RARRAY_AREF(ary, i));
-    rb_ary_store(collect, i, ret);
-    _BOP_ppr_end(1);
-  }
-  return collect;
-}
+// static VALUE
+// rb_ary_ppr_collect(VALUE ary){
+//   long i;
+//   VALUE collect;
+//   VALUE ret;
+//
+//   RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+//   collect = rb_ary_new2(RARRAY_LEN(ary));
+//   ARY_SET_LEN(ary, RARRAY_LEN(ary));
+//   for (i = 0; i < RARRAY_LEN(ary); i++) {
+//     _BOP_ppr_begin(1);
+//     ret = rb_yield(RARRAY_AREF(ary, i));
+//     rb_ary_store(collect, i, ret);
+//     _BOP_ppr_end(1);
+//   }
+//   return collect;
+// }
 
 
 /*
@@ -2888,22 +2887,23 @@ rb_ary_collect_bang(VALUE ary)
     return ary;
 }
 
-static VALUE
-rb_ary_ppr_collect_bang(VALUE ary)
-{
-    long i;
-    VALUE ret;
-    rb_gc_enable();
-    RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
-    for (i = 0; i < RARRAY_LEN(ary); i++) {
-      _BOP_ppr_begin(1);
-      ret = rb_yield(RARRAY_AREF(ary, i));
-      rb_ary_store(ary, i, ret);
-      _BOP_ppr_end(1);
-    }
-    rb_ary_modify(ary);
-    return ary;
-}
+// TODO same as above
+// static VALUE
+// rb_ary_ppr_collect_bang(VALUE ary)
+// {
+//     long i;
+//     VALUE ret;
+//     rb_gc_enable();
+//     RETURN_SIZED_ENUMERATOR(ary, 0, 0, ary_enum_length);
+//     for (i = 0; i < RARRAY_LEN(ary); i++) {
+//       _BOP_ppr_begin(1);
+//       ret = rb_yield(RARRAY_AREF(ary, i));
+//       rb_ary_store(ary, i, ret);
+//       _BOP_ppr_end(1);
+//     }
+//     rb_ary_modify(ary);
+//     return ary;
+// }
 
 
 VALUE
@@ -5917,12 +5917,12 @@ Init_Array(void)
     rb_define_method(rb_cArray, "sort_by!", rb_ary_sort_by_bang, 0);
     rb_define_method(rb_cArray, "collect", rb_ary_collect, 0);
     rb_define_method(rb_cArray, "collect!", rb_ary_collect_bang, 0);
-    rb_define_method(rb_cArray, "ppr_collect", rb_ary_ppr_collect, 0);
-    rb_define_method(rb_cArray, "ppr_collect!", rb_ary_ppr_collect_bang, 0);
+    // rb_define_method(rb_cArray, "ppr_collect", rb_ary_ppr_collect, 0);
+    // rb_define_method(rb_cArray, "ppr_collect!", rb_ary_ppr_collect_bang, 0);
     rb_define_method(rb_cArray, "map", rb_ary_collect, 0);
     rb_define_method(rb_cArray, "map!", rb_ary_collect_bang, 0);
-    rb_define_method(rb_cArray, "ppr_map", rb_ary_ppr_collect, 0);
-    rb_define_method(rb_cArray, "ppr_map!", rb_ary_ppr_collect_bang, 0);
+    // rb_define_method(rb_cArray, "ppr_map", rb_ary_ppr_collect, 0);
+    // rb_define_method(rb_cArray, "ppr_map!", rb_ary_ppr_collect_bang, 0);
     //TODO make the rest of the ppr functional functions
     rb_define_method(rb_cArray, "select", rb_ary_select, 0);
     rb_define_method(rb_cArray, "select!", rb_ary_select_bang, 0);
