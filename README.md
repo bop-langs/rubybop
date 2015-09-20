@@ -5,9 +5,9 @@ Safe parallel Ruby language based on [BOP](http://roclocality.org/2015/05/17/rub
 
 ##Build Status
 
-Master  | Latest
+Master  | Latest | CBop Dependency
 ------------- | -------------
-[![Master Status](https://travis-ci.org/bop-langs/rubybop.svg?branch=master)](https://travis-ci.org/bop-langs/rubybop)  | [![Latest Status](https://travis-ci.org/bop-langs/rubybop.svg)](https://travis-ci.org/bop-langs/rubybop)
+[![Master Status](https://travis-ci.org/bop-langs/rubybop.svg?branch=master)](https://travis-ci.org/bop-langs/rubybop)  | [![Latest Status](https://travis-ci.org/bop-langs/rubybop.svg)](https://travis-ci.org/bop-langs/rubybop) | [![CBop Status](https://travis-ci.org/bop-langs/cbop.svg?branch=master)](https://travis-ci.org/bop-langs/cbop)
 
 ##Example
 Several exaple scripts are included in [ruby/test/bop](/ruby/test/bop). The simplest test is the [simple_add.rb](/ruby/test/bop/simple_add.rb) which adds a large set of numbers in parallel using arrays. The total sum is the first number passed in as an argument to the script. The difference between a sequential program (in regular Ruby) and the Rubybop equivalent is just adding a PPR call:
