@@ -283,9 +283,9 @@ VALUE ppr_over(){
   BOP_this_group_over();
   return Qnil;
 }
-extern char * BOP_task_status_str(void);
+extern char * BOP_task_str(void);
 static VALUE rb_task_status(){
-  return rb_str_new2( "BOP_task_status_str()" );
+  return rb_str_new2( BOP_task_str() );
 }
 
 void
