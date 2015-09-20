@@ -1,4 +1,4 @@
-task :default => :ruby
+task :default => :miniruby
 $bop_dir = "cbop"
 task :ruby_setup do
   cd "ruby" do
