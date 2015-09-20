@@ -1,3 +1,3 @@
 [submodule "cbop"]
 	path = cbop
-	url = git@github.com:bop-langs/cbop
+	url = https://github.com/bop-langs/cbop.git
