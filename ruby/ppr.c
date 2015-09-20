@@ -143,10 +143,8 @@ ppr_yield()
     bool ppr_ok = pre_bop_begin();
     if(ppr_ok)
       BOP_ppr_begin(1);
-        rb_gc_disable();
         bop_msg(3,"yielding block...");
         rb_yield(INT2FIX(BOP_spec_order()));
-        rb_gc_enable();
     if(ppr_ok)
       BOP_ppr_end(1);
     return Qnil;
