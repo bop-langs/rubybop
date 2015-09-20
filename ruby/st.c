@@ -9,6 +9,9 @@
 #include "internal.h"
 #endif
 
+#include "bop_api.h"
+#include "bop_ports.h"
+
 #include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -1753,3 +1756,13 @@ st_numhash(st_data_t n)
     enum {s1 = 11, s2 = 3};
     return (st_index_t)((n>>s1|(n<<s2)) ^ (n>>s2));
 }
+
+void not_implemented() {
+  ;
+}
+bop_port_t rubyst_port = {
+    .ppr_group_init = not_implemented,
+    .ppr_task_init = not_implemented,
+    .task_group_commit = not_implemented,
+    .task_group_succ_fini = not_implemented
+};

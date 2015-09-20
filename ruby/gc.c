@@ -3282,6 +3282,11 @@ void reset_objspace()
   return;
 }
 
+void merge_heap_pages(){
+  bop_msg(1, "Unimplemented merge page");
+}
+
+
 
 /*
   ------------------------ Garbage Collection ------------------------
@@ -9163,5 +9168,6 @@ Init_GC(void)
 bop_port_t rubyheap_port = {
     .ppr_group_init = initialize_objspaces,
     .ppr_task_init = set_task_objspace,
-    .task_group_commit = reset_objspace
+    .task_group_commit = reset_objspace,
+    .task_group_succ_fini = merge_heap_pages
 };
