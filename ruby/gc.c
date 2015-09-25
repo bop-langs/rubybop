@@ -1447,9 +1447,6 @@ heap_page_allocate(rb_objspace_t *objspace)
 
   	    /* assign heap_page entry */
     page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
-    if(!is_sequential()){
-      bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
-    }
     if (page == 0) {
 	aligned_free(page_body);
 	rb_memerror();
@@ -1473,13 +1470,10 @@ heap_page_allocate(rb_objspace_t *objspace)
 	    hi = mid;
 	}
 	else {
-      bop_msg(3, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
-      bop_msg(2, "ERROR DEFINING HEAP PAGE");
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
 
-    if(!is_sequential()) bop_msg(4, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
     if (hi < heap_allocated_pages) {
 	     MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
     }
