@@ -420,6 +420,7 @@ enum {
 
 struct heap_page_header {
     struct heap_page *page;
+    int bop_flag;
 };
 
 struct heap_page_body {
@@ -3270,7 +3271,7 @@ void set_task_objspace()
 
 
 
-    rb_gc_enable();
+    rb_gc_disable();
     return;
 }
 
