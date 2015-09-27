@@ -33,6 +33,14 @@ typedef struct st_packed_entry {
     st_data_t key, val;
 } st_packed_entry;
 
+typedef struct table_list {
+    st_table * value;
+    struct table_list * next;
+} table_list;
+
+table_list * created_tables;
+table_list * modified_tables;
+
 #ifndef STATIC_ASSERT
 #define STATIC_ASSERT(name, expr) typedef int static_assert_##name##_check[(expr) ? 1 : -1]
 #endif
@@ -197,41 +205,79 @@ stat_col(void)
 }
 #endif
 
+void
+ppr_init_table_ary(st_table* tbl) {
+  tbl->bop_use_ary = (st_table **) ((st_table **) calloc(sizeof(st_table*), BOP_get_group_size() + 1))[1];
+  tbl->bop_use_ary[tbl->bop_flags] = tbl;
+  tbl->bop_promise_ary = (st_table **)  ((st_table **) calloc(sizeof(st_table*), BOP_get_group_size() + 1))[1];
+  tbl->bop_promise_ary[tbl->bop_flags] = tbl;
+}
+
+void
+ppr_attach_table(st_table* parent, st_table* child){
+  parent->bop_use_ary[child->bop_flags] = child;
+  child->bop_use_ary = parent->bop_use_ary;
+  parent->bop_promise_ary[child->bop_flags] = child;
+  child->bop_promise_ary = parent->bop_promise_ary;
+}
+
+st_table*
+st_init_table_ppr(const struct st_hash_type *type, st_index_t size, st_table* parent_table){
+
+  st_table *tbl;
+  // BOP_abort_spec("can't init new table in PPR (yet...)");
+  #ifdef HASH_LOG
+  # if HASH_LOG+0 < 0
+  {
+  const char *e = getenv("ST_HASH_LOG");
+  if (!e || !*e) init_st = 1;
+  }
+  # endif
+  if (init_st == 0) {
+  init_st = 1;
+  atexit(stat_col);
+  }
+  #endif
+
+
+  tbl = st_alloc_table();
+  tbl->type = type;
+  tbl->num_entries = 0;
+  tbl->entries_packed = size <= MAX_PACKED_HASH;
+  if (tbl->entries_packed) {
+  size = ST_DEFAULT_PACKED_TABLE_SIZE;
+  }
+  else {
+  size = new_size(size);	/* round up to power-of-two */
+  }
+  tbl->num_bins = size;
+  tbl->bins = st_alloc_bins(size);
+  tbl->head = 0;
+  tbl->tail = 0;
+
+    if(is_sequential()){
+      tbl->bop_flags = -1;
+    }
+    else{
+      tbl->bop_flags = BOP_spec_order();
+    }
+
+  if(NULL){
+    ppr_init_table_ary(tbl);
+  }
+  else{
+    ppr_attach_table(parent_table, tbl);
+  }
+
+  return tbl;
+
+}
+
+
 st_table*
 st_init_table_with_size(const struct st_hash_type *type, st_index_t size)
 {
-    st_table *tbl;
-
-#ifdef HASH_LOG
-# if HASH_LOG+0 < 0
-    {
-	const char *e = getenv("ST_HASH_LOG");
-	if (!e || !*e) init_st = 1;
-    }
-# endif
-    if (init_st == 0) {
-	init_st = 1;
-	atexit(stat_col);
-    }
-#endif
-
-
-    tbl = st_alloc_table();
-    tbl->type = type;
-    tbl->num_entries = 0;
-    tbl->entries_packed = size <= MAX_PACKED_HASH;
-    if (tbl->entries_packed) {
-	size = ST_DEFAULT_PACKED_TABLE_SIZE;
-    }
-    else {
-	size = new_size(size);	/* round up to power-of-two */
-    }
-    tbl->num_bins = size;
-    tbl->bins = st_alloc_bins(size);
-    tbl->head = 0;
-    tbl->tail = 0;
-
-    return tbl;
+    return st_init_table_ppr(type, size, NULL);
 }
 
 st_table*
@@ -1757,12 +1803,33 @@ st_numhash(st_data_t n)
     return (st_index_t)((n>>s1|(n<<s2)) ^ (n>>s2));
 }
 
+void for_each_list(void (*func)(ANYARGS), table_list * list){
+  if( list != (table_list *) NULL){
+    func(list);
+    for_each_list(func, list->next);
+  }
+}
+
+
+void create_bookkeeping_area(){
+  if(created_tables != (table_list *) NULL || modified_tables != (table_list *) NULL){
+    for_each_list(free, created_tables);
+    for_each_list(free, modified_tables);
+  }
+  created_tables = calloc(BOP_get_group_size(), sizeof(struct table_list));
+  modified_tables = calloc(BOP_get_group_size(), sizeof(struct table_list));
+}
+
+void check_tables(){
+  ;
+}
+
 void not_implemented() {
   ;
 }
 bop_port_t rubyst_port = {
-    .ppr_group_init = not_implemented,
+    .ppr_group_init = create_bookkeeping_area,
     .ppr_task_init = not_implemented,
-    .task_group_commit = not_implemented,
+    .task_group_commit = check_tables,
     .task_group_succ_fini = not_implemented
 };

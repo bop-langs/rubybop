@@ -93,7 +93,9 @@ struct st_table {
 	    st_index_t real_entries;
 	} packed;
     } as;
-    unsigned long bop_flags;
+    int bop_flags;
+    st_table ** bop_use_ary; //pointer to an array of st_tables
+    st_table ** bop_promise_ary; //pointer to an array of st_tables
 };
 
 #define st_is_member(table,key) st_lookup((table),(key),(st_data_t *)0)
