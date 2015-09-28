@@ -207,9 +207,9 @@ stat_col(void)
 
 void
 ppr_init_table_ary(st_table* tbl) {
-  tbl->bop_use_ary = (st_table **) ((st_table **) calloc(sizeof(st_table*), BOP_get_group_size() + 1))[1];
+  tbl->bop_use_ary = ((st_table **) calloc(sizeof(st_table*), BOP_get_group_size() + 1));
   tbl->bop_use_ary[tbl->bop_flags] = tbl;
-  tbl->bop_promise_ary = (st_table **)  ((st_table **) calloc(sizeof(st_table*), BOP_get_group_size() + 1))[1];
+  tbl->bop_promise_ary = ((st_table **) calloc(sizeof(st_table*), BOP_get_group_size() + 1));
   tbl->bop_promise_ary[tbl->bop_flags] = tbl;
 }
 
@@ -256,18 +256,18 @@ st_init_table_ppr(const struct st_hash_type *type, st_index_t size, st_table* pa
   tbl->tail = 0;
 
     if(is_sequential()){
-      tbl->bop_flags = -1;
+      tbl->bop_flags = 0;
     }
     else{
-      tbl->bop_flags = BOP_spec_order();
+      tbl->bop_flags = BOP_spec_order() + 1;
     }
 
-  if(NULL){
-    ppr_init_table_ary(tbl);
-  }
-  else{
-    ppr_attach_table(parent_table, tbl);
-  }
+  // if(parent_table == (st_table *) NULL){
+  //   ppr_init_table_ary(tbl);
+  // }
+  // else{
+  //   ppr_attach_table(parent_table, tbl);
+  // }
 
   return tbl;
 
