@@ -1325,6 +1325,7 @@ heap_pages_expand_sorted(rb_objspace_t *objspace)
 	    if (sorted) heap_pages_sorted = sorted;
       else {
         bop_msg(0, "REALLOC FAILED IN HEAP_PAGES_EXPAND_SORTED");
+        rb_memerror();
       }
 	}
 	else {
@@ -1358,13 +1359,15 @@ static inline void
 heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, int spec_order)
 {
   if (page->freelist) {
-    if(heap->free_pages->spec_order == page->spec_order){
+    if(!(heap->free_pages) || heap->free_pages->spec_order == page->spec_order){
         page->free_next = heap->free_pages;
         heap->free_pages = page;
     }
     else {
+      bop_msg(3, "Making heap page with new spec order");
       page->free_next = NULL;
       heap->free_pages = page;
+
     }
   }
 }
@@ -1420,7 +1423,7 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 
 	    if (page->heap == heap_tomb && page->free_slots == page->total_slots) {
 		if (heap_pages_swept_slots - page->total_slots > heap_pages_max_free_slots) {
-		    if (!is_sequential()) fprintf(stderr, "heap_pages_free_unused_pages: %d free page %p, heap_pages_swept_slots: %d, heap_pages_max_free_slots: %d\n",
+		    if (0) fprintf(stderr, "heap_pages_free_unused_pages: %d free page %p, heap_pages_swept_slots: %d, heap_pages_max_free_slots: %d\n",
 				   (int)i, page, (int)heap_pages_swept_slots, (int)heap_pages_max_free_slots);
 		    heap_pages_swept_slots -= page->total_slots;
 		    heap_unlink_page(objspace, heap_tomb, page);
@@ -1577,12 +1580,6 @@ heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap, int spec_order)
 }
 
 static void
-heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add)
-{
-    heap_add_bop_pages(objspace, heap, add, 0);
-}
-
-static void
 heap_add_bop_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add, int spec_order){
 
   size_t i;
@@ -1594,6 +1591,12 @@ heap_add_bop_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add, int spe
   }
   heap_allocatable_pages = 0;
 
+}
+
+static void
+heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add)
+{
+    heap_add_bop_pages(objspace, heap, add, 0);
 }
 
 static size_t
@@ -1631,7 +1634,7 @@ heap_increment(rb_objspace_t *objspace, rb_heap_t *heap)
 	gc_report(1, objspace, "heap_increment: heap_pages_sorted_length: %d, heap_pages_inc: %d, heap->page_length: %d\n",
 		  (int)heap_pages_sorted_length, (int)heap_allocatable_pages, (int)heap->page_length);
 	heap_allocatable_pages--;
-	heap_assign_page(objspace, heap);
+	heap_assign_page(objspace, heap, BOP_spec_order());
 	return TRUE;
     }
     return FALSE;
@@ -3243,7 +3246,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     sweep_page->flags.before_sweep = FALSE;
 
     if(!(is_sequential() || sweep_page->spec_order == BOP_spec_order())){
-      bop_msg(3, "page gc")
+      bop_msg(3, "page gc averted");
       return;
     }
 
@@ -3461,7 +3464,7 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
 	    unlink_limit--;
 	    /* there are no living objects -> move this page to tomb heap */
 	    heap_unlink_page(objspace, heap, sweep_page);
-	    heap_add_page(objspace, heap_tomb, sweep_page);
+	    heap_add_page(objspace, heap_tomb, sweep_page, BOP_spec_order());
 	}
 	else if (sweep_page->free_slots > 0) {
 #if GC_ENABLE_INCREMENTAL_MARK
@@ -9078,38 +9081,22 @@ extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 const int ppr_init_page_no = 20;
 
-static rb_objspace_t **bop_objspaces;
-static rb_objspace_t *sequential_objspace= NULL;
-
-void detach_free_list(rb_objspace_t *objspace);
-
-void initialize_objspaces(){
-
-  bop_msg(3, "GC group init");
-  rb_objspace_t *objspace = &rb_objspace;
-  heap_add_pages(objspace, heap_eden, 20);
-
-
-  objspace = old_objspace;
-}
-
 void set_task_objspace()
 {
     int BOP_task = spec_order;
     rb_objspace_t *objspace = &rb_objspace;
-    heap_add_ppr_pages(objspace, heap_eden, ppr_init_page_no, BOP_task);
+    heap_add_bop_pages(objspace, heap_eden, ppr_init_page_no, BOP_task);
 
-
-
-    return;
 }
 
 void reset_objspace()
 {
-  //TODO Merge the heap pages
-  GET_VM()->objspace = sequential_objspace;
-  assert(GET_VM()->objspace->bop_debug == -1 );
-  return;
+  rb_objspace_t *objspace = &rb_objspace;
+  struct heap_page * page;
+  unsigned int i = 0;
+  for(page = heap_pages_sorted[i]; i < heap_pages_sorted_length; page = heap_pages_sorted[++i]){
+    page->spec_order = 0;
+  }
 }
 
 void merge_heap_pages(){
@@ -9118,7 +9105,6 @@ void merge_heap_pages(){
 
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = initialize_objspaces,
     .ppr_task_init = set_task_objspace,
     .task_group_commit = reset_objspace,
     .task_group_succ_fini = merge_heap_pages
