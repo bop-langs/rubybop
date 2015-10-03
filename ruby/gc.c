@@ -675,6 +675,7 @@ struct heap_page {
     int free_slots;
     int old_free_slots;
     int final_slots;
+    int spec_order;
     struct {
 	unsigned int before_sweep : 1;
 	unsigned int has_remembered_objects : 1;
@@ -683,6 +684,7 @@ struct heap_page {
 
     struct heap_page *free_next;
     struct heap_page *old_free_next;
+    struct heap_page *bop_free_next;
     RVALUE *start;
     RVALUE *freelist;
     RVALUE *oldfreelist;
@@ -691,7 +693,7 @@ struct heap_page {
 #if USE_RGENGC
     bits_t wb_unprotected_bits[HEAP_BITMAP_LIMIT];
 #endif
-    /* the following three bitmaps are cleared at the beggining of full GC */
+    /* the following three bitmaps are cleared at the beginning of full GC */
     bits_t mark_bits[HEAP_BITMAP_LIMIT];
 #if USE_RGENGC
     bits_t long_lived_bits[HEAP_BITMAP_LIMIT];
@@ -1645,8 +1647,7 @@ heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
 static RVALUE *
 heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    // bop_msg(0, "\nheap inside: %p \nheap eden: %p", heap, heap_eden);
-    assert(heap == heap_eden);
+
     struct heap_page *page;
     RVALUE *p;
     while (UNLIKELY(heap->free_pages == NULL)) {
@@ -1671,7 +1672,6 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
-      //BOP_record_write(p, sizeof(p)); //TODO doesnt work
 	    return (VALUE)p;
 	}
 	else {
@@ -3223,6 +3223,11 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     gc_report(2, objspace, "page_sweep: start.\n");
 
     sweep_page->flags.before_sweep = FALSE;
+
+    if(!(is_sequential() || sweep_page->spec_order == BOP_spec_order())){
+      bop_msg(3, "gc skipped on page %p (not task local)", sweep_page);
+      return;
+    }
 
     p = sweep_page->start; pend = p + sweep_page->total_slots;
     offset = p - NUM_IN_PAGE(p);
