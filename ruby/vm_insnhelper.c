@@ -830,7 +830,7 @@ static VALUE vm_call_general(rb_thread_t *th, rb_control_frame_t *reg_cfp, rb_ca
 static void
 vm_search_method(rb_call_info_t *ci, VALUE recv)
 {
-    VALUE klass = CLASS_OF(recv);
+    volatile VALUE klass = CLASS_OF(recv);
 
     //TODO may want to get rid of this
 #if OPT_INLINE_METHOD_CACHE
