@@ -3248,10 +3248,10 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     sweep_page->flags.before_sweep = FALSE;
 
     if(!(is_sequential() || sweep_page->task_status == BOP_task_status()) ){
-      bop_msg(3, "page gc averted");
+      bop_msg(5, "page gc averted");
       return;
     }
-    bop_msg(3, "successful gc sweep");
+    bop_msg(5, "successful gc sweep");
 
     p = sweep_page->start; pend = p + sweep_page->total_slots;
     offset = p - NUM_IN_PAGE(p);
