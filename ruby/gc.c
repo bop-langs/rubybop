@@ -676,7 +676,7 @@ struct heap_page {
     int free_slots;
     int old_free_slots;
     int final_slots;
-    int spec_order;
+    int task_status;
     struct {
 	unsigned int before_sweep : 1;
 	unsigned int has_remembered_objects : 1;
@@ -1356,10 +1356,10 @@ heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj
 }
 
 static inline void
-heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, int spec_order)
+heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, int task_status)
 {
   if (page->freelist) {
-    if(!(heap->free_pages) || heap->free_pages->spec_order == page->spec_order){
+    if(!(heap->free_pages) || heap->free_pages->task_status == page->task_status){
         page->free_next = heap->free_pages;
         heap->free_pages = page;
     }
@@ -1560,11 +1560,11 @@ heap_page_create(rb_objspace_t *objspace)
 }
 
 static void
-heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, int spec_order)
+heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, int task_status)
 {
     page->heap = heap;
     page->next = heap->pages;
-    page->spec_order = spec_order;
+    page->task_status = task_status;
     if (heap->pages) heap->pages->prev = page;
     heap->pages = page;
     heap->page_length++;
@@ -1572,22 +1572,24 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, 
 }
 
 static void
-heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap, int spec_order)
+heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap, int task_status)
 {
     struct heap *page = (struct heap *)heap_page_create(objspace);
-    heap_add_page(objspace, heap, (struct heap_page *) page, spec_order);
-    heap_add_freepage(objspace, heap, (struct heap_page *) page, spec_order);
+    heap_add_page(objspace, heap, (struct heap_page *) page, task_status);
+    heap_add_freepage(objspace, heap, (struct heap_page *) page, task_status);
+    // bop_msg(3, "Heap page assigned, task_status %d, page_task_status %d", BOP_task_status(), ((struct heap_page *)page)->task_status);
+
 }
 
 static void
-heap_add_bop_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add, int spec_order){
+heap_add_bop_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add, int task_status){
 
   size_t i;
 
   heap_allocatable_pages = add;
   heap_pages_expand_sorted(objspace);
   for (i = 0; i < add; i++) {
-  heap_assign_page(objspace, heap, spec_order);
+  heap_assign_page(objspace, heap, task_status);
   }
   heap_allocatable_pages = 0;
 
@@ -1596,7 +1598,7 @@ heap_add_bop_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add, int spe
 static void
 heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add)
 {
-    heap_add_bop_pages(objspace, heap, add, 0);
+    heap_add_bop_pages(objspace, heap, add, -2);
 }
 
 static size_t
@@ -1634,7 +1636,7 @@ heap_increment(rb_objspace_t *objspace, rb_heap_t *heap)
 	gc_report(1, objspace, "heap_increment: heap_pages_sorted_length: %d, heap_pages_inc: %d, heap->page_length: %d\n",
 		  (int)heap_pages_sorted_length, (int)heap_allocatable_pages, (int)heap->page_length);
 	heap_allocatable_pages--;
-	heap_assign_page(objspace, heap, BOP_spec_order());
+	heap_assign_page(objspace, heap, BOP_task_status());
 	return TRUE;
     }
     return FALSE;
@@ -3245,10 +3247,11 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
 
     sweep_page->flags.before_sweep = FALSE;
 
-    if(!(is_sequential() || sweep_page->spec_order == BOP_spec_order())){
+    if(!(is_sequential() || sweep_page->task_status == BOP_task_status()) ){
       bop_msg(3, "page gc averted");
       return;
     }
+    bop_msg(3, "successful gc sweep");
 
     p = sweep_page->start; pend = p + sweep_page->total_slots;
     offset = p - NUM_IN_PAGE(p);
@@ -3256,6 +3259,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
 
     /* create guard : fill 1 out-of-range */
     bits[BITMAP_INDEX(p)] |= BITMAP_BIT(p)-1;
+
     bits[BITMAP_INDEX(pend)] |= ~(BITMAP_BIT(pend) - 1);
 
     for (i=0; i < HEAP_BITMAP_LIMIT; i++) {
@@ -3464,7 +3468,7 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
 	    unlink_limit--;
 	    /* there are no living objects -> move this page to tomb heap */
 	    heap_unlink_page(objspace, heap, sweep_page);
-	    heap_add_page(objspace, heap_tomb, sweep_page, BOP_spec_order());
+	    heap_add_page(objspace, heap_tomb, sweep_page, BOP_task_status());
 	}
 	else if (sweep_page->free_slots > 0) {
 #if GC_ENABLE_INCREMENTAL_MARK
@@ -3474,11 +3478,11 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
 		}
 	    }
 	    else {
-		heap_add_freepage(objspace, heap, sweep_page, BOP_spec_order());
+		heap_add_freepage(objspace, heap, sweep_page, BOP_task_status());
 		break;
 	    }
 #else
-	    heap_add_freepage(objspace, heap, sweep_page, BOP_spec_order());
+	    heap_add_freepage(objspace, heap, sweep_page, BOP_task_status());
 	    break;
 #endif
 	}
@@ -9083,7 +9087,7 @@ const int ppr_init_page_no = 20;
 
 void set_task_objspace()
 {
-    int BOP_task = spec_order;
+    int BOP_task = BOP_task_status();
     rb_objspace_t *objspace = &rb_objspace;
     heap_add_bop_pages(objspace, heap_eden, ppr_init_page_no, BOP_task);
 
@@ -9095,7 +9099,7 @@ void reset_objspace()
   struct heap_page * page;
   unsigned int i = 0;
   for(page = heap_pages_sorted[i]; i < heap_pages_sorted_length; page = heap_pages_sorted[++i]){
-    page->spec_order = 0;
+    page->task_status = -2;
   }
 }
 
