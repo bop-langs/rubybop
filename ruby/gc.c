@@ -1343,6 +1343,9 @@ heap_pages_expand_sorted(rb_objspace_t *objspace)
 static inline void
 heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj)
 {
+    if(!(page->task_status == BOP_task_status() || BOP_task_status() == -1)){
+      // bop_msg(3,"potentially adding free obj to not ppr local table");
+    }
     RVALUE *p = (RVALUE *)obj;
     p->as.free.flags = 0;
     p->as.free.next = page->freelist;
@@ -1444,7 +1447,7 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 }
 
 static struct heap_page *
-heap_page_allocate(rb_objspace_t *objspace)
+heap_page_allocate(rb_objspace_t *objspace, int task_status)
 {
     RVALUE *start, *end, *p;
     struct heap_page *page;
@@ -1519,6 +1522,7 @@ heap_page_allocate(rb_objspace_t *objspace)
     page->start = start;
     page->total_slots = limit;
     page_body->header.page = page;
+    page->task_status = task_status;
 
     for (p = start; p != end; p++) {
 	gc_report(3, objspace, "assign_heap_page: %p is added to freelist\n", p);
@@ -1542,7 +1546,7 @@ heap_page_resurrect(rb_objspace_t *objspace)
 }
 
 static struct heap_page *
-heap_page_create(rb_objspace_t *objspace)
+heap_page_create(rb_objspace_t *objspace, int task_status)
 {
     struct heap_page *page = NULL;
     const char *method;
@@ -1551,10 +1555,10 @@ heap_page_create(rb_objspace_t *objspace)
       method = "recycle";
     }
     if (page == NULL) {
-	page = heap_page_allocate(objspace);
+	page = heap_page_allocate(objspace, task_status);
 	method = "allocate";
     }
-    if (1) bop_msg(4, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
+    bop_msg(4, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
 		   method, page, page->body, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length, objspace);
     return page;
 }
@@ -1574,10 +1578,9 @@ heap_add_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page, 
 static void
 heap_assign_page(rb_objspace_t *objspace, rb_heap_t *heap, int task_status)
 {
-    struct heap *page = (struct heap *)heap_page_create(objspace);
+    struct heap *page = (struct heap *)heap_page_create(objspace, task_status);
     heap_add_page(objspace, heap, (struct heap_page *) page, task_status);
     heap_add_freepage(objspace, heap, (struct heap_page *) page, task_status);
-    // bop_msg(3, "Heap page assigned, task_status %d, page_task_status %d", BOP_task_status(), ((struct heap_page *)page)->task_status);
 
 }
 
@@ -1668,7 +1671,6 @@ heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
 static RVALUE *
 heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-    // bop_msg(0, "\nheap inside: %p \nheap eden: %p", heap, heap_eden);
     assert(heap == heap_eden);
     struct heap_page *page;
     RVALUE *p;
@@ -1694,7 +1696,6 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
-      //BOP_record_write(p, sizeof(p)); //TODO doesnt work
 	    return (VALUE)p;
 	}
 	else {
@@ -1811,8 +1812,6 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     //TODO sever the heap so that this actually works...
     bop_msg(5, "newobj:%s", obj_info(obj));
     if(is_sequential()) bop_msg(5, "newobj:%s", obj_info(obj));
-    //BOP_obj_use_promise(obj);
-    //BOP_record_write(obj, sizeof(obj));
     return obj;
 }
 
@@ -9089,15 +9088,22 @@ void set_task_objspace()
 {
     int BOP_task = BOP_task_status();
     rb_objspace_t *objspace = &rb_objspace;
+    heap_eden->freelist = NULL;
     heap_add_bop_pages(objspace, heap_eden, ppr_init_page_no, BOP_task);
 
 }
 
+// struct heap_page *
+// get_task_local_pages(){
+//
+// }
+
 void reset_objspace()
 {
   rb_objspace_t *objspace = &rb_objspace;
-  struct heap_page * page;
+  volatile struct heap_page * page;
   unsigned int i = 0;
+  rb_gc_start();
   for(page = heap_pages_sorted[i]; i < heap_pages_sorted_length; page = heap_pages_sorted[++i]){
     page->task_status = -2;
   }
