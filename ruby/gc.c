@@ -9130,11 +9130,13 @@ int page_is_safe(struct heap_page * page){
 }
 
 void set_sequential_heap_info(){
-  // rb_gc_start();
+
 
   rb_objspace_t *objspace = &rb_objspace;
   heap_eden->sequential_freelist = heap_eden->freelist;
   heap_eden->sequential_free_pages = heap_eden->free_pages;
+
+  //store the heap array here
 
 }
 
@@ -9158,7 +9160,10 @@ void reset_objspace()
 
 void merge_heap_pages(){
   set_ppr_hash();
-  // rb_gc_start();
+
+  //merge the heap array here
+  //reset the free list (gc might take care of it but be sure)
+
 }
 
 
