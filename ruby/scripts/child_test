@@ -1,0 +1,2 @@
+set follow-fork-mode child
+r test/bop/simple_add.rb 5000 2

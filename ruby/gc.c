@@ -1451,7 +1451,7 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 }
 
 static struct heap_page *
-heap_page_allocate(rb_objspace_t *objspace, int ppr_hash)
+heap_page_allocate(rb_objspace_t *objspace, unsigned int ppr_hash)
 {
     RVALUE *start, *end, *p;
     struct heap_page *page;
@@ -1542,7 +1542,7 @@ heap_page_resurrect(rb_objspace_t *objspace)
 {
     struct heap_page *page;
 
-    if ((page = heap_tomb->pages) != NULL) {
+    if ((page = heap_tomb->pages) != NULL && page_is_safe(page)) {
 	heap_unlink_page(objspace, heap_tomb, page);
 	return page;
     }
@@ -9090,10 +9090,10 @@ Init_GC(void)
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 const int ppr_init_page_no = 20;
-volatile int sequential;
+volatile int sequential = 1;
 
 union double_bit{
-  double d;
+  float d;
   unsigned u;
 };
 
@@ -9112,7 +9112,7 @@ int page_is_safe(struct heap_page * page){
 }
 
 void pre_task_gc(){
-  // rb_gc_start();
+  rb_gc_start();
 }
 
 void set_task_objspace()
@@ -9123,10 +9123,9 @@ void set_task_objspace()
     heap_add_bop_pages(objspace, heap_eden, ppr_init_page_no, ppr_hash);
 }
 
-// struct heap_page *
-// get_task_local_pages(){
-//
-// }
+void initialize_understudy(){
+  set_ppr_hash();
+}
 
 void reset_objspace()
 {
@@ -9135,7 +9134,7 @@ void reset_objspace()
 
 void merge_heap_pages(){
   set_ppr_hash();
-  rb_gc_start();
+  // rb_gc_start();
 }
 
 
@@ -9143,5 +9142,6 @@ bop_port_t rubyheap_port = {
     .ppr_group_init = pre_task_gc,
     .ppr_task_init = set_task_objspace,
     .task_group_commit = reset_objspace,
-    .task_group_succ_fini = merge_heap_pages
+    .task_group_succ_fini = merge_heap_pages,
+    .undy_init = initialize_understudy
 };
