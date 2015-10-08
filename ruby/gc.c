@@ -453,9 +453,10 @@ typedef struct mark_stack {
 
 typedef struct rb_heap_struct {
     RVALUE *freelist;
+    RVALUE *sequential_freelist;
 
     struct heap_page *free_pages;
-    struct heap_page *old_free_pages;
+    struct heap_page *sequential_free_pages;
     struct heap_page *using_page;
     struct heap_page *pages;
     struct heap_page *sweep_pages;
@@ -1254,7 +1255,7 @@ RVALUE_WHITE_P(VALUE obj)
 */
 
 // Sadly needs to go here for Now
-volatile unsigned int ppr_hash;
+unsigned int ppr_hash;
 int page_is_safe(struct heap_page * page);
 
 #if defined(ENABLE_VM_OBJSPACE) && ENABLE_VM_OBJSPACE
@@ -1413,6 +1414,9 @@ heap_unlink_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *pag
 static void
 heap_page_free(rb_objspace_t *objspace, struct heap_page *page)
 {
+    if(!page_is_safe(page)){
+      bop_msg(1, "TRYING TO FREE PAGE FROM OTHER TASK");
+    }
     heap_allocated_pages--;
     objspace->profile.total_freed_pages++;
     aligned_free(page->body);
@@ -1542,7 +1546,11 @@ heap_page_resurrect(rb_objspace_t *objspace)
 {
     struct heap_page *page;
 
-    if ((page = heap_tomb->pages) != NULL && page_is_safe(page)) {
+    if ((page = heap_tomb->pages) != NULL) {
+      if(!page_is_safe(page)){
+        // bop_msg(1, "Avoided erroneous resurrection");
+        return NULL;
+      }
 	heap_unlink_page(objspace, heap_tomb, page);
 	return page;
     }
@@ -1604,7 +1612,7 @@ heap_add_bop_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add, int ppr
 static void
 heap_add_pages(rb_objspace_t *objspace, rb_heap_t *heap, size_t add)
 {
-    heap_add_bop_pages(objspace, heap, add, -2);
+    heap_add_bop_pages(objspace, heap, add, 0);
 }
 
 static size_t
@@ -1681,6 +1689,10 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
 	heap_prepare(objspace, heap);
     }
     page = heap->free_pages;
+    // if(!page_is_safe(page)){
+    //   bop_msg(0, "page hash %d, ppr hash %d", page->ppr_hash, ppr_hash);
+    //   BOP_abort_spec("ATTEMPTING TO USE SPACE FROM OTHER TASK PAGE");
+    // }
     heap->free_pages = page->free_next;
     heap->using_page = page;
 
@@ -1699,6 +1711,9 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
+      // if(!page_is_safe(GET_HEAP_PAGE(p))){
+      //   BOP_abort_spec("GETTING OBJECT FROM UNSAFE HEAP PAGE");
+      // }
 	    return (VALUE)p;
 	}
 	else {
@@ -3250,10 +3265,10 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     sweep_page->flags.before_sweep = FALSE;
 
     if(!is_sequential() && !page_is_safe(sweep_page)){
-      bop_msg(5, "page gc averted");
+      bop_msg(5, "page gc averted task hash: %d, page hash: %d", ppr_hash, sweep_page->ppr_hash);
       return;
     }
-    bop_msg(5, "successful gc sweep");
+    bop_msg(5, "successful gc sweep task hash: %d, page hash: %d", ppr_hash, sweep_page->ppr_hash);
 
     p = sweep_page->start; pend = p + sweep_page->total_slots;
     offset = p - NUM_IN_PAGE(p);
@@ -3449,7 +3464,7 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
     int unlink_limit = 3;
 #if GC_ENABLE_INCREMENTAL_MARK
     int need_pool = will_be_incremental_marking(objspace) ? TRUE : FALSE;
-    // need_pool = need_pool && is_sequential();
+    need_pool = need_pool && is_sequential();
 
     gc_report(2, objspace, "gc_sweep_step (need_pool: %d)\n", need_pool);
 #else
@@ -3464,14 +3479,18 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
 
     while (sweep_page) {
 	heap->sweep_pages = next = sweep_page->next;
-  // if(is_sequential() || page_is_safe(sweep_page)){
+
   	gc_page_sweep(objspace, heap, sweep_page);
   	if (sweep_page->final_slots + sweep_page->free_slots == sweep_page->total_slots &&
-  	    unlink_limit > 0) {
+
+        unlink_limit > 0) {
+          if(page_is_safe(sweep_page)){
   	    unlink_limit--;
+        // bop_msg(1, "Page was safe to link");
   	    /* there are no living objects -> move this page to tomb heap */
   	    heap_unlink_page(objspace, heap, sweep_page);
   	    heap_add_page(objspace, heap_tomb, sweep_page);
+          }
 
   	}
   	else if (sweep_page->free_slots > 0) {
@@ -3495,7 +3514,6 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
   	}
 
   	sweep_page = next;
-  // }
 
     }
 
@@ -9111,8 +9129,13 @@ int page_is_safe(struct heap_page * page){
   return (sequential || (page->ppr_hash == ppr_hash));
 }
 
-void pre_task_gc(){
-  rb_gc_start();
+void set_sequential_heap_info(){
+  // rb_gc_start();
+
+  rb_objspace_t *objspace = &rb_objspace;
+  heap_eden->sequential_freelist = heap_eden->freelist;
+  heap_eden->sequential_free_pages = heap_eden->free_pages;
+
 }
 
 void set_task_objspace()
@@ -9120,6 +9143,7 @@ void set_task_objspace()
     set_ppr_hash();
     rb_objspace_t *objspace = &rb_objspace;
     heap_eden->freelist = NULL;
+    heap_eden->free_pages = NULL;
     heap_add_bop_pages(objspace, heap_eden, ppr_init_page_no, ppr_hash);
 }
 
@@ -9129,7 +9153,7 @@ void initialize_understudy(){
 
 void reset_objspace()
 {
-  rb_gc_start();
+  // rb_gc_start();
 }
 
 void merge_heap_pages(){
@@ -9139,7 +9163,7 @@ void merge_heap_pages(){
 
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = pre_task_gc,
+    .ppr_group_init = set_sequential_heap_info,
     .ppr_task_init = set_task_objspace,
     .task_group_commit = reset_objspace,
     .task_group_succ_fini = merge_heap_pages,
