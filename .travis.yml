@@ -27,13 +27,9 @@ before_install:
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' && $CC = 'gcc' ]]; then CC='gcc-4.9'; fi"
 
-install:
-  - rake #actual build
-
-
 before_script: #before tests run
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then rm -f ~/Library/Logs/DiagnosticReports/ruby_*.crash; fi"
 
 #test script
 script:
-  - rake ruby_test_run
+  - make && make test
