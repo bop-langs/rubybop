@@ -304,7 +304,7 @@ Init_PPR() {
     rb_define_singleton_method(rb_cPPR, "puts", ppr_puts, 1);
     rb_define_singleton_method(rb_cPPR, "verbose", verbose, 1);
     rb_define_singleton_method(rb_cPPR, "set_group_size", set_group_size, 1);
-    rb_define_singleton_method(rb_cPPR, "group_size", get_group_size, 0);
+    rb_define_singleton_method(rb_cPPR, "get_group_size", get_group_size, 0);
     rb_define_singleton_method(rb_cPPR, "start", ppr_start, 1);
 
     rb_define_singleton_method(rb_cPPR, "task_status", rb_task_status, 0);
