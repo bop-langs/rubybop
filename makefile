@@ -9,10 +9,10 @@ bop_library:
 
 $(RB_MAKE_FILE): $(RUBY_DIR)/Makefile.in
 	@echo Configuring Ruby...
-	@cd ruby && autoconf && 	./configure
+	@cd ruby && autoconf && ./configure --disable-install-doc
 
 ruby: bop_library $(RB_MAKE_FILE)
-	@echo 'Initializiing'
+	@echo 'Building Ruby'
 	$(MAKE) -C $(RUBY_DIR)
 
 clean: $(RB_MAKE_FILE)
@@ -20,4 +20,5 @@ clean: $(RB_MAKE_FILE)
 	$(MAKE) -C $(RUBY_DIR) clean
 
 test: ruby
-	$(MAKE) -C $(RUBY_DIR) test
+	@echo 'Testing Ruby'
+	@cd $(RUBY_DIR) && ./miniruby ./bootstraptest/runner.rb
