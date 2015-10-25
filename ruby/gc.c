@@ -9160,10 +9160,6 @@ void reset_objspace()
 
 void merge_heap_pages(){
   set_ppr_hash();
-
-  //merge the heap array here
-  //reset the free list (gc might take care of it but be sure)
-
 }
 
 
