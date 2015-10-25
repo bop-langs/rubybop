@@ -13,8 +13,8 @@ module Enumerable
     		each_with_index{|i,n| PPR{yield(i,n)}}
   	end
 
-  	def peach_slice(n = PPR.GroupSize)
-		each_slice(to_a.size/n){|e|
+  	def peach_slice(n)
+		each_slice(n){|e|
 			PPR{yield e}
 		}
 		PPR.over
