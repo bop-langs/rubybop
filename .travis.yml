@@ -21,7 +21,12 @@ addons:
     packages:
     - gcc
     - clang
+#Change ssh addresses to the https equivalents on the fly
+git:
+  submodules: false
 before_install:
+  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+  - git submodule update --init --recursive 
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then JOBS='-j'; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then brew install autoconf openssl; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
