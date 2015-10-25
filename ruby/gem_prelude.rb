@@ -17,7 +17,6 @@ module Enumerable
 		each_slice(n){|e|
 			PPR{yield e}
 		}
-		PPR.over
 	end
 		
 end
