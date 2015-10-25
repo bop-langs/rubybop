@@ -1,8 +1,8 @@
 module Enumerable
-	def peach
+		def peach
     		each{|y| PPR{yield(y)}}
   	end
-  
+
   	def peach_with_index
     		each_with_index{|i,n| PPR{yield(i,n)}}
   	end
@@ -14,9 +14,7 @@ module Enumerable
 				e.each{ |element| yield element }
 			}
 		}
-		PPR.over
 	end
-		
 end
 
 $numbers = ARGV[0].to_i
@@ -28,12 +26,18 @@ puts $groups
 puts "initializing array"
 $array = (0..$numbers).to_a.shuffle.take($numbers)
 puts "array is #{$array.length} long"
-$partial_sums = Array.new($groups, 0)
+$partial_sums = Array.new($groups+1, 0)
 
 $array.peach_slice do |n|
-	$partial_sums[PPR.spec_order] += n**10 * n**20 - n**30 +1
+	order = PPR.spec_order
+	if(order >= 0)
+		$partial_sums[order] += n**10 * n**20 - n**30 + 1
+	else
+		$partial_sums[$groups] += n**10 * n**20 - n**30 + 1
+	end
 end
 
+PPR.over
 puts "partial sums"
 puts $partial_sum
 puts "final sum"

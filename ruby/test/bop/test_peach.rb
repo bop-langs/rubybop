@@ -2,18 +2,20 @@ module Enumerable
 	def peach
     		each{|y| PPR{yield(y)}}
   	end
-  
+
   	def peach_with_index
     		each_with_index{|i,n| PPR{yield(i,n)}}
   	end
 
-  	def peach_slice(n = PPR.GroupSize)
+  	def peach_slice
+		n = PPR.get_group_size
 		each_slice(to_a.size/n){|e|
-			PPR{yield e}
+			PPR {
+				e.each{ |element| yield element }
+			}
 		}
 		PPR.over
 	end
-		
 end
 
 $numbers = ARGV[0].to_i
@@ -33,4 +35,3 @@ puts "partial sums as follows"
 puts $partial_sums
 puts "final sum"
 puts $partial_sums.inject{|sum,x| sum + x }
-
