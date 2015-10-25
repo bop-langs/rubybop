@@ -1,3 +1,0 @@
-load '../../bop_test.rake'
-$params = '../one.txt ../two.txt b'
-bop_test 'string'
