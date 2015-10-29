@@ -1,3 +1,4 @@
+puts "\e[31m#{'Rake builds are deprecated. Use `make`'}\e[0m"
 task :default => :miniruby
 $bop_dir = "cbop"
 task :ruby_setup do
