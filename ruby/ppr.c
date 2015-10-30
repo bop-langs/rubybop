@@ -165,11 +165,9 @@ ppr_start(VALUE start_val){
   bool ppr_ok = pre_bop_begin();
   if(ppr_ok)
     BOP_ppr_begin(start_int);
-      rb_gc_disable();
       //set_rheap_null();
       bop_msg(3,"yielding block...");
       rb_yield(0);
-      rb_gc_enable();
   if(ppr_ok)
     BOP_ppr_end(start_int);
   return Qnil;
