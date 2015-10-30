@@ -9107,7 +9107,7 @@ Init_GC(void)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
-const int ppr_init_page_no = 20;
+const int ppr_init_page_no = 40;
 volatile int sequential = 1;
 
 union double_bit{
@@ -9131,12 +9131,9 @@ int page_is_safe(struct heap_page * page){
 
 void set_sequential_heap_info(){
 
-
   rb_objspace_t *objspace = &rb_objspace;
   heap_eden->sequential_freelist = heap_eden->freelist;
   heap_eden->sequential_free_pages = heap_eden->free_pages;
-
-  //store the heap array here
 
 }
 
