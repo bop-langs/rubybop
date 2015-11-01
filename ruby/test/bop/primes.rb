@@ -1,6 +1,5 @@
 require "prime"
 $input = ARGF.map{|i| i.to_i}
-#$input = (100000000..100000020).to_a
 $output_array = Array.new $input.size, 0
 $sum = 0
 
