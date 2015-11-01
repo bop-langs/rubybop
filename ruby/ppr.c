@@ -137,14 +137,14 @@ ppr_promise(VALUE ppr, VALUE obj)
 
 //DOES NOT HAVE THE SAME RETURN VALUE AS YIELD WOULD. THIS NEEDS MORE THOUGHT
 VALUE
-ppr_yield()
+ppr_yield(VALUE obj)
 {
     // VALUE * ret = NULL;
     bool ppr_ok = pre_bop_begin();
     if(ppr_ok)
       BOP_ppr_begin(1);
         bop_msg(3,"yielding block...");
-        rb_yield(INT2FIX(BOP_spec_order()));
+        rb_yield(obj);
     if(ppr_ok)
       BOP_ppr_end(1);
     return Qnil;

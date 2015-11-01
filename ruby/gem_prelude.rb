@@ -9,11 +9,11 @@ require 'rubygems.rb' if defined?(Gem)
 
 module Enumerable
         def peach
-                each{|y| PPR{yield(y)}}
+                self.each{|y| PPR{yield(y)}}
         end
 
         def peach_with_index
-                each_with_index{|i,n| PPR{yield(i,n)}}
+                self.each_with_index{|i,n| PPR{yield(i,n)}}
         end
 
         def peach_slice
@@ -27,5 +27,3 @@ module Enumerable
         end
 
 end
-
-
