@@ -11,9 +11,6 @@ env:
 matrix:
   fast_finish: true
 #dependencies for the ruby language
-exclude:
-  - os: osx
-    env: BOP_UndyFinish=0 BOP_GroupSize=4
 
 sudo: false
 addons:
@@ -21,20 +18,20 @@ addons:
     packages:
     - gcc
     - clang
-#Change ssh addresses to the https equivalents on the fly
-git:
-  submodules: false
 before_install:
-  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --init --recursive 
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then JOBS='-j'; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then brew install autoconf openssl; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' && $CC = 'gcc' ]]; then CC='gcc-4.9'; fi"
+
+install:
+  - rake #actual build
+
 
 before_script: #before tests run
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then rm -f ~/Library/Logs/DiagnosticReports/ruby_*.crash; fi"
 
 #test script
 script:
-  - make && make test
+  - rake bop_test
+  - rake ruby_test_run

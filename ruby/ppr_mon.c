@@ -4,8 +4,8 @@
 
 #include <internal.h>
 #include <ppr.h>
-#include "bop_api.h"
-#include "bop_ports.h"
+#include "../bop/bop_api.h"
+#include "../bop/bop_ports.h"
 
 st_table *ppr_pot = NULL;
 

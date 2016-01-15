@@ -521,12 +521,10 @@ val_marker(VALUE *var)
     if (data) rb_gc_mark_maybe(data);
 }
 
-extern int is_sequential();
-
 VALUE
 var_getter(ID id, void *data, struct global_variable *gvar)
 {
-    if(!is_sequential()) bop_msg(1, "Unimplemented getter");
+    BOP_obj_use_promise(data);
     VALUE *var = data;
     if (!var) return Qnil;
     return *var;
@@ -535,7 +533,7 @@ var_getter(ID id, void *data, struct global_variable *gvar)
 void
 var_setter(VALUE val, ID id, void *data, struct global_variable *gvar)
 {
-      if(!is_sequential()) bop_msg(1, "Unimplemented setter");
+    BOP_obj_use_promise(data);
     *(VALUE *)data = val;
 }
 void

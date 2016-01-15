@@ -42,13 +42,7 @@ Init_version(void)
      * The running version of ruby
      */
     rb_define_global_const("RUBY_VERSION", MKSTR(version));
-#define BOP_CONST(var) \
-    rb_define_global_const(#var, rb_usascii_str_new(var, sizeof(var) - 1));
-
-    BOP_CONST(BOP_VERSION);
-    BOP_CONST(BOP_DESCRIPTION);
-    BOP_CONST(RUBYBOP_DESCRIPTION);
-#undef BOP_CONST
+    rb_define_global_const("BOP_VERSION", rb_usascii_str_new(BOP_VERSION, sizeof(BOP_VERSION) - 1));
     /*
      * The date this ruby was released
      */
@@ -86,7 +80,6 @@ ruby_show_version(void)
 {
     PRINT(description);
     puts(BOP_VERSION);
-    puts(RUBYBOP_VERSION);
 #ifdef HAVE_MALLOC_CONF
     if (malloc_conf) printf("malloc_conf=%s\n", malloc_conf);
 #endif
