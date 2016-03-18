@@ -15,6 +15,10 @@ ruby: bop_library $(RB_MAKE_FILE)
 	@echo 'Building Ruby'
 	$(MAKE) -C $(RUBY_DIR)
 
+miniruby: bop_library $(RB_MAKE_FILE)
+	@echo 'Building miniruby'
+	$(MAKE) -C $(RUBY_DIR) miniruby
+
 clean: $(RB_MAKE_FILE)
 	$(MAKE) -C $(BOP_DIR) clean
 	$(MAKE) -C $(RUBY_DIR) clean

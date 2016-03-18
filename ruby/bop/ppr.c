@@ -5,14 +5,12 @@
 #include "bop_api.h"
 #include "bop_ports.h"
 
-//TODO get get ppr_mon to work
 
 //SEARCH BRIAN in the repo to see which files were edited in MRI
 //TODO get this to work
 //extern bop_port_t ruby_monitor;
 extern bop_port_t rubyheap_port;
 
-//VALUE proc_invoke _((VALUE, VALUE, VALUE, VALUE)); // eval.c, line 235
 
 extern void BOP_use(void*, size_t);
 extern void BOP_promise(void*, size_t);
@@ -35,49 +33,9 @@ bool pre_bop_begin(){
   bop_msg(4, "Pre-ppr check is valid! Allowing to enter PPR region");
   return true;
 }
+
 int is_sequential(){
   return SEQUENTIAL;
-}
-static int recurse = 1;
-
-void BOP_obj_use(VALUE obj){
-  if (recurse){
-    int size = 0;
-    recurse = 0;
-    size = rb_obj_memsize_of(obj);
-    if(size!=0){
-      bop_msg(5, "Using object %p (%lu) at address %p with size %d", (void*) (obj), obj, &obj, size);
-      BOP_use((void*) obj, size);
-    }
-    recurse = 1;
-  }
-}
-void BOP_obj_promise(VALUE obj){
-  if (recurse){
-    int size = 0;
-    recurse = 0;
-    size = rb_obj_memsize_of(obj);
-    if(size!=0){
-      bop_msg(5, "Promising object %p (%lu) at address %p with size %d", (void*) (obj), obj, &obj, size);
-      BOP_promise((void*)obj, size);
-    }
-    recurse = 1;
-  }
-}
-
-void _BOP_obj_use_promise(VALUE obj, const char* file, int line, const char* function){
-  if(!SEQUENTIAL && (obj != 0L || !FIXNUM_P(obj))){
-    int size = rb_obj_memsize_of(obj);
-    if (size > 0){
-      bop_msg(1, "USE PROMISE \tfile: %s line: %d function: %s\t object: %016llx size: %d\t", file, line, function, obj, size);
-      BOP_obj_use(obj);
-      BOP_obj_promise(obj);
-    }
-  }
-}
-
-void obj_get_mem_pointers(VALUE obj){
-
 }
 
 extern void set_rheap_nulll(void);
@@ -121,19 +79,6 @@ ppr_meaning() {
     return LONG2NUM(42);
 }
 
-static VALUE
-ppr_use(VALUE ppr, VALUE obj)
-{
-    BOP_obj_use(obj);
-    return obj;
-}
-
-static VALUE
-ppr_promise(VALUE ppr, VALUE obj)
-{
-    BOP_obj_promise(obj);
-    return obj;
-}
 
 //DOES NOT HAVE THE SAME RETURN VALUE AS YIELD WOULD. THIS NEEDS MORE THOUGHT
 VALUE
@@ -183,56 +128,6 @@ ordered_start(VALUE start_val){
   return Qnil;
 }
 
-
-/* TODO define Ruby method
-static VALUE
-ppr_info(ppr, obj)
-VALUE ppr, obj;
-{
-    char buf1[50], buf2[50], buf3[50];
-    sprintf(buf1, "Value (hex): %lx", (unsigned long int) obj);
-    sprintf(buf2, "Masked Value (hex): %lx", (unsigned long int) obj & 0xfffffffffffffffe);
-    sprintf(buf3, "RShift Value (dec): %ld", ((unsigned long int) obj) >> 1);
-    rb_funcall(ppr, rb_intern("puts"), 1, rb_str_new2(buf1));
-    rb_funcall(ppr, rb_intern("puts"), 1, rb_str_new2(buf2));
-    rb_funcall(ppr, rb_intern("puts"), 1, rb_str_new2(buf3));
-
-    return Qnil;
-}*/
-//TODO get these to work
-/*
-extern st_table *ppr_pot;
-void bop_scan_table( st_table* );
-
-static int add_i( VALUE key, VALUE obj, VALUE ary ) {
-  if ( key == ary ) return ST_CONTINUE;
-
-  if ( CLASS_OF(key) == NULL ) {
-    bop_msg( 5, "pot obj %llx has no class (terminated)", key );
-    return ST_CONTINUE;
-  }
-
-  if ( (void*) obj == bop_scan_table ) {
-    bop_msg( 5, "pot st_table %llx has %d entries",
-	     key, ((st_table*)key)->num_entries );
-    return ST_CONTINUE;
-  }
-
-  RARRAY_PTR(ary)[ RARRAY(ary)->as.heap.len ++ ] = key;
-
-  return ST_CONTINUE;
-}
-
-
-//TODO get these to work
-static VALUE
-get_pot(void)
-{
-  VALUE ary = rb_ary_new2( ppr_pot->num_entries );
-  st_foreach( ppr_pot, add_i, ary );
-  return ary;
-}
-*/
 
 static VALUE
 ppr_ppr_index(ppr)
@@ -289,8 +184,6 @@ Init_PPR() {
 
     rb_cPPR = rb_define_class("PPR", rb_cProc);
     rb_define_method(rb_cPPR, "meaning", ppr_meaning, 0);
-    rb_define_singleton_method(rb_cPPR, "use", ppr_use, 1);
-    rb_define_singleton_method(rb_cPPR, "promise", ppr_promise, 1);
     rb_define_singleton_method(rb_cPPR, "yield", ppr_yield, 1);
     rb_define_singleton_method(rb_cPPR, "ppr_index", ppr_ppr_index, 0);
     rb_define_singleton_method(rb_cPPR, "spec_order", ppr_spec_order, 0);
