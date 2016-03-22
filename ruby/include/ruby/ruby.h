@@ -14,6 +14,8 @@
 #ifndef RUBY_RUBY_H
 #define RUBY_RUBY_H 1
 
+#include "ruby/obj_monitoring.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #if 0
@@ -787,13 +789,14 @@ VALUE rb_obj_reveal(VALUE obj, VALUE klass); /* do not use this API to change kl
 struct RObject {
     struct RBasic basic;
     union {
-	struct {
-	    long numiv; /* only uses 32-bits */
-	    VALUE *ivptr;
-            struct st_table *iv_index_tbl; /* shortcut for RCLASS_IV_INDEX_TBL(rb_obj_class(obj)) */
-	} heap;
-	VALUE ary[ROBJECT_EMBED_LEN_MAX];
+	     struct {
+  	      long numiv; /* only uses 32-bits */
+  	      VALUE *ivptr;
+          struct st_table *iv_index_tbl; /* shortcut for RCLASS_IV_INDEX_TBL(rb_obj_class(obj)) */
+  	    } heap;
+    	VALUE ary[ROBJECT_EMBED_LEN_MAX];
     } as;
+  bop_record * record;
 };
 #define ROBJECT_EMBED FL_USER1
 #define ROBJECT_NUMIV(o) \
@@ -890,6 +893,7 @@ struct RArray {
 	} heap;
 	const VALUE ary[RARRAY_EMBED_LEN_MAX];
     } as;
+    bop_record * record;
 };
 #define RARRAY_EMBED_FLAG FL_USER1
 /* FL_USER2 is for ELTS_SHARED */
