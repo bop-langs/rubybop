@@ -9071,13 +9071,10 @@ void detach_free_list(rb_objspace_t *objspace);
 
 void group_pages(){
   rb_gc_start();
-  bop_msg(0, "testing for sanity");
-
 }
 
 void heap_init(){
   rb_gc_start();
-
 }
 
 void reset_heap(){

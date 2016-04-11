@@ -10,6 +10,7 @@
 //TODO get this to work
 //extern bop_port_t ruby_monitor;
 extern bop_port_t rubyheap_port;
+extern bop_port_t rb_object_port;
 
 
 extern void BOP_use(void*, size_t);
@@ -206,6 +207,7 @@ Init_PPR() {
     //register_port(&ruby_monitor, "Ruby Object Monitoring Port");
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
     register_port(&rubyheap_port, (char*) "RubyHeap Port");
+    register_port(&rb_object_port, (char*) "Ruby object port");
 }
 
 void

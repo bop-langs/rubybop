@@ -8,7 +8,7 @@
 #include "bop_ports.h"
 
 //config options
-#define SHM_SIZE (1<<13)
+#define SHM_SIZE (1<<13) //2 pages (assuming 4kb pages)
 #define MAX_RECORDS ((SHM_SIZE) / sizeof(bop_record_t))
 #define MAX_PROBES MAX_RECORDS
 #define READ_BIT 0
@@ -103,3 +103,7 @@ void updatelist(VALUE obj){
   node->obj = obj;
   updated_list = node;
 }
+
+bop_port_t rb_object_port = {
+	.ppr_group_init		= init_obj_monitor,
+};
