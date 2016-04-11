@@ -21,7 +21,7 @@ typedef struct{
 
 typedef struct{
   struct update_node_t * next;
-  VALUE obj;
+  bop_record_t * record;
 } update_node_t;
 
 static volatile bop_record_t  volatile * records = NULL;
@@ -29,13 +29,16 @@ static update_node_t * updated_list = NULL;
 
 int getbasebit(void);
 volatile int64_t * get_access_vector(VALUE);
-void updatelist(VALUE);
+void updatelist(bop_record_t*);
 
 void record_bop_rd(VALUE obj){
   volatile int64_t * vector = get_access_vector(obj);
   int64_t bit_index = getbasebit() + READ_BIT;
   int64_t update_bit = 1 << bit_index;
   __sync_fetch_and_or(vector, update_bit); //returns the old value
+}
+bop_record_t * vector_to_record(int64_t* vector){
+  return (bop_record_t *) (((char*) vector) - offsetof(bop_record_t, vector));
 }
 
 void record_bop_wrt(VALUE obj){
@@ -46,7 +49,7 @@ void record_bop_wrt(VALUE obj){
   if( old_vector & ~update_bit){
     //if the above, then this is the first write the this VALUE. this means
     // it must be added to the promise list
-    updatelist(obj);
+    updatelist((bop_record_t*) vector_to_record((int64_t*) vector));
   }
 }
 
@@ -97,13 +100,25 @@ void init_obj_monitor(){
   updated_list = NULL;
 }
 
-void updatelist(VALUE obj){
+void updatelist(bop_record_t * record){
   update_node_t * node = malloc(sizeof(update_node_t));
   node->next = (struct update_node_t *) updated_list;
-  node->obj = obj;
+  node->record = record;
   updated_list = node;
+}
+//TODO which task calls this function? lower or higher indexed task??
+int rb_object_correct(){
+  update_node_t * node;
+  int index = getbasebit();
+  for(node = updated_list; node; node = (update_node_t *) node->next){
+    int vector = (node->record->vector >> index) & 0xf;
+    if((vector & 0x2) && (vector & 0x4)) //p0 wrote & p1 read it
+      return 0;
+  }
+  return 1;
 }
 
 bop_port_t rb_object_port = {
 	.ppr_group_init		= init_obj_monitor,
+  .ppr_check_correctness = rb_object_correct,
 };
