@@ -9,7 +9,7 @@
 
 //config options
 #define SHM_SIZE (1<<13) //2 pages (assuming 4kb pages)
-#define MAX_RECORDS ((SHM_SIZE) / sizeof(bop_record_t))
+#define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
 #define MAX_PROBES MAX_RECORDS
 #define READ_BIT 0
 #define WRITE_BIT 1
@@ -17,7 +17,7 @@
 
 typedef struct{
   volatile bop_key_t obj; //for checking
-  volatile int64_t vector;
+  volatile uint64_t vector;
 } bop_record_t;
 
 typedef struct{
@@ -30,27 +30,35 @@ static update_node_t * updated_list = NULL;
 
 
 int getbasebit(void);
-volatile int64_t * get_access_vector(bop_key_t);
+volatile uint64_t * get_access_vector(bop_key_t);
 volatile bop_record_t * get_record(bop_key_t);
 void updatelist(bop_record_t*);
 extern int is_sequential();
 
 
 void record_bop_rd(bop_key_t obj){
-  volatile int64_t * vector = get_access_vector(obj);
-  int64_t bit_index = getbasebit() + READ_BIT;
-  int64_t update_bit = 1 << bit_index;
+  if(is_sequential()) return;
+  volatile uint64_t * vector = get_access_vector(obj);
+  if(vector == NULL){
+    assert(BOP_task_status() == MAIN);
+    return;
+  }
+  uint64_t bit_index = getbasebit() + READ_BIT;
+  uint64_t update_bit = 1 << bit_index;
   __sync_fetch_and_or(vector, update_bit); //returns the old value
 }
 
 void record_bop_wrt(bop_key_t obj){
   if(is_sequential()) return;
-    printf("recording write for %p\n", obj);
   volatile bop_record_t * record = get_record(obj);
-  volatile int64_t * vector = &record->vector;
-  int64_t bit_index = getbasebit() + WRITE_BIT;
-  int64_t update_bit = 1 << bit_index;
-  int64_t old_vector = __sync_fetch_and_or(vector, update_bit); //returns the old value
+  if(record == NULL){
+    assert(BOP_task_status == MAIN);
+    return;
+  }
+  volatile uint64_t * vector = &record->vector;
+  uint64_t bit_index = getbasebit() + WRITE_BIT;
+  uint64_t update_bit = 1 << bit_index;
+  uint64_t old_vector = __sync_fetch_and_or(vector, update_bit); //returns the old value
   if( (old_vector & update_bit) == 0){
     //if the bit was not set in the old vector, then this is the first write to it
     // add it to the promise list
@@ -59,7 +67,7 @@ void record_bop_wrt(bop_key_t obj){
 }
 
 //from: http://stackoverflow.com/questions/6943493/hash-table-with-64-bit-values-as-key
-int64_t hash(int64_t key){
+uint64_t hash(uint64_t key){
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -73,27 +81,34 @@ int64_t hash(int64_t key){
 
 volatile bop_record_t * get_record(bop_key_t obj){
   uint probes;
-  int64_t index;
+  uint64_t rnd_probes;
+  uint64_t index;
   bop_key_t cas_value;
-  int64_t base_index = hash((int64_t) obj);
+  uint64_t base_index = hash((uint64_t) obj);
   for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
+    fflush(stderr);
     if(records[index].obj == obj) //already set to this object
       return &records[index];
     else if(records[index].obj == 0){
       //found un-allocated. Allocate it atomically
       cas_value = (bop_key_t) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
-      if(cas_value == NULL || cas_value == obj)
+      if(cas_value == NULL || cas_value == obj){
+        rnd_probes = __sync_add_and_fetch(&records[MAX_RECORDS - 2].vector, probes);
         //valid if either this task set it to the corresponding object or if another did
         return &records[index];
+      }
     }
   }
   BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
   return NULL;
 }
 
-inline volatile int64_t * get_access_vector(bop_key_t obj){
-  return &get_record(obj)->vector;
+volatile uint64_t * get_access_vector(bop_key_t obj){
+  bop_record_t * record = get_record(obj);
+  if(record)
+    return &record->vector;
+  else return NULL;
 }
 
 inline int getbasebit(){
@@ -101,6 +116,7 @@ inline int getbasebit(){
 }
 
 void init_obj_monitor(){
+  bop_msg(1, "Initializng object monitor");
   records = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   if(records == MAP_FAILED){
     perror("mmap failed");
