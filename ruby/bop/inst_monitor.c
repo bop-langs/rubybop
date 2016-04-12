@@ -13,9 +13,10 @@
 #define MAX_PROBES MAX_RECORDS
 #define READ_BIT 0
 #define WRITE_BIT 1
+typedef VALUE* bop_key_t;
 
 typedef struct{
-  volatile VALUE obj; //for checking
+  volatile bop_key_t obj; //for checking
   volatile int64_t vector;
 } bop_record_t;
 
@@ -24,32 +25,38 @@ typedef struct{
   bop_record_t * record;
 } update_node_t;
 
-static volatile bop_record_t  volatile * records = NULL;
+static bop_record_t * records = NULL;
 static update_node_t * updated_list = NULL;
 
-int getbasebit(void);
-volatile int64_t * get_access_vector(VALUE);
-void updatelist(bop_record_t*);
 
-void record_bop_rd(VALUE obj){
+int getbasebit(void);
+volatile int64_t * get_access_vector(bop_key_t);
+volatile bop_record_t * get_record(bop_key_t);
+void updatelist(bop_record_t*);
+extern int is_sequential();
+
+
+void record_bop_rd(bop_key_t obj){
+  return;
   volatile int64_t * vector = get_access_vector(obj);
   int64_t bit_index = getbasebit() + READ_BIT;
   int64_t update_bit = 1 << bit_index;
   __sync_fetch_and_or(vector, update_bit); //returns the old value
 }
-bop_record_t * vector_to_record(int64_t* vector){
-  return (bop_record_t *) (((char*) vector) - offsetof(bop_record_t, vector));
-}
 
-void record_bop_wrt(VALUE obj){
-  volatile int64_t * vector = get_access_vector(obj);
+void record_bop_wrt(bop_key_t obj){
+  return;
+  if(is_sequential()) return;
+    printf("recording write for %p\n", obj);
+  volatile bop_record_t * record = get_record(obj);
+  volatile int64_t * vector = &record->vector;
   int64_t bit_index = getbasebit() + WRITE_BIT;
   int64_t update_bit = 1 << bit_index;
   int64_t old_vector = __sync_fetch_and_or(vector, update_bit); //returns the old value
-  if( old_vector & ~update_bit){
-    //if the above, then this is the first write the this VALUE. this means
-    // it must be added to the promise list
-    updatelist((bop_record_t*) vector_to_record((int64_t*) vector));
+  if( (old_vector & update_bit) == 0){
+    //if the bit was not set in the old vector, then this is the first write to it
+    // add it to the promise list
+    updatelist((bop_record_t *) record);
   }
 }
 
@@ -65,25 +72,30 @@ int64_t hash(int64_t key){
   return key;
 }
 
-volatile int64_t * get_access_vector(VALUE obj){
+
+volatile bop_record_t * get_record(bop_key_t obj){
   uint probes;
   int64_t index;
-  VALUE cas_value;
+  bop_key_t cas_value;
   int64_t base_index = hash((int64_t) obj);
   for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
     if(records[index].obj == obj) //already set to this object
-      return &records[index].vector;
+      return &records[index];
     else if(records[index].obj == 0){
       //found un-allocated. Allocate it atomically
-      cas_value = (VALUE) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
-      if(cas_value == 0 || cas_value == obj)
+      cas_value = (bop_key_t) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
+      if(cas_value == NULL || cas_value == obj)
         //valid if either this task set it to the corresponding object or if another did
-        return &records[index].vector;
+        return &records[index];
     }
   }
   BOP_abort_spec("Couldn't create set up a new access vector for object!");
   return NULL;
+}
+
+inline volatile int64_t * get_access_vector(bop_key_t obj){
+  return &get_record(obj)->vector;
 }
 
 inline int getbasebit(){
@@ -118,7 +130,25 @@ int rb_object_correct(){
   return 1;
 }
 
+static void free_list(update_node_t * node){
+  if(node->next != NULL)
+    free_list((update_node_t *) node->next);
+  free(node);
+}
+void free_all(){
+  if(updated_list != NULL)
+    free_list(updated_list);
+}
+void restore_seq(){
+  free_all();
+  if(records != NULL)
+    if(munmap((void*)records, SHM_SIZE) == -1){
+      perror("Couldn't unmap the shared mem region");
+    }
+}
 bop_port_t rb_object_port = {
 	.ppr_group_init		= init_obj_monitor,
   .ppr_check_correctness = rb_object_correct,
+  .task_group_succ_fini = restore_seq,
+  .undy_init = restore_seq,
 };
