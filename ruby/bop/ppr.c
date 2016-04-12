@@ -201,6 +201,10 @@ Init_PPR() {
 
     rb_define_singleton_method(rb_cPPR, "task_status", rb_task_status, 0);
 
+    //record read and write
+    // rb_define_singleton_method(rb_cPPR, "read", record_bop_rd, 1);
+    // rb_define_singleton_method(rb_cPPR, "write", record_bop_wrt, 1);
+
     rb_define_method(rb_mKernel, "PPR", ppr_start, 0);
 
     //TODO get this uncommented

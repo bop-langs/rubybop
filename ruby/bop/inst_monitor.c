@@ -13,7 +13,7 @@
 #define MAX_PROBES MAX_RECORDS
 #define READ_BIT 0
 #define WRITE_BIT 1
-typedef VALUE* bop_key_t;
+
 
 typedef struct{
   volatile bop_key_t obj; //for checking
@@ -37,7 +37,6 @@ extern int is_sequential();
 
 
 void record_bop_rd(bop_key_t obj){
-  return;
   volatile int64_t * vector = get_access_vector(obj);
   int64_t bit_index = getbasebit() + READ_BIT;
   int64_t update_bit = 1 << bit_index;
@@ -45,7 +44,6 @@ void record_bop_rd(bop_key_t obj){
 }
 
 void record_bop_wrt(bop_key_t obj){
-  return;
   if(is_sequential()) return;
     printf("recording write for %p\n", obj);
   volatile bop_record_t * record = get_record(obj);
@@ -90,7 +88,7 @@ volatile bop_record_t * get_record(bop_key_t obj){
         return &records[index];
     }
   }
-  BOP_abort_spec("Couldn't create set up a new access vector for object!");
+  BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
   return NULL;
 }
 
@@ -126,6 +124,7 @@ int rb_object_correct(){
     int vector = (node->record->vector >> index) & 0xf;
     if((vector & 0x2) && (vector & 0x4)) //p0 wrote & p1 read it
       return 0;
+    BOP_promise((void*) node->record->obj, sizeof(VALUE));
   }
   return 1;
 }
@@ -146,9 +145,16 @@ void restore_seq(){
       perror("Couldn't unmap the shared mem region");
     }
 }
+void obj_commit(){
+  // update_node_t * node;
+  // for(node = updated_list; node; node = (update_node_t *) node->next){
+  // }
+  bop_msg(3, "rb obj commit called");
+}
 bop_port_t rb_object_port = {
 	.ppr_group_init		= init_obj_monitor,
   .ppr_check_correctness = rb_object_correct,
   .task_group_succ_fini = restore_seq,
   .undy_init = restore_seq,
+  .data_commit = obj_commit,
 };

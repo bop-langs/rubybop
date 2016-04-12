@@ -1277,7 +1277,11 @@ rb_obj_written(VALUE a, RB_UNUSED_VAR(VALUE oldv), VALUE b, RB_UNUSED_VAR(const 
 
     return a;
 }
-extern void record_bop_wrt(VALUE*);
+//BOP object functions
+typedef VALUE bop_key_t;
+extern void record_bop_wrt(bop_key_t);
+extern void record_bop_rd(bop_key_t);
+
 static inline VALUE
 rb_obj_write(VALUE a, VALUE *slot, VALUE b, RB_UNUSED_VAR(const char *filename), RB_UNUSED_VAR(int line))
 {
@@ -1286,7 +1290,6 @@ rb_obj_write(VALUE a, VALUE *slot, VALUE b, RB_UNUSED_VAR(const char *filename),
 #endif
 
     *slot = b;
-    record_bop_wrt(slot);
 #if USE_RGENGC
     rb_obj_written(a, Qundef /* ignore `oldv' now */, b, filename, line);
 #endif
