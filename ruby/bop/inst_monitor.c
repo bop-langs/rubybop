@@ -151,6 +151,19 @@ void obj_commit(){
   // }
   bop_msg(3, "rb obj commit called");
 }
+void copy_obj(VALUE obj){
+  switch(TYPE(obj)){
+  case T_ARRAY:
+    bop_msg(1, "Copying Array");
+    break;
+  case T_STRING:
+    bop_msg(1, "Copying String");
+    break;
+
+
+  }
+
+}
 bop_port_t rb_object_port = {
 	.ppr_group_init		= init_obj_monitor,
   .ppr_check_correctness = rb_object_correct,
