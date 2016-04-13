@@ -6,7 +6,7 @@
 #include "ruby.h"
 #include "bop_api.h"
 #include "bop_ports.h"
-#include "inst_monitor.h"
+#include "object_monitor.h"
 
 static bop_record_t * records = NULL;
 static update_node_t * updated_list = NULL;
