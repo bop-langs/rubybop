@@ -6,65 +6,61 @@
 #include "ruby.h"
 #include "bop_api.h"
 #include "bop_ports.h"
-
-//config options
-#define SHM_SIZE (1<<13) //2 pages (assuming 4kb pages)
-#define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
-#define MAX_PROBES MAX_RECORDS
-#define READ_BIT 0
-#define WRITE_BIT 1
-
-
-typedef struct{
-  volatile bop_key_t obj; //for checking
-  volatile uint64_t vector;
-} bop_record_t;
-
-typedef struct{
-  struct update_node_t * next;
-  bop_record_t * record;
-} update_node_t;
+#include "inst_monitor.h"
 
 static bop_record_t * records = NULL;
 static update_node_t * updated_list = NULL;
 
+static inline void update_list(bop_record_t*);
 
-int getbasebit(void);
-volatile uint64_t * get_access_vector(bop_key_t);
-volatile bop_record_t * get_record(bop_key_t);
-void updatelist(bop_record_t*);
-extern int is_sequential();
-
-
-void record_bop_rd(bop_key_t obj){
+/**
+ * Record access -- set
+ *
+ * @method record_access
+ *
+ * @param  object        The Ruby object (VALUE) that is accessed
+ * @param  key           Instance variable key
+ * @param  is_valid      is the ID valid? true for instance variable false for objects
+ * @param  op            READ_BIT or WRITE_BIT
+ */
+static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op){
   if(is_sequential()) return;
-  volatile uint64_t * vector = get_access_vector(obj);
-  if(vector == NULL){
+  bop_record_t * record = get_record(object);
+  if(record == NULL){
     assert(BOP_task_status() == MAIN);
     return;
   }
-  uint64_t bit_index = getbasebit() + READ_BIT;
+  //update the access vector
+  uint64_t bit_index = getbasebit() + op;
   uint64_t update_bit = 1 << bit_index;
-  __sync_fetch_and_or(vector, update_bit); //returns the old value
-}
-
-void record_bop_wrt(bop_key_t obj){
-  if(is_sequential()) return;
-  volatile bop_record_t * record = get_record(obj);
-  if(record == NULL){
-    assert(BOP_task_status == MAIN);
-    return;
-  }
-  volatile uint64_t * vector = &record->vector;
-  uint64_t bit_index = getbasebit() + WRITE_BIT;
-  uint64_t update_bit = 1 << bit_index;
-  uint64_t old_vector = __sync_fetch_and_or(vector, update_bit); //returns the old value
-  if( (old_vector & update_bit) == 0){
+  uint64_t old_vector = __sync_fetch_and_or(&record->vector, update_bit); //returns the old value
+  if( op == WRITE_BIT && (old_vector & update_bit) == 0){
     //if the bit was not set in the old vector, then this is the first write to it
     // add it to the promise list
-    updatelist((bop_record_t *) record);
+    update_list(record);
+  }
+  //set the ID & id_valid
+  if(id_valid){
+    record->id = key;
+    record->id_valid = id_valid;
   }
 }
+
+//utility functions that fill in the parameters for @record_bop_access
+void record_bop_rd_id(VALUE obj, ID id){
+  record_bop_access(obj, id, true, READ_BIT);
+}
+void record_bop_wrt_id(VALUE obj, ID id){
+  record_bop_access(obj, id, true, WRITE_BIT);
+}
+
+void record_bop_rd_obj(VALUE obj){
+  record_bop_access(obj, (ID) 0, false, READ_BIT);
+}
+void record_bop_wrt_obj(VALUE obj){
+  record_bop_access(obj, (ID) 0, false, WRITE_BIT);
+}
+
 
 //from: http://stackoverflow.com/questions/6943493/hash-table-with-64-bit-values-as-key
 uint64_t hash(uint64_t key){
@@ -79,11 +75,10 @@ uint64_t hash(uint64_t key){
 }
 
 
-volatile bop_record_t * get_record(bop_key_t obj){
+bop_record_t * get_record(VALUE obj){
   uint probes;
-  uint64_t rnd_probes;
   uint64_t index;
-  bop_key_t cas_value;
+  VALUE cas_value;
   uint64_t base_index = hash((uint64_t) obj);
   for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
@@ -92,9 +87,8 @@ volatile bop_record_t * get_record(bop_key_t obj){
       return &records[index];
     else if(records[index].obj == 0){
       //found un-allocated. Allocate it atomically
-      cas_value = (bop_key_t) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
-      if(cas_value == NULL || cas_value == obj){
-        rnd_probes = __sync_add_and_fetch(&records[MAX_RECORDS - 2].vector, probes);
+      cas_value = (VALUE) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
+      if(cas_value == 0 || cas_value == obj){
         //valid if either this task set it to the corresponding object or if another did
         return &records[index];
       }
@@ -104,34 +98,27 @@ volatile bop_record_t * get_record(bop_key_t obj){
   return NULL;
 }
 
-volatile uint64_t * get_access_vector(bop_key_t obj){
-  bop_record_t * record = get_record(obj);
-  if(record)
-    return &record->vector;
-  else return NULL;
-}
 
-inline int getbasebit(){
-  return BOP_spec_order() * 2; // 2 comes from 2 bits per task
-}
 
+// BOP-ports
 void init_obj_monitor(){
   bop_msg(1, "Initializng object monitor");
   records = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  // mmap MAP_ANONYMOUS will already clear all bits
   if(records == MAP_FAILED){
     perror("mmap failed");
     exit(-1);
   }
-  memset((void*)records, 0, SHM_SIZE);
   updated_list = NULL;
 }
 
-void updatelist(bop_record_t * record){
+static inline void update_list(bop_record_t * record){
   update_node_t * node = malloc(sizeof(update_node_t));
   node->next = (struct update_node_t *) updated_list;
   node->record = record;
   updated_list = node;
 }
+
 //TODO which task calls this function? lower or higher indexed task??
 int rb_object_correct(){
   update_node_t * node;

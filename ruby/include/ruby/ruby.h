@@ -1277,10 +1277,6 @@ rb_obj_written(VALUE a, RB_UNUSED_VAR(VALUE oldv), VALUE b, RB_UNUSED_VAR(const 
 
     return a;
 }
-//BOP object functions
-typedef VALUE bop_key_t;
-extern void record_bop_wrt(bop_key_t);
-extern void record_bop_rd(bop_key_t);
 
 static inline VALUE
 rb_obj_write(VALUE a, VALUE *slot, VALUE b, RB_UNUSED_VAR(const char *filename), RB_UNUSED_VAR(int line))
