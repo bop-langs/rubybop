@@ -18,11 +18,16 @@
 #define WRITE_BIT (1)
 #define MAX_PPR (member_size(bop_record_t, vector) * 4) // vector size in bits over 2 (x 8/2 == 4)
 
+//x86-64 sizes
+//32B with id_valid field allowing for 250 obj using 2 pages
+//24B without id_valid field allowing for 333.3 -> 333 objects
 typedef struct{
   volatile VALUE obj; //for checking
   volatile uint64_t vector;
   volatile ID id;
+#ifdef HAVE_USE_PROMISE
   bool id_valid;
+#endif
 } bop_record_t;
 
 typedef struct{
@@ -45,10 +50,10 @@ extern int is_sequential();
 
 void record_bop_rd_id(VALUE, ID);
 void record_bop_wrt_id(VALUE, ID);
-
+#ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE);
 void record_bop_wrt_obj(VALUE);
-
+#endif
 //return the spec index of the first writer of the record greater than min_ppr
 // i.e. min_ppr + 1 is the first valid return value
 // return - 1 on failure / none found
@@ -96,6 +101,13 @@ static inline int next_accessor(bop_record_t * record, unsigned min_ppr){
   return -1;
 }
 
+static inline bool record_id_valid(bop_record_t * record){
+#ifdef HAVE_USE_PROMISE
+  return record == NULL ? false : record->id_valid;
+#else
+  return record == NULL ? false : true;
+#endif
+}
 //return the PPR index of the first accessor of the given or -1 if none is found
 static inline int first_accessor(bop_record_t * record){
   return next_accessor(record, -1);

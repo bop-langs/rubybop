@@ -42,7 +42,9 @@ static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op
   //set the ID & id_valid
   if(id_valid){
     record->id = key;
+#ifdef HAVE_USE_PROMISE
     record->id_valid = id_valid;
+#endif
   }
 }
 
@@ -53,13 +55,14 @@ void record_bop_rd_id(VALUE obj, ID id){
 void record_bop_wrt_id(VALUE obj, ID id){
   record_bop_access(obj, id, true, WRITE_BIT);
 }
-
+#ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE obj){
   record_bop_access(obj, (ID) 0, false, READ_BIT);
 }
 void record_bop_wrt_obj(VALUE obj){
   record_bop_access(obj, (ID) 0, false, WRITE_BIT);
 }
+#endif
 
 
 //from: http://stackoverflow.com/questions/6943493/hash-table-with-64-bit-values-as-key
@@ -78,7 +81,7 @@ uint64_t hash(uint64_t key){
 bop_record_t * get_record(VALUE obj){
   uint probes;
   uint64_t index;
-  VALUE cas_value;
+  VALUE old_obj;
   uint64_t base_index = hash((uint64_t) obj);
   for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
@@ -87,8 +90,8 @@ bop_record_t * get_record(VALUE obj){
       return &records[index];
     else if(records[index].obj == 0){
       //found un-allocated. Allocate it atomically
-      cas_value = (VALUE) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
-      if(cas_value == 0 || cas_value == obj){
+      old_obj = (VALUE) __sync_val_compare_and_swap(&records[index].obj, NULL, obj);
+      if(old_obj == 0 || old_obj == obj){
         //valid if either this task set it to the corresponding object or if another did
         return &records[index];
       }
