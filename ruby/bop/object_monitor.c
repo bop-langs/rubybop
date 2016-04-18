@@ -8,6 +8,7 @@
 #include "bop_api.h"
 #include "bop_ports.h"
 #include "object_monitor.h"
+#include "gc.h"
 
 static bop_record_t * records = NULL;
 static update_node_t * updated_list = NULL;
@@ -57,15 +58,39 @@ void record_bop_wrt_id(VALUE obj, ID id){
   record_bop_access(obj, id, true, WRITE_BIT);
 }
 //TODO clear out all records matching the object (eg. for all inst vars)
+static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
+  update_node_t* prev, *current; //for linked-list removal
+  record_id_t record_id;
+  bop_record_t * record = get_record(obj, -1); //-1 is a dummy value
+  if(record == NULL) return;
+  record_id = record->record_id;
+  record->vector = 0;
+  __sync_synchronize(); //full memory barrier
+  assert(__sync_and_and_fetch(&record->record_id, 0) == 0);
+  //remove from task-local update_list
+  for(prev = NULL, current = updated_list; current != NULL;
+      prev = current, current = current->next){
+        if(current->record_id == record_id){
+          if(prev == NULL)
+            updated_list = current->next;
+          else
+            prev->next = current->next;
+          free(current);
+        }
+  }
+}
 void record_bop_gc(VALUE obj){
-  return;
+  record_bop_gc_pr(obj, -1); //todo iterate over all of obj's instance variables
+#ifdef HAVE_USE_PROMISE
+  record_bop_gc_pr(obj, DUMMY_ID); //
+#endif
 }
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE obj){
-  record_bop_access(obj, (ID) 0, false, READ_BIT);
+  record_bop_access(obj, DUMMY_ID, false, READ_BIT);
 }
 void record_bop_wrt_obj(VALUE obj){
-  record_bop_access(obj, (ID) 0, false, WRITE_BIT);
+  record_bop_access(obj, DUMMY_ID, false, WRITE_BIT);
 }
 #endif
 
@@ -94,26 +119,34 @@ static inline record_id_t make_record_id(VALUE obj, ID id){
 }
 
 bop_record_t * get_record(VALUE obj, ID id){
-  uint probes;
-  uint64_t index;
+  static const record_id_t UNALLOCATED = 0;
+  bool has_gced = false;
+  uint64_t probes, index;
   record_id_t old_record_id;
   record_id_t record_id = make_record_id(obj, id);
   uint64_t base_index = hash2((uint64_t) obj, (uint64_t) id);
-  for(probes = 0; probes <= MAX_PROBES; probes++){
+  search: for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
     if(records[index].record_id == record_id) //already set to this object
       return &records[index];
-    else if(records[index].record_id == 0){
+    else if(records[index].record_id == UNALLOCATED){
       //found un-allocated. Allocate it atomically
-      old_record_id = __sync_val_compare_and_swap(&records[index].record_id, NULL, record_id);
-      if(old_record_id == 0 || old_record_id == record_id){
+      old_record_id = __sync_val_compare_and_swap(&records[index].record_id,
+        UNALLOCATED, record_id);
+      if(old_record_id == UNALLOCATED || old_record_id == record_id){
         //valid if either this task set it to the corresponding object or if another did
         return &records[index];
       }
     }
   }
-  BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
-  return NULL;
+  if(!has_gced){
+    has_gced = true;
+    rb_gc_start();
+    goto search;
+  }else{
+    BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
+    return NULL;
+  }
 }
 
 // BOP-ports
@@ -131,22 +164,22 @@ void init_obj_monitor(){
 
 static inline void update_list(bop_record_t * record){
   update_node_t * node = malloc(sizeof(update_node_t));
-  node->next = (struct update_node_t *) updated_list;
+  node->next = updated_list;
   node->record = record;
+  node->record_id = record->record_id;
   updated_list = node;
 }
 
 int rb_object_correct(){
   update_node_t * node;
   int index = getbasebit();
-  for(node = updated_list; node; node = (update_node_t *) node->next){
-    int vector = (node->record->vector >> index) & 0xf;
+  for(node = updated_list; node; node = node->next){
+    uint64_t vector = (node->record->vector >> index) & 0xf;
     if((vector & 0x2) && (vector & 0x4)){
       //p0 wrote & p1 read it
       bop_msg(3, "Conflict in rb_object_correct");
       return 0;
     }
-    BOP_promise((void*) node->record->obj, sizeof(VALUE));
   }
   bop_msg(3, "Object monitor (rb_object_correct) valid");
   return 1;
@@ -154,7 +187,7 @@ int rb_object_correct(){
 
 static void free_list(update_node_t * node){
   if(node->next != NULL)
-    free_list((update_node_t *) node->next);
+    free_list(node->next);
   free(node);
 }
 void free_all(){

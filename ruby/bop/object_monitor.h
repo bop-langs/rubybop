@@ -21,8 +21,8 @@ typedef uint128_t record_id_t;
 typedef struct{
   union{
     struct{
-      volatile VALUE obj; //32b
-      volatile ID id; //32b
+      volatile VALUE obj; //64b
+      volatile ID id; //64b
     };
     volatile record_id_t record_id;
   };
@@ -33,8 +33,9 @@ typedef struct{
 } bop_record_t;
 
 typedef struct{
-  struct update_node_t * next;
+  void * next; //set to a void pointer to not need excess casts while using the list
   bop_record_t * record;
+  record_id_t record_id; //saved here for removale during the GC
 } update_node_t;
 
 
@@ -56,6 +57,7 @@ void record_bop_gc(VALUE);
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE);
 void record_bop_wrt_obj(VALUE);
+#define DUMMY_ID -1
 #endif
 //return the spec index of the first writer of the record greater than min_ppr
 // i.e. min_ppr + 1 is the first valid return value
