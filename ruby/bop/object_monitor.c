@@ -55,6 +55,13 @@ void record_bop_rd_id(VALUE obj, ID id){
 void record_bop_wrt_id(VALUE obj, ID id){
   record_bop_access(obj, id, true, WRITE_BIT);
 }
+void record_bop_gc(VALUE obj){
+  __sync_synchronize();
+  bop_record_t * record = get_record(obj);
+  record->vector = 0;
+  record->obj = 0;
+  __sync_synchronize();
+}
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE obj){
   record_bop_access(obj, (ID) 0, false, READ_BIT);

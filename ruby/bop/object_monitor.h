@@ -50,6 +50,7 @@ extern int is_sequential();
 
 void record_bop_rd_id(VALUE, ID);
 void record_bop_wrt_id(VALUE, ID);
+void record_bop_gc(VALUE);
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE);
 void record_bop_wrt_obj(VALUE);
