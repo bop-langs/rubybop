@@ -8,23 +8,25 @@
 
 #define member_size(type, member) (sizeof(((type *)0)->member))
 
-
-
 //config options
-#define SHM_SIZE (1<<13) //2 pages (assuming 4kb pages)
+#define SHM_SIZE (1<<20) //8 4KB pages
 #define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
 #define MAX_PROBES (MAX_RECORDS)
 #define READ_BIT (0)
 #define WRITE_BIT (1)
 #define MAX_PPR (member_size(bop_record_t, vector) * 4) // vector size in bits over 2 (x 8/2 == 4)
 
-//x86-64 sizes
-//32B with id_valid field allowing for 250 obj using 2 pages
-//24B without id_valid field allowing for 333.3 -> 333 objects
+typedef uint128_t record_id_t;
+//x86-64 size: 32B with or without use/promise support
 typedef struct{
-  volatile VALUE obj; //for checking
+  union{
+    struct{
+      volatile VALUE obj; //32b
+      volatile ID id; //32b
+    };
+    volatile record_id_t record_id;
+  };
   volatile uint64_t vector;
-  volatile ID id;
 #ifdef HAVE_USE_PROMISE
   bool id_valid;
 #endif
@@ -41,10 +43,10 @@ static inline int base_bit_for(int ppr_ind){
 }
 
 static inline int getbasebit(){
-  return base_bit_for( BOP_spec_order());
+  return base_bit_for(BOP_spec_order());
 }
 
-bop_record_t * get_record(VALUE);
+bop_record_t * get_record(VALUE, ID);
 extern int is_sequential();
 
 
@@ -90,7 +92,6 @@ static inline int first_reader(bop_record_t * record){
   return next_reader(record, -1);
 }
 
-
 static inline int next_accessor(bop_record_t * record, unsigned min_ppr){
   unsigned rd, wrt, ppr;
   uint64_t vector = record->vector;
@@ -109,10 +110,10 @@ static inline bool record_id_valid(bop_record_t * record){
   return record == NULL ? false : true;
 #endif
 }
+
 //return the PPR index of the first accessor of the given or -1 if none is found
 static inline int first_accessor(bop_record_t * record){
   return next_accessor(record, -1);
 }
-
 
 #endif
