@@ -98,7 +98,7 @@ void record_bop_wrt_obj(VALUE obj){
 
 
 //from: http://stackoverflow.com/questions/6943493/hash-table-with-64-bit-values-as-key
-uint64_t hash(uint64_t key){
+static inline uint64_t hash(uint64_t key){
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -109,7 +109,7 @@ uint64_t hash(uint64_t key){
   return key;
 }
 
-uint64_t hash2(uint64_t obj, uint64_t key){
+static inline uint64_t hash2(uint64_t obj, uint64_t key){
   return hash(obj) * 3 + hash(key);
 }
 
@@ -235,13 +235,15 @@ void copy_obj(bop_record_t * record){
 void object_sync_ordered(){
   update_node_t * node;
   bop_msg(3, "rb obj ordered");
-  for(node = write_list; node != NULL; node = node->next)
+  uint64_t my_clear_mask = ~((1<<getbasebit() + READ_BIT) | (1<<getbasebit() + WRITE_BIT));
+  for(node = write_list; node != NULL; node = node->next){
     copy_obj(node->record);
-  for(node = ordered_writes; node != NULL; node = node->next)
+    __sync_fetch_and_and(&node->record->vector, my_clear_mask);
+  }
+  for(node = ordered_writes; node != NULL; node = node->next){
     copy_obj(node->record);
-  free_all();
-  // if(ordered_writes != NULL)
-  //   free_list(ordered_writes);
+    __sync_fetch_and_and(&node->record->vector, my_clear_mask);
+  }
 }
 void obj_commit(){
   update_node_t * node;

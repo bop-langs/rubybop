@@ -139,6 +139,7 @@ static inline void remove_list(update_node_t ** root, record_id_t record_id){
           else
             prev->next = current->next;
           free(current);
+          return;
         }
   }
 }
