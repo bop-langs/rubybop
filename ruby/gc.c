@@ -1474,8 +1474,6 @@ heap_page_allocate(rb_objspace_t *objspace)
 	    hi = mid;
 	}
 	else {
-      bop_msg(3, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
-      bop_msg(2, "ERROR DEFINING HEAP PAGE");
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
@@ -9063,9 +9061,6 @@ Init_GC(void)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
-
-static rb_objspace_t **bop_objspaces;
-static rb_objspace_t *sequential_objspace= NULL;
 
 void detach_free_list(rb_objspace_t *objspace);
 
