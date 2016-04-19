@@ -9,7 +9,7 @@
 #define member_size(type, member) (sizeof(((type *)0)->member))
 
 //config options
-#define SHM_SIZE (1<<20) //8 4KB pages
+#define SHM_SIZE (1<<21) //16 4KB pages
 #define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
 #define MAX_PROBES (MAX_RECORDS)
 #define READ_BIT (0)
@@ -37,6 +37,8 @@ typedef struct{
   bop_record_t * record;
   record_id_t record_id; //saved here for removale during the GC
 } update_node_t;
+
+extern char in_ordered_region;
 
 
 static inline int base_bit_for(int ppr_ind){

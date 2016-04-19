@@ -7,11 +7,11 @@ def init( data_size )
 end
 
 def lots_of_computation_on_block( s, e )
-  @total = 0;
+  total = 0;
   for i in (s ... e) do
-    @total += ($data[i]**2) + ($data[i]**3) - ($data[i]**5) + 1
+    total += ($data[i]**2) + ($data[i]**3) - ($data[i]**5) + 1
   end
-  return @total;
+  return total;
 end
 
 
@@ -41,6 +41,5 @@ while ( @data_size > 0 )
     }
   }
 end
-
 PPR.over
 puts "#{Process.pid}: The sum is #{($sum/1000.0)} thousand (#{$sum.to_f}) "

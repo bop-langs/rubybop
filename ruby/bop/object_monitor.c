@@ -13,9 +13,11 @@
 static bop_record_t * records = NULL;
 static update_node_t * write_list = NULL;
 static update_node_t * read_list = NULL;
+static update_node_t * ordered_writes = NULL;
 
 static inline void update_wrt_list(bop_record_t*);
 static inline void update_rd_list(bop_record_t*);
+static inline void update_ordered_list(bop_record_t*);
 static void free_all(void);
 
 /**
@@ -30,6 +32,7 @@ static void free_all(void);
  */
 static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op){
   if(is_sequential()) return;
+  assert(op == READ_BIT || op == WRITE_BIT);
   bop_record_t * record = get_record(object, key);
   if(record == NULL){
     assert(BOP_task_status() == MAIN);
@@ -41,10 +44,13 @@ static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op
   if( op == WRITE_BIT && (old_vector & update_bit) == 0){
     //if the bit was not set in the old vector, then this is the first write to it
     // add it to the promise list
-    update_wrt_list(record);
+    if(!in_ordered_region)
+      update_wrt_list(record);
+    else
+      update_ordered_list(record);
   }else if(op == READ_BIT && (old_vector & update_bit) == 0){
     //add to read list
-    update_wrt_list(record);
+    update_rd_list(record);
   }
   //set the ID & id_valid
   if(id_valid){
@@ -63,10 +69,10 @@ void record_bop_rd_id(VALUE obj, ID id){
 void record_bop_wrt_id(VALUE obj, ID id){
   record_bop_access(obj, id, true, WRITE_BIT);
 }
-//TODO clear out all records matching the object (eg. for all inst vars)
+
 static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
   record_id_t record_id;
-  bop_record_t * record = get_record(obj, -1); //-1 is a dummy value
+  bop_record_t * record = get_record(obj, inst_id);
   if(record == NULL) return;
   record_id = record->record_id;
   record->vector = 0;
@@ -166,25 +172,30 @@ static inline void update_rd_list(bop_record_t * record){
   if(BOP_task_status() == MAIN) return;
   add_list(&read_list, record);
 }
-
+static inline void update_ordered_list(bop_record_t * record){
+  if(BOP_task_status() == MAIN) return;
+  add_list(&ordered_writes, record);
+}
 int rb_object_correct(){
   if(BOP_task_status() == MAIN) return true;
   update_node_t * node;
   int write_mask, read_mask, spec_order, index;
   read_mask = 1 << (getbasebit() + READ_BIT);
   spec_order = BOP_spec_order();
+  int ok = true;
   for(node = read_list; node != NULL; node = node->next){
     //if any previous task has written st that I've read, its an error
     for(index = 0; index < spec_order; index++){
       write_mask = 1 << (base_bit_for(index) + WRITE_BIT);
       if( (node->record->vector & write_mask) && (node->record->vector & read_mask) ){
-        free_all();
-        return false;
+        bop_msg(3, "Conflict with task %d VALUE=0x%lx ID=0x%lx vector=0x%llx", index, node->record->obj, node->record->id, node->record->vector);
+        ok = false;
       }
     }
   }
-  bop_msg(3, "Object monitor (rb_object_correct) valid");
-  return true;
+  if(ok)
+    bop_msg(3, "Object monitor (rb_object_correct) valid");
+  return ok;
 }
 
 static void free_list(update_node_t * node){
@@ -197,6 +208,9 @@ void free_all(){
     free_list(write_list);
   if(read_list != NULL)
     free_list(read_list);
+  if(ordered_writes != NULL)
+    free_list(ordered_writes);
+  read_list = write_list = ordered_writes = NULL;
 }
 void restore_seq(){
   free_all();
@@ -205,14 +219,8 @@ void restore_seq(){
       perror("Couldn't unmap the shared mem region");
     }
 }
-void obj_commit(){
-  // update_node_t * node;
-  // for(node = write_list; node != NULL; node = (update_node_t *) node->next){
-  // }
-  bop_msg(3, "rb obj commit called");
-}
-void copy_obj(VALUE obj){
-  switch(TYPE(obj)){
+void copy_obj(bop_record_t * record){
+  switch(TYPE(record->obj)){
   case T_ARRAY:
     bop_msg(1, "Copying Array");
     break;
@@ -224,10 +232,30 @@ void copy_obj(VALUE obj){
   }
 
 }
+void object_sync_ordered(){
+  update_node_t * node;
+  bop_msg(3, "rb obj ordered");
+  for(node = write_list; node != NULL; node = node->next)
+    copy_obj(node->record);
+  for(node = ordered_writes; node != NULL; node = node->next)
+    copy_obj(node->record);
+  free_all();
+  // if(ordered_writes != NULL)
+  //   free_list(ordered_writes);
+}
+void obj_commit(){
+  update_node_t * node;
+  bop_msg(3, "rb obj commit called");
+  for(node = write_list; node != NULL; node = (update_node_t *) node->next){
+    copy_obj(node->record);
+  }
+  free_all();
+}
 bop_port_t rb_object_port = {
 	.ppr_group_init		= init_obj_monitor,
   .ppr_check_correctness = rb_object_correct,
   .task_group_succ_fini = restore_seq,
   .undy_init = restore_seq,
   .data_commit = obj_commit,
+  .on_exit_ordered = object_sync_ordered,
 };
