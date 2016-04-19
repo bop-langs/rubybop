@@ -11,9 +11,12 @@
 #include "gc.h"
 
 static bop_record_t * records = NULL;
-static update_node_t * updated_list = NULL;
+static update_node_t * write_list = NULL;
+static update_node_t * read_list = NULL;
 
-static inline void update_list(bop_record_t*);
+static inline void update_wrt_list(bop_record_t*);
+static inline void update_rd_list(bop_record_t*);
+static void free_all(void);
 
 /**
  * Record access -- set
@@ -38,7 +41,10 @@ static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op
   if( op == WRITE_BIT && (old_vector & update_bit) == 0){
     //if the bit was not set in the old vector, then this is the first write to it
     // add it to the promise list
-    update_list(record);
+    update_wrt_list(record);
+  }else if(op == READ_BIT && (old_vector & update_bit) == 0){
+    //add to read list
+    update_wrt_list(record);
   }
   //set the ID & id_valid
   if(id_valid){
@@ -59,7 +65,6 @@ void record_bop_wrt_id(VALUE obj, ID id){
 }
 //TODO clear out all records matching the object (eg. for all inst vars)
 static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
-  update_node_t* prev, *current; //for linked-list removal
   record_id_t record_id;
   bop_record_t * record = get_record(obj, -1); //-1 is a dummy value
   if(record == NULL) return;
@@ -67,17 +72,8 @@ static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
   record->vector = 0;
   __sync_synchronize(); //full memory barrier
   assert(__sync_and_and_fetch(&record->record_id, 0) == 0);
-  //remove from task-local update_list
-  for(prev = NULL, current = updated_list; current != NULL;
-      prev = current, current = current->next){
-        if(current->record_id == record_id){
-          if(prev == NULL)
-            updated_list = current->next;
-          else
-            prev->next = current->next;
-          free(current);
-        }
-  }
+  remove_list(&read_list, record_id);
+  remove_list(&write_list, record_id);
 }
 void record_bop_gc(VALUE obj){
   record_bop_gc_pr(obj, -1); //todo iterate over all of obj's instance variables
@@ -158,31 +154,37 @@ void init_obj_monitor(){
     bop_msg(3, "Failed to initialize object monitor because %s", strerror(errno));
     exit(-1);
   }
-  updated_list = NULL;
+  write_list = NULL;
+  read_list = NULL;
   bop_msg(3, "Object Monitor initialized");
 }
-
-static inline void update_list(bop_record_t * record){
-  update_node_t * node = malloc(sizeof(update_node_t));
-  node->next = updated_list;
-  node->record = record;
-  node->record_id = record->record_id;
-  updated_list = node;
+static inline void update_wrt_list(bop_record_t * record){
+  if(BOP_task_status() == MAIN) return;
+  add_list(&write_list, record);
+}
+static inline void update_rd_list(bop_record_t * record){
+  if(BOP_task_status() == MAIN) return;
+  add_list(&read_list, record);
 }
 
 int rb_object_correct(){
+  if(BOP_task_status() == MAIN) return true;
   update_node_t * node;
-  int index = getbasebit();
-  for(node = updated_list; node; node = node->next){
-    uint64_t vector = (node->record->vector >> index) & 0xf;
-    if((vector & 0x2) && (vector & 0x4)){
-      //p0 wrote & p1 read it
-      bop_msg(3, "Conflict in rb_object_correct");
-      return 0;
+  int write_mask, read_mask, spec_order;
+  read_mask = 1 << (getbasebit() + READ_BIT);
+  spec_order = BOP_spec_order();
+  for(node = read_list; node != NULL; node = node->next){
+    //if any previous task has written st that I've read, its an error
+    for(int index = 0; index < spec_order; index++){
+      write_mask = 1 << (base_bit_for(index) + WRITE_BIT);
+      if( (node->record->vector & write_mask) && (node->record->vector & read_mask) ){
+        free_all();
+        return false;
+      }
     }
   }
   bop_msg(3, "Object monitor (rb_object_correct) valid");
-  return 1;
+  return true;
 }
 
 static void free_list(update_node_t * node){
@@ -191,8 +193,10 @@ static void free_list(update_node_t * node){
   free(node);
 }
 void free_all(){
-  if(updated_list != NULL)
-    free_list(updated_list);
+  if(write_list != NULL)
+    free_list(write_list);
+  if(read_list != NULL)
+    free_list(read_list);
 }
 void restore_seq(){
   free_all();
@@ -203,7 +207,7 @@ void restore_seq(){
 }
 void obj_commit(){
   // update_node_t * node;
-  // for(node = updated_list; node != NULL; node = (update_node_t *) node->next){
+  // for(node = write_list; node != NULL; node = (update_node_t *) node->next){
   // }
   bop_msg(3, "rb obj commit called");
 }
