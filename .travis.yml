@@ -1,7 +1,10 @@
+sudo: required
+dist: trusty
+
 language: c
 compiler:
   - gcc
-  - clang-3.5
+  - clang
 os:
   - linux
   #- osx
@@ -15,18 +18,19 @@ exclude:
   - os: osx
     env: BOP_UndyFinish=0 BOP_GroupSize=4
 
-sudo: false
 addons:
   apt:
+    sources:
+     - ubuntu-toolchain-r-test
     packages:
     - gcc
-    - clang-3.5
+    - clang
 #Change ssh addresses to the https equivalents on the fly
 git:
   submodules: false
 before_install:
   - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --init --recursive 
+  - git submodule update --init --recursive
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then JOBS='-j'; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then brew install autoconf openssl; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
