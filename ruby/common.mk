@@ -90,6 +90,8 @@ COMMONOBJS    = array.$(OBJEXT) \
 		time.$(OBJEXT) \
 		transcode.$(OBJEXT) \
 		util.$(OBJEXT) \
+		bop/ppr.$(OBJEXT) \
+		bop/object_monitor.$(OBJEXT) \
 		variable.$(OBJEXT) \
 		version.$(OBJEXT) \
 		compile.$(OBJEXT) \
@@ -101,8 +103,6 @@ COMMONOBJS    = array.$(OBJEXT) \
 		vm_trace.$(OBJEXT) \
 		thread.$(OBJEXT) \
 		cont.$(OBJEXT) \
-		bop/ppr.$(OBJEXT) \
-		bop/object_monitor.$(OBJEXT) \
 		$(DTRACE_OBJ) \
 		$(BUILTIN_ENCOBJS) \
 		$(BUILTIN_TRANSOBJS) \

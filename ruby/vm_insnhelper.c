@@ -15,6 +15,7 @@
 #include "internal.h"
 #include "probes.h"
 #include "probes_helper.h"
+#include "object_monitor.h"
 
 /* control stack frame */
 
@@ -490,6 +491,8 @@ vm_search_const_defined_class(const VALUE cbase, ID id)
 static inline VALUE
 vm_getivar(VALUE obj, ID id, IC ic, rb_call_info_t *ci, int is_attr)
 {
+  bop_msg(1, "test");
+  record_bop_rd_id(obj, id);
 #if USE_IC_FOR_IVAR
     if (RB_TYPE_P(obj, T_OBJECT)) {
 	VALUE val = Qundef;
@@ -540,6 +543,7 @@ vm_getivar(VALUE obj, ID id, IC ic, rb_call_info_t *ci, int is_attr)
 static inline VALUE
 vm_setivar(VALUE obj, ID id, VALUE val, IC ic, rb_call_info_t *ci, int is_attr)
 {
+  record_bop_wrt_id(obj, id);
 #if USE_IC_FOR_IVAR
     rb_check_frozen(obj);
 
