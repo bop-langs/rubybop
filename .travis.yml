@@ -1,3 +1,6 @@
+sudo: required
+dist: trusty
+
 language: c
 compiler:
   - gcc
@@ -15,15 +18,13 @@ exclude:
   - os: osx
     env: BOP_UndyFinish=0 BOP_GroupSize=4
 
-sudo: false
 addons:
   apt:
     sources:
-    - ubuntu-toolchain-r-test
+     - ubuntu-toolchain-r-test
     packages:
-    - gcc-5.3
-    - g++-5.3
-    - clang-3.5
+    - gcc
+    - clang
 #Change ssh addresses to the https equivalents on the fly
 git:
   submodules: false
