@@ -118,4 +118,27 @@ static inline int first_accessor(bop_record_t * record){
   return next_accessor(record, -1);
 }
 
+//update_list utilities
+static inline void add_list(update_node_t ** root, bop_record_t * record){
+  update_node_t * node = malloc(sizeof(update_node_t));
+  node->next = *root;
+  node->record = record;
+  node->record_id = record->record_id;
+  *root = node;
+}
+
+static inline void remove_list(update_node_t ** root, record_id_t record_id){
+  update_node_t* prev, *current; //for linked-list removal
+  for(prev = NULL, current = *root; current != NULL;
+      prev = current, current = current->next){
+        if(current->record_id == record_id){
+          if(prev == NULL)
+            *root = current->next;
+          else
+            prev->next = current->next;
+          free(current);
+        }
+  }
+}
+
 #endif
