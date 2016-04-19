@@ -20,7 +20,7 @@ addons:
   apt:
     packages:
     - gcc
-    - clang
+    - clang-3.5
 #Change ssh addresses to the https equivalents on the fly
 git:
   submodules: false
