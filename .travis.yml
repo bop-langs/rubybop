@@ -39,6 +39,14 @@ before_install:
 before_script: #before tests run
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then rm -f ~/Library/Logs/DiagnosticReports/ruby_*.crash; fi"
 
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/1c946d1121b3d537d93d
+    on_success: change
+    on_failure: always
+    on_start: never
+
 #test script
 script:
   - make && make test
