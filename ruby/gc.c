@@ -1546,7 +1546,7 @@ heap_page_create(rb_objspace_t *objspace)
 	page = heap_page_allocate(objspace);
 	method = "allocate";
     }
-    if (1) bop_msg(4, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
+    if (1) bop_msg(5, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
 		   method, page, page->body, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length, objspace);
     return page;
 }

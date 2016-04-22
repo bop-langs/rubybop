@@ -12,6 +12,7 @@
 #define SHM_SIZE (1<<21) //16 4KB pages
 #define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
 #define MAX_PROBES (MAX_RECORDS)
+#define MAX_COPYS (((SHM_SIZE) / sizeof(bop_record_copy_t)))
 #define READ_BIT (0)
 #define WRITE_BIT (1)
 #define MAX_PPR (member_size(bop_record_t, vector) * 4) // vector size in bits over 2 (x 8/2 == 4)
@@ -31,6 +32,16 @@ typedef struct{
   bool id_valid;
 #endif
 } bop_record_t;
+
+typedef struct{
+  union{
+    VALUE obj; //host object
+    size_t next;
+  };
+  ID id; //the key
+  VALUE val; //
+  // unsigned writter; //the ppr task that commited this record
+} bop_record_copy_t;
 
 typedef struct{
   void * next; //set to a void pointer to not need excess casts while using the list

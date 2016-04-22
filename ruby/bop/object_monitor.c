@@ -11,9 +11,11 @@
 #include "gc.h"
 
 static bop_record_t * records = NULL;
+static bop_record_copy_t * copy_records = NULL;
 static update_node_t * write_list = NULL;
 static update_node_t * read_list = NULL;
 static update_node_t * ordered_writes = NULL;
+static size_t * next_copy_record;
 
 static inline void update_wrt_list(bop_record_t*);
 static inline void update_rd_list(bop_record_t*);
@@ -155,11 +157,14 @@ bop_record_t * get_record(VALUE obj, ID id){
 void init_obj_monitor(){
   bop_msg(3, "Initializng object monitor");
   records = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  copy_records = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   // mmap MAP_ANONYMOUS will already clear all bits
-  if(records == MAP_FAILED){
+  if(records == MAP_FAILED || copy_records == MAP_FAILED){
     bop_msg(3, "Failed to initialize object monitor because %s", strerror(errno));
     exit(-1);
   }
+  next_copy_record = &copy_records[0].next;
+  *next_copy_record = 1;
   write_list = NULL;
   read_list = NULL;
   bop_msg(3, "Object Monitor initialized");
@@ -219,37 +224,33 @@ void restore_seq(){
       perror("Couldn't unmap the shared mem region");
     }
 }
-void copy_obj(bop_record_t * record){
-  switch(TYPE(record->obj)){
-  case T_ARRAY:
-    bop_msg(1, "Copying Array");
-    break;
-  case T_STRING:
-    bop_msg(1, "Copying String");
-    break;
-
-
-  }
-
+void commit(bop_record_t * record){
+  size_t index = __sync_fetch_and_add(next_copy_record, 1);
+  bop_record_copy_t * copy = &copy_records[index];
+  copy->obj = record->obj;
+  copy->id = record->id;
+  copy->val = rb_ivar_get(record->obj, record->id);
 }
-void object_sync_ordered(){
+void parent_merge(){
+  size_t index;
+  bop_record_copy_t * copy;
+  for(index = 0; index < MAX_COPYS && index < *next_copy_record; index++){
+    copy = &copy_records[index];
+    rb_ivar_set(copy->obj, copy->id, copy->val);
+  }
+}
+void obj_commit(){
+  if(BOP_task_status() == UNDY) return;
   update_node_t * node;
   bop_msg(3, "rb obj ordered");
   uint64_t my_clear_mask = ~((1<<getbasebit() + READ_BIT) | (1<<getbasebit() + WRITE_BIT));
   for(node = write_list; node != NULL; node = node->next){
-    copy_obj(node->record);
+    commit(node->record);
     __sync_fetch_and_and(&node->record->vector, my_clear_mask);
   }
   for(node = ordered_writes; node != NULL; node = node->next){
-    copy_obj(node->record);
+    commit(node->record);
     __sync_fetch_and_and(&node->record->vector, my_clear_mask);
-  }
-}
-void obj_commit(){
-  update_node_t * node;
-  bop_msg(3, "rb obj commit called");
-  for(node = write_list; node != NULL; node = (update_node_t *) node->next){
-    copy_obj(node->record);
   }
   free_all();
 }
@@ -258,6 +259,7 @@ bop_port_t rb_object_port = {
   .ppr_check_correctness = rb_object_correct,
   .task_group_succ_fini = restore_seq,
   .undy_init = restore_seq,
-  .data_commit = obj_commit,
-  .on_exit_ordered = object_sync_ordered,
+  .data_commit = obj_commit, //called by all but last puts data in shared mem
+  .on_exit_ordered = obj_commit,
+  .task_group_commit = parent_merge //called by last to commit the changes
 };
