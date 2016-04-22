@@ -33,14 +33,16 @@ typedef struct{
 #endif
 } bop_record_t;
 
-typedef struct{
-  union{
-    VALUE obj; //host object
-    size_t next;
-  };
-  ID id; //the key
-  VALUE val; //
-  // unsigned writter; //the ppr task that commited this record
+typedef union{
+    volatile size_t next; //the first item in the list is just used for a next value.
+    struct{ //an actual copy struct
+      VALUE obj; //host object
+      ID id; //the key
+      VALUE val; //the value tho update the mapping of
+#ifdef WRITER_CHECK
+      int last_writer;
+#endif
+    };
 } bop_record_copy_t;
 
 typedef struct{
@@ -116,6 +118,20 @@ static inline int next_accessor(bop_record_t * record, unsigned min_ppr){
     if(vector & rd || vector & wrt) return ppr;
   }
   return -1;
+}
+
+static inline int last_writer(bop_record_t * record){
+  int ppr;
+  uint64_t mask;
+  for(ppr = MAX_PPR - 1; ppr >= 0; ppr--){
+    mask = 1 << (base_bit_for(ppr) + WRITE_BIT);
+    if(record->vector & mask != 0) return ppr;
+  }
+  return -1;
+}
+
+static inline bool is_last_writer(bop_record_t * record){
+  return last_writer(record) == BOP_spec_order() && BOP_spec_order() != -1;
 }
 
 static inline bool record_id_valid(bop_record_t * record){

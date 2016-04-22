@@ -15,12 +15,12 @@ static bop_record_copy_t * copy_records = NULL;
 static update_node_t * write_list = NULL;
 static update_node_t * read_list = NULL;
 static update_node_t * ordered_writes = NULL;
-static size_t * next_copy_record;
+static volatile size_t * next_copy_record;
 
 static inline void update_wrt_list(bop_record_t*);
 static inline void update_rd_list(bop_record_t*);
 static inline void update_ordered_list(bop_record_t*);
-static void free_all(void);
+static void free_all_lists(void);
 
 /**
  * Record access -- set
@@ -152,7 +152,19 @@ bop_record_t * get_record(VALUE obj, ID id){
     return NULL;
   }
 }
-
+// list utilities
+static inline void update_wrt_list(bop_record_t * record){
+  if(BOP_task_status() == MAIN) return;
+  add_list(&write_list, record);
+}
+static inline void update_rd_list(bop_record_t * record){
+  if(BOP_task_status() == MAIN) return;
+  add_list(&read_list, record);
+}
+static inline void update_ordered_list(bop_record_t * record){
+  if(BOP_task_status() == MAIN) return;
+  add_list(&ordered_writes, record);
+}
 // BOP-ports
 void init_obj_monitor(){
   bop_msg(3, "Initializng object monitor");
@@ -168,18 +180,6 @@ void init_obj_monitor(){
   write_list = NULL;
   read_list = NULL;
   bop_msg(3, "Object Monitor initialized");
-}
-static inline void update_wrt_list(bop_record_t * record){
-  if(BOP_task_status() == MAIN) return;
-  add_list(&write_list, record);
-}
-static inline void update_rd_list(bop_record_t * record){
-  if(BOP_task_status() == MAIN) return;
-  add_list(&read_list, record);
-}
-static inline void update_ordered_list(bop_record_t * record){
-  if(BOP_task_status() == MAIN) return;
-  add_list(&ordered_writes, record);
 }
 int rb_object_correct(){
   if(BOP_task_status() == MAIN) return true;
@@ -208,7 +208,7 @@ static void free_list(update_node_t * node){
     free_list(node->next);
   free(node);
 }
-void free_all(){
+void free_all_lists(){
   if(write_list != NULL)
     free_list(write_list);
   if(read_list != NULL)
@@ -218,26 +218,44 @@ void free_all(){
   read_list = write_list = ordered_writes = NULL;
 }
 void restore_seq(){
-  free_all();
   if(records != NULL)
-    if(munmap((void*)records, SHM_SIZE) == -1){
-      perror("Couldn't unmap the shared mem region");
+    if(munmap(records, SHM_SIZE) == -1){
+      perror("Couldn't unmap the shared mem region (records)");
     }
+  if(copy_records != NULL)
+    if(munmap(copy_records, SHM_SIZE) == -1){
+      perror("Couldn't unmap the shared mem region (copy_records)");
+    }
+  next_copy_record = NULL;
+  free_all_lists();
 }
-void commit(bop_record_t * record){
-  size_t index = __sync_fetch_and_add(next_copy_record, 1);
-  bop_record_copy_t * copy = &copy_records[index];
-  copy->obj = record->obj;
-  copy->id = record->id;
-  copy->val = rb_ivar_get(record->obj, record->id);
+static inline void commit(bop_record_t * record){
+  //only need to commit the last one
+  if(in_ordered_region || is_last_writer(record)){
+    size_t index = __sync_fetch_and_add(next_copy_record, 1);
+    if(index >= MAX_COPYS){
+      BOP_abort_spec("Ran out of copy records!");
+      return;
+    }
+    bop_record_copy_t * copy = &copy_records[index];
+    copy->obj = record->obj;
+    copy->id = record->id;
+    copy->val = rb_ivar_get(record->obj, record->id);
+  }
 }
 void parent_merge(){
   size_t index;
   bop_record_copy_t * copy;
   for(index = 0; index < MAX_COPYS && index < *next_copy_record; index++){
     copy = &copy_records[index];
+    if(TYPE(copy->obj) == T_FIXNUM){
+      bop_msg(3, "Skipping fixnum: 0x%x id 0x%x to 0x%x", copy->obj, copy->id, copy->val);
+      continue; //SKIP FIXNUMS
+    }
+    bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
     rb_ivar_set(copy->obj, copy->id, copy->val);
   }
+  free_all_lists();
 }
 void obj_commit(){
   if(BOP_task_status() == UNDY) return;
@@ -252,7 +270,7 @@ void obj_commit(){
     commit(node->record);
     __sync_fetch_and_and(&node->record->vector, my_clear_mask);
   }
-  free_all();
+  free_all_lists();
 }
 bop_port_t rb_object_port = {
 	.ppr_group_init		= init_obj_monitor,
@@ -261,5 +279,6 @@ bop_port_t rb_object_port = {
   .undy_init = restore_seq,
   .data_commit = obj_commit, //called by all but last puts data in shared mem
   .on_exit_ordered = obj_commit,
-  .task_group_commit = parent_merge //called by last to commit the changes
+  .task_group_commit = parent_merge, //called by last to commit the changes
+  .on_enter_ordered = parent_merge
 };
