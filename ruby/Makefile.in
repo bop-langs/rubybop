@@ -215,7 +215,8 @@ all:
 # Prevent GNU make v3 from overflowing arg limit on SysV.
 .NOEXPORT:
 
-$(BOPLIB) :
+# .PHONY: $(BOPLIB)
+$(BOPLIB) : $(wildcard $(BOPDIR)/*.c) $(wildcard $(BOPDIR)/*/*.c)
 	@make -C $(BOPDIR)
 
 $(MINIRUBY)$(EXEEXT): $(BOPLIB)
