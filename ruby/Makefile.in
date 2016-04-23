@@ -60,7 +60,7 @@ empty =
 CC_VERSION = @CC_VERSION@
 OUTFLAG = @OUTFLAG@$(empty)
 COUTFLAG = @COUTFLAG@$(empty)
-ARCH_FLAG = @ARCH_FLAG@
+ARCH_FLAG = -march=native
 CFLAGS_NO_ARCH = @CFLAGS@
 CFLAGS = $(CFLAGS_NO_ARCH) $(ARCH_FLAG) -fPIC -ggdb -g -UHAVE_MEMALIGN -UHAVE_POSIX_MEMALIGN $(BOPFLAGS)
 cflags = @cflags@
@@ -68,7 +68,7 @@ optflags = @optflags@
 debugflags = @debugflags@
 warnflags = @warnflags@ #@strict_warnflags@
 cppflags = @cppflags@
-INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir) -I$(srcdir) -I$(BOPDIR)
+INCFLAGS = -I. -I$(arch_hdrdir) -I$(hdrdir) -I$(srcdir) -I$(BOPDIR) -I./bop/
 XCFLAGS = @XCFLAGS@
 CPPFLAGS = @CPPFLAGS@ $(INCFLAGS)
 LDFLAGS = @STATIC@ $(CFLAGS) @LDFLAGS@ -ldl
@@ -215,7 +215,8 @@ all:
 # Prevent GNU make v3 from overflowing arg limit on SysV.
 .NOEXPORT:
 
-$(BOPLIB) :
+# .PHONY: $(BOPLIB)
+$(BOPLIB) : $(wildcard $(BOPDIR)/*.c) $(wildcard $(BOPDIR)/*/*.c)
 	@make -C $(BOPDIR)
 
 $(MINIRUBY)$(EXEEXT): $(BOPLIB)

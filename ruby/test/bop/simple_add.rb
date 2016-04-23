@@ -1,17 +1,17 @@
-$numbers = ARGV[0].to_i
+$numbers = ARGV[0].to_i * 1000
 $groups = ARGV[1].to_i
 
-puts "initializing array"
 $array = (0..$numbers).to_a.shuffle.take($numbers)
-puts "array is #{$array.length} long"
 $arrays = $array.each_slice($numbers/$groups).to_a
 $partial_sums = Array.new($groups, 0)
-$arrays.peach_with_index do |arr, spec_group|
+
+puts"#{Process.pid}: adding #{($numbers/1000)} thousand numbers"
+$arrays.each_with_index do |arr, spec_group|
+  PPR{
     arr.each{|n| $partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
+  }
 end
 
 PPR.over
-puts "partial sums as follows"
-puts $partial_sums
-puts "final sum"
-puts $partial_sums.inject{|sum,x| sum + x }
+sum = $partial_sums.inject{|sum,x| sum + x }
+puts "#{Process.pid}: The sum is #{(sum/1000.0)} thousand (#{sum.to_f}) "
