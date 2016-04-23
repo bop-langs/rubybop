@@ -33,7 +33,8 @@ static void free_all_lists(void);
  * @param  op            READ_BIT or WRITE_BIT
  */
 static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op){
-  if(is_sequential()) return;
+  if(is_sequential() && BOP_task_status() != MAIN) return;
+  assert(rb_type(object) != T_FIXNUM);
   assert(op == READ_BIT || op == WRITE_BIT);
   bop_record_t * record = get_record(object, key);
   if(record == NULL){
@@ -56,7 +57,6 @@ static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op
   }
   //set the ID & id_valid
   if(id_valid){
-    record->id = key;
 #ifdef HAVE_USE_PROMISE
     record->id_valid = id_valid;
 #endif
@@ -154,15 +154,12 @@ bop_record_t * get_record(VALUE obj, ID id){
 }
 // list utilities
 static inline void update_wrt_list(bop_record_t * record){
-  if(BOP_task_status() == MAIN) return;
   add_list(&write_list, record);
 }
 static inline void update_rd_list(bop_record_t * record){
-  if(BOP_task_status() == MAIN) return;
   add_list(&read_list, record);
 }
 static inline void update_ordered_list(bop_record_t * record){
-  if(BOP_task_status() == MAIN) return;
   add_list(&ordered_writes, record);
 }
 // BOP-ports
@@ -214,7 +211,7 @@ void free_all_lists(){
   read_list = write_list = ordered_writes = NULL;
 }
 void restore_seq(){
-  if(BOP_spec_order() == BOP_get_group_size() - 1) return;
+  // if(BOP_spec_order() == BOP_get_group_size() - 1) return;
   if(records != NULL)
     if(munmap(records, SHM_SIZE) == -1){
       perror("Couldn't unmap the shared mem region (records)");
@@ -226,9 +223,9 @@ void restore_seq(){
   next_copy_record = NULL;
   free_all_lists();
 }
-static inline void commit(bop_record_t * record){
+void commit(bop_record_t * record){
   //only need to commit the last one
-  if(in_ordered_region || is_last_writer(record)){
+  if(in_ordered_region || is_commiting_writer(record)){
     size_t index = __sync_fetch_and_add(next_copy_record, 1);
     if(index >= MAX_COPYS){
       BOP_abort_spec("Ran out of copy records!");
@@ -244,22 +241,18 @@ void parent_merge(){
   if(BOP_task_status() == UNDY) return;
   size_t index;
   bop_record_copy_t * copy;
-  bop_msg(3, "Checking %d copy records", *next_copy_record);
-  for(index = 0; index < MAX_COPYS && index < *next_copy_record; index++){
+  bop_msg(3, "Checking %d copy records", *next_copy_record - 1);
+  for(index = 1; index < MAX_COPYS && index < *next_copy_record ; index++){
     copy = &copy_records[index];
-    if(TYPE(copy->obj) == T_FIXNUM){
-      bop_msg(3, "Skipping fixnum: 0x%x id 0x%x to 0x%x", copy->obj, copy->id, copy->val);
-    }else{
-      bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
-      rb_ivar_set(copy->obj, copy->id, copy->val);
-    }
+    bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
+    rb_ivar_set(copy->obj, copy->id, copy->val);
   }
   free_all_lists();
 }
 void obj_commit(){
   if(BOP_task_status() == UNDY) return;
   update_node_t * node;
-  bop_msg(3, "rb obj ordered");
+  bop_msg(3, "rb obj commit");
   uint64_t my_clear_mask = ~((1<<getbasebit() + READ_BIT) | (1<<getbasebit() + WRITE_BIT));
   for(node = write_list; node != NULL; node = node->next){
     commit(node->record);

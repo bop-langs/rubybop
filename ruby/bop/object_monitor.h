@@ -121,17 +121,18 @@ static inline int next_accessor(bop_record_t * record, unsigned min_ppr){
 }
 
 static inline int last_writer(bop_record_t * record){
+  unsigned test_bit;
   int ppr;
-  uint64_t mask;
-  for(ppr = MAX_PPR - 1; ppr >= 0; ppr--){
-    mask = 1 << (base_bit_for(ppr) + WRITE_BIT);
-    if(record->vector & mask != 0) return ppr;
+  uint64_t vector = record->vector;
+  for(ppr = MAX_PPR; ppr >= 0; ppr--){
+    test_bit = 1 << (base_bit_for(ppr) + WRITE_BIT);
+    if(vector & test_bit != 0) return ppr;
   }
   return -1;
 }
 
-static inline bool is_last_writer(bop_record_t * record){
-  return last_writer(record) == BOP_spec_order() && BOP_spec_order() != -1;
+static inline bool is_commiting_writer(bop_record_t * record){
+  return true; //last_writer(record) == BOP_spec_order() && BOP_spec_order() != -1;
 }
 
 static inline bool record_id_valid(bop_record_t * record){

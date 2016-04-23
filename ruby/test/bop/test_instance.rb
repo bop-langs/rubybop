@@ -1,8 +1,8 @@
 class Main
-  @a=0
-  @b=0
-  @c=0
-  @d=0
+  @a="init a"
+  @b="init b"
+  @c="init c"
+  @d="init d"
 
   def run()
     PPR{
@@ -21,6 +21,7 @@ class Main
       sleep(1)
       @d=4
     }
+    PPR.over
     return self
   end
 
