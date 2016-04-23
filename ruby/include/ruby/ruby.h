@@ -787,12 +787,12 @@ VALUE rb_obj_reveal(VALUE obj, VALUE klass); /* do not use this API to change kl
 struct RObject {
     struct RBasic basic;
     union {
-	struct {
-	    long numiv; /* only uses 32-bits */
-	    VALUE *ivptr;
-            struct st_table *iv_index_tbl; /* shortcut for RCLASS_IV_INDEX_TBL(rb_obj_class(obj)) */
-	} heap;
-	VALUE ary[ROBJECT_EMBED_LEN_MAX];
+	     struct {
+  	      long numiv; /* only uses 32-bits */
+  	      VALUE *ivptr;
+          struct st_table *iv_index_tbl; /* shortcut for RCLASS_IV_INDEX_TBL(rb_obj_class(obj)) */
+  	    } heap;
+    	VALUE ary[ROBJECT_EMBED_LEN_MAX];
     } as;
 };
 #define ROBJECT_EMBED FL_USER1
@@ -1286,7 +1286,6 @@ rb_obj_write(VALUE a, VALUE *slot, VALUE b, RB_UNUSED_VAR(const char *filename),
 #endif
 
     *slot = b;
-
 #if USE_RGENGC
     rb_obj_written(a, Qundef /* ignore `oldv' now */, b, filename, line);
 #endif

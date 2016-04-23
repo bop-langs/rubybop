@@ -1269,7 +1269,7 @@ static void heap_page_free(rb_objspace_t *objspace, struct heap_page *page);
 void
 rb_objspace_free(rb_objspace_t *objspace)
 {
-  bop_msg(2, "objspace being freed");
+  //bop_msg(2, "objspace being freed");
     if (is_lazy_sweeping(heap_eden))
 	rb_bug("lazy sweeping underway when freeing object space");
 
@@ -1380,7 +1380,7 @@ heap_add_poolpage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *pa
 static void
 heap_unlink_page(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
-    bop_msg(4, "Unlinking page %p", page);
+    //bop_msg(4, "Unlinking page %p", page);
     if (page->prev) page->prev->next = page->next;
     if (page->next) page->next->prev = page->prev;
     if (heap->pages == page) heap->pages = page->next;
@@ -1449,7 +1449,7 @@ heap_page_allocate(rb_objspace_t *objspace)
   	    /* assign heap_page entry */
     page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
     if(!is_sequential()){
-      bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
+      //bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
     }
     if (page == 0) {
 	aligned_free(page_body);
@@ -1474,13 +1474,10 @@ heap_page_allocate(rb_objspace_t *objspace)
 	    hi = mid;
 	}
 	else {
-      bop_msg(3, "Errors of low: %d \t mid: %d \t high %d number %d ", lo, mid, hi, heap_allocated_pages);
-      bop_msg(2, "ERROR DEFINING HEAP PAGE");
 	    rb_bug("same heap page is allocated: %p at %"PRIuVALUE, (void *)page_body, (VALUE)mid);
 	}
     }
 
-    if(!is_sequential()) bop_msg(4, "Values of low: %d \t mid: %d \t high %d \t number %d ", lo, mid, hi, heap_allocated_pages);
     if (hi < heap_allocated_pages) {
 	     MEMMOVE(&heap_pages_sorted[hi+1], &heap_pages_sorted[hi], struct heap_page_header*, heap_allocated_pages - hi);
     }
@@ -1548,8 +1545,8 @@ heap_page_create(rb_objspace_t *objspace)
 	page = heap_page_allocate(objspace);
 	method = "allocate";
     }
-    if (1) bop_msg(4, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
-		   method, page, page->body, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length, objspace);
+    //if (1) bop_msg(4, "heap_page_create: %s - %p, heap page body %p, heap_allocated_pages: %d, heap_allocated_pages: %d, tomb_page_length: %d, objspace %p",
+		//   method, page, page->body, (int)heap_pages_sorted_length, (int)heap_allocated_pages, (int)heap_tomb->page_length, objspace);
     return page;
 }
 
@@ -9064,20 +9061,14 @@ Init_GC(void)
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 
-static rb_objspace_t **bop_objspaces;
-static rb_objspace_t *sequential_objspace= NULL;
-
 void detach_free_list(rb_objspace_t *objspace);
 
 void group_pages(){
   rb_gc_start();
-  bop_msg(0, "testing for sanity");
-
 }
 
 void heap_init(){
   rb_gc_start();
-
 }
 
 void reset_heap(){
