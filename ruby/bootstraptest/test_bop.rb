@@ -48,3 +48,39 @@ assert_equal %q{4000}, %q{
   PPR.over
   $sum
 }
+
+assert_equal %q{[1, 2, 3, 4]}, %q{
+  class Main
+    @a=-1
+    @b=-2
+    @c=-3
+    @d=-4
+
+    def run()
+      PPR{
+        sleep(1)
+        @a=1
+      }
+      PPR{
+        sleep(1)
+        @b=2
+      }
+      PPR{
+        sleep(1)
+        @c=3
+      }
+      PPR{
+        sleep(1)
+        @d=4
+      }
+      PPR.over
+      return self
+    end
+
+    def vals
+      run
+      [@a, @b, @c, @d]
+    end
+  end
+  Main.new.vals
+}
