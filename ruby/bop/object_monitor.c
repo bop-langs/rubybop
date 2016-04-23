@@ -187,20 +187,16 @@ int rb_object_correct(){
   int write_mask, read_mask, spec_order, index;
   read_mask = 1 << (getbasebit() + READ_BIT);
   spec_order = BOP_spec_order();
-  int ok = true;
   for(node = read_list; node != NULL; node = node->next){
     //if any previous task has written st that I've read, its an error
     for(index = 0; index < spec_order; index++){
       write_mask = 1 << (base_bit_for(index) + WRITE_BIT);
       if( (node->record->vector & write_mask) && (node->record->vector & read_mask) ){
-        bop_msg(3, "Conflict with task %d VALUE=0x%lx ID=0x%lx vector=0x%llx", index, node->record->obj, node->record->id, node->record->vector);
-        ok = false;
+        return false;
       }
     }
   }
-  if(ok)
-    bop_msg(3, "Object monitor (rb_object_correct) valid");
-  return ok;
+  return true;
 }
 
 static void free_list(update_node_t * node){
@@ -218,6 +214,7 @@ void free_all_lists(){
   read_list = write_list = ordered_writes = NULL;
 }
 void restore_seq(){
+  if(BOP_spec_order() == BOP_get_group_size() - 1) return;
   if(records != NULL)
     if(munmap(records, SHM_SIZE) == -1){
       perror("Couldn't unmap the shared mem region (records)");
@@ -244,16 +241,18 @@ static inline void commit(bop_record_t * record){
   }
 }
 void parent_merge(){
+  if(BOP_task_status() == UNDY) return;
   size_t index;
   bop_record_copy_t * copy;
+  bop_msg(3, "Checking %d copy records", *next_copy_record);
   for(index = 0; index < MAX_COPYS && index < *next_copy_record; index++){
     copy = &copy_records[index];
     if(TYPE(copy->obj) == T_FIXNUM){
       bop_msg(3, "Skipping fixnum: 0x%x id 0x%x to 0x%x", copy->obj, copy->id, copy->val);
-      continue; //SKIP FIXNUMS
+    }else{
+      bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
+      rb_ivar_set(copy->obj, copy->id, copy->val);
     }
-    bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
-    rb_ivar_set(copy->obj, copy->id, copy->val);
   }
   free_all_lists();
 }

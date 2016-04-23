@@ -18,11 +18,11 @@ assert_equal %q{[1250, 1250, 1250, 1250, 5000]} ,%q{
 
 assert_equal %q{4000}, %q{
   def lots_of_computation_on_block( s, e )
-    $total = 0;
+    total = 0;
     for i in (s ... e) do
-      $total += ($data[i]**2) + ($data[i]**3) - ($data[i]**5) + 1
+      total += ($data[i]**2) + ($data[i]**3) - ($data[i]**5) + 1
     end
-    return $total;
+    return total;
   end
 
   $data_size = 4000
