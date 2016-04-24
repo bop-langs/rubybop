@@ -9059,6 +9059,11 @@ struct heap_page ** proc_heap_pages;
 
 void detach_free_list(rb_objspace_t *objspace);
 
+void heap_page_promise(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page){
+  BOP_record_write(page, sizeof(struct heap_page));
+  BOP_record_write(page->body, HEAP_SIZE);
+}
+
 void group_pages(){
   rb_gc_start();
   rb_objspace_t *objspace = &rb_objspace;
@@ -9084,6 +9089,7 @@ void heap_init(){
   bop_msg(0, "spec order = %d", BOP_spec_order());
   struct heap_page * proc_page = proc_heap_pages[BOP_spec_order()];
   heap_add_freepage(objspace, heap, proc_page);
+  heap_page_promise(objspace, heap, proc_page);
   //dont_gc = 1;
 }
 
