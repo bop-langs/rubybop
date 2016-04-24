@@ -688,6 +688,7 @@ struct heap_page {
     RVALUE *freelist;
     RVALUE *oldfreelist;
     struct heap_page *next;
+    short bop_id;
 
 #if USE_RGENGC
     bits_t wb_unprotected_bits[HEAP_BITMAP_LIMIT];
@@ -1355,6 +1356,7 @@ heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj
 static inline void
 heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
+  page->bop_id = is_sequential();
     if (page->freelist) {
 	page->free_next = heap->free_pages;
 	heap->free_pages = page;
@@ -3217,6 +3219,10 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     int empty_slots = 0, freed_slots = 0, final_slots = 0;
     RVALUE *p, *pend,*offset;
     bits_t *bits, bitset;
+    if(sweep_page->bop_id != is_sequential()){
+      //bop_msg(1, "Skipping page %p sweep", sweep_page);
+      return;
+    }
 
     gc_report(2, objspace, "page_sweep: start.\n");
 
@@ -9051,11 +9057,12 @@ Init_GC(void)
     }
 }
 
-#define SPEC_HEAPS (4)
+#define SPEC_HEAPS (10)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
 
+static int test = 0;
 struct heap_page *** proc_heap_pages;
 
 void detach_free_list(rb_objspace_t *objspace);
@@ -9063,6 +9070,21 @@ void detach_free_list(rb_objspace_t *objspace);
 void heap_page_promise(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page){
   BOP_record_write(page, sizeof(struct heap_page));
   BOP_record_write(page->body, HEAP_SIZE);
+}
+
+void undy_wait(){
+  rb_objspace_t *objspace = &rb_objspace;
+  rb_heap_t *heap = heap_eden;
+  bop_msg(1, "Test: %d", is_sequential());
+  int group_size = BOP_get_group_size();
+  for(int i = 0; i < group_size; i++){
+    for(int j = 0; j < SPEC_HEAPS; j++){
+      struct heap_page * proc_page = proc_heap_pages[i][j];
+      heap_add_freepage(objspace, heap, proc_page);
+      heap_page_promise(objspace, heap, proc_page);
+    }
+  }
+  rb_gc_start();
 }
 
 void group_pages(){
@@ -9084,10 +9106,11 @@ void group_pages(){
       heap_add_page(objspace, heap, proc_heap_pages[i][j]);
     }
   }
+  test = 1;
 }
 
 void heap_init(){
-  rb_gc_start();
+  //rb_gc_start();
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
   int i = BOP_spec_order();
@@ -9107,11 +9130,13 @@ void reset_heap(){
       heap_add_freepage(objspace, heap, proc_heap_pages[i][j]);
     }
   } 
+  rb_gc_start();
 }
 
 
 bop_port_t rubyheap_port = {
     .ppr_group_init = group_pages,
     .ppr_task_init = heap_init,
+    .undy_init = undy_wait,
     .task_group_commit = reset_heap
 };
