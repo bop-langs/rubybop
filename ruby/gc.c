@@ -1403,6 +1403,7 @@ heap_page_free(rb_objspace_t *objspace, struct heap_page *page)
 static void
 heap_pages_free_unused_pages(rb_objspace_t *objspace)
 {
+    if(!is_sequential()) return;
     size_t i, j;
 
     if (heap_tomb->pages && heap_pages_swept_slots > heap_pages_max_free_slots) {
@@ -3392,7 +3393,7 @@ gc_sweep_finish(rb_objspace_t *objspace)
 
     gc_prof_set_heap_info(objspace);
 
-    //heap_pages_free_unused_pages(objspace);
+    heap_pages_free_unused_pages(objspace);
 
     /* if heap_pages has unused pages, then assign them to increment */
     if (heap_allocatable_pages < heap_tomb->page_length) {
