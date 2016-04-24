@@ -143,3 +143,35 @@ end
 PPR.over
 $sum
 }
+
+# Array test
+assert_equal %q{[1, 2, 3, 4]}, %q{
+  $a = [0, 0, 0, 0]
+  PPR {
+  	sleep(1)
+  	$a[0] = 1
+  }
+  PPR {
+  	sleep(1)
+  	$a[1] = 2
+  }
+  PPR {
+  	sleep(1)
+  	$a[2] = 3
+  }
+  PPR {
+  	sleep(1)
+  	$a[3] = 4
+  }
+  PPR.over
+  $a
+}
+
+assert_equal %q{5}, %q{
+  $a = 0
+  5.times do
+    PPR{ sleep(1); Ordered{ $a += 1 } }
+  end
+  PPR.over
+  return $a
+}

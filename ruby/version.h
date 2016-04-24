@@ -1,8 +1,8 @@
 #define RUBY_VERSION "2.2.3"
 #define RUBY_RELEASE_DATE "2015-05-21"
 #define RUBY_PATCHLEVEL 115
-#define RUBYBOP_VERSION "Rubybop version: Beta 2"
-#define RUBYBOP_DATE "2016-01"
+#define RUBYBOP_VERSION "Rubybop version v0.5"
+#define RUBYBOP_DATE "2016-04"
 
 #define RUBY_RELEASE_YEAR 2015
 #define RUBY_RELEASE_MONTH 5

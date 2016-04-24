@@ -9073,12 +9073,13 @@ void heap_page_promise(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_pag
 }
 
 void undy_wait(){
+  int i,j;
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
   bop_msg(1, "Test: %d", is_sequential());
   int group_size = BOP_get_group_size();
-  for(int i = 0; i < group_size; i++){
-    for(int j = 0; j < SPEC_HEAPS; j++){
+  for(i = 0; i < group_size; i++){
+    for(j = 0; j < SPEC_HEAPS; j++){
       struct heap_page * proc_page = proc_heap_pages[i][j];
       heap_add_freepage(objspace, heap, proc_page);
       heap_page_promise(objspace, heap, proc_page);
@@ -9088,6 +9089,7 @@ void undy_wait(){
 }
 
 void group_pages(){
+  int i,j;
   rb_gc_start();
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
@@ -9096,12 +9098,12 @@ void group_pages(){
   heap_allocatable_pages = group_size;
   heap_pages_expand_sorted(objspace);
   heap_allocatable_pages = 0;
-  
+
   proc_heap_pages = calloc(group_size, sizeof(struct heap_page **));
-  
-  for(int i = 0; i < group_size; i++){
+
+  for(i = 0; i < group_size; i++){
     proc_heap_pages[i] = calloc(SPEC_HEAPS, sizeof(struct heap_page *));
-    for(int j = 0; j < SPEC_HEAPS; j++){
+    for(j = 0; j < SPEC_HEAPS; j++){
       proc_heap_pages[i][j] = heap_page_allocate(objspace);
       heap_add_page(objspace, heap, proc_heap_pages[i][j]);
     }
@@ -9113,8 +9115,8 @@ void heap_init(){
   //rb_gc_start();
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  int i = BOP_spec_order();
-  for(int j = 0; j < SPEC_HEAPS; j++){
+  int i = BOP_spec_order(), j;
+  for(j = 0; j < SPEC_HEAPS; j++){
     struct heap_page * proc_page = proc_heap_pages[i][j];
     heap_add_freepage(objspace, heap, proc_page);
     heap_page_promise(objspace, heap, proc_page);
@@ -9123,13 +9125,14 @@ void heap_init(){
 }
 
 void reset_heap(){
+  int i,j;
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  for(int i = 0; i < BOP_get_group_size()-1; i++){
-    for(int j = 0; j < SPEC_HEAPS; j++){
+  for(i = 0; i < BOP_get_group_size()-1; i++){
+    for(j = 0; j < SPEC_HEAPS; j++){
       heap_add_freepage(objspace, heap, proc_heap_pages[i][j]);
     }
-  } 
+  }
   rb_gc_start();
 }
 
