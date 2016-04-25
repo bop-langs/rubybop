@@ -18,15 +18,15 @@ def gaussianElimination(matrix, vector)
     pivot = matrix[pivotIdx][pivotIdx]
 
     (pivotIdx+1).upto(matrix.length - 1) do |row|
-
-      factor = matrix[row][pivotIdx]/pivot
-
-      matrix[row][pivotIdx] = 0.0
-
-      (pivotIdx+1).upto(matrix[row].length - 1) do |col|
-        matrix[row][col] -= factor*matrix[pivotIdx][col]
-      end
-      vector[row] -= factor*vector[pivotIdx]
+      #PPR do
+        factor = matrix[row][pivotIdx]/pivot
+        matrix[row][pivotIdx] = 0.0
+        (pivotIdx+1).upto(matrix[row].length - 1) do |col|
+          matrix[row][col] -= factor*matrix[pivotIdx][col]
+        end
+        vector[row] -= factor*vector[pivotIdx]
+      #end
+      #PPR.over
     end
   end
 

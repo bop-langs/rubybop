@@ -1712,13 +1712,8 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 	if (during_gc) {
 	    dont_gc = 1;
 	    during_gc = 0;
-      if(is_sequential()){
-	       rb_bug("object allocation during garbage collection phase");
-      }
-      else{
-        bop_msg(0, "CORRUPTED objspace");
-        abort();
-      }
+      rb_bug("object allocation during garbage collection phase");
+      abort();
 	}
 
 	if (ruby_gc_stressful) {
@@ -1785,11 +1780,6 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     objspace->total_allocated_objects++;
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
-    //TODO sever the heap so that this actually works...
-    bop_msg(5, "newobj:%s", obj_info(obj));
-    if(is_sequential()) bop_msg(5, "newobj:%s", obj_info(obj));
-    //BOP_obj_use_promise(obj);
-    //BOP_record_write(obj, sizeof(obj));
     return obj;
 }
 
@@ -9057,7 +9047,7 @@ Init_GC(void)
     }
 }
 
-#define SPEC_HEAPS (10)
+#define SPEC_HEAPS (1)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
@@ -9076,16 +9066,17 @@ void undy_wait(){
   int i,j;
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  bop_msg(1, "Test: %d", is_sequential());
   int group_size = BOP_get_group_size();
   for(i = 0; i < group_size; i++){
     for(j = 0; j < SPEC_HEAPS; j++){
       struct heap_page * proc_page = proc_heap_pages[i][j];
       heap_add_freepage(objspace, heap, proc_page);
-      heap_page_promise(objspace, heap, proc_page);
     }
   }
-  rb_gc_start();
+}
+
+void undy_finish(){
+  bop_msg(1, "Undy is succeeding");
 }
 
 void group_pages(){
@@ -9112,14 +9103,14 @@ void group_pages(){
 }
 
 void heap_init(){
-  //rb_gc_start();
+  rb_gc_start();
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
   int i = BOP_spec_order(), j;
   for(j = 0; j < SPEC_HEAPS; j++){
     struct heap_page * proc_page = proc_heap_pages[i][j];
     heap_add_freepage(objspace, heap, proc_page);
-    heap_page_promise(objspace, heap, proc_page);
+    //heap_page_promise(objspace, heap, proc_page);
   }
   //dont_gc = 1;
 }
@@ -9133,13 +9124,14 @@ void reset_heap(){
       heap_add_freepage(objspace, heap, proc_heap_pages[i][j]);
     }
   }
-  rb_gc_start();
+  //rb_gc_start();
 }
 
 
 bop_port_t rubyheap_port = {
     .ppr_group_init = group_pages,
     .ppr_task_init = heap_init,
-    .undy_init = undy_wait,
+    //.undy_init = undy_wait,
+    //.undy_succ_fini = undy_finish,
     .task_group_commit = reset_heap
 };

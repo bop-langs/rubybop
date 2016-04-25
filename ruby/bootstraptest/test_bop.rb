@@ -168,10 +168,10 @@ assert_equal %q{[1, 2, 3, 4]}, %q{
 }
 
 assert_equal %q{5}, %q{
-  $a = 0
+  @a = 0
   5.times do
-    PPR{ sleep(1); Ordered{ $a += 1 } }
+    PPR{ sleep(1); Ordered{ @a += 1 } }
   end
   PPR.over
-  return $a
+  @a
 }

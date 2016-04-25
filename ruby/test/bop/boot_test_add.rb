@@ -5,7 +5,7 @@
   @partial_sums = Array.new(@groups, 0)
   @arrays.each_with_index do |arr, spec_group|
     PPR{
-      arr.each{|n| @partial_sums[spec_group] += n**2 * n**3 - n**5 +1}
+      arr.each{|n| @partial_sums[spec_group] += n**10 * n**20 - n**30 +1}
     }
   end
   PPR.over
