@@ -16,19 +16,27 @@ def gaussianElimination(matrix, vector)
     vector[pivotIdx], vector[maxIdx] = vector[maxIdx], vector[pivotIdx]
 
     pivot = matrix[pivotIdx][pivotIdx]
+    iter_size = matrix.length - pivotIdx - 1
 
-    (pivotIdx+1).upto(matrix.length - 1) do |row|
-      puts row
-      #PPR do
-        factor = matrix[row][pivotIdx]/pivot
-        matrix[row][pivotIdx] = 0.0
-        (pivotIdx+1).upto(matrix[row].length - 1) do |col|
-          matrix[row][col] -= factor*matrix[pivotIdx][col]
+    task_num = PPR.get_group_size
+    #task_num = 4
+    task_num.times do |task|
+      PPR do
+        sleep(1)
+        (pivotIdx+1+(iter_size * task / task_num)).upto((pivotIdx+1+(iter_size * (task + 1) / task_num))-1) do |row|
+          factor = matrix[row][pivotIdx]/pivot
+          matrix[row][pivotIdx] = 0.0 
+          (pivotIdx+1).upto(matrix[row].length - 1) do |col|
+            matrix[row][col] -= factor*matrix[pivotIdx][col]
+          end
+          vector[row] -= factor*vector[pivotIdx]
         end
-        vector[row] -= factor*vector[pivotIdx]
-      #end
-      #PPR.over
+      end
     end
+    PPR.over
+    #GC.start
+    puts "Iteration #{pivotIdx} over"
+    #puts matrix.inspect
   end
 
   return [matrix,vector]

@@ -1356,8 +1356,8 @@ heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj
 static inline void
 heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
-  page->bop_id = is_sequential();
     if (page->freelist) {
+  page->bop_id = !is_sequential();
 	page->free_next = heap->free_pages;
 	heap->free_pages = page;
     }
@@ -1434,34 +1434,11 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
     }
 }
 
-static struct heap_page *
-heap_page_allocate(rb_objspace_t *objspace)
-{
-    RVALUE *start, *end, *p;
-    struct heap_page *page;
-    struct heap_page_body *page_body = 0;
-    size_t hi, lo, mid;
-    int limit = HEAP_OBJ_LIMIT;
-
-    /* assign heap_page body (contains heap_page_header and RVALUEs) */
-    page_body = (struct heap_page_body *)aligned_malloc(HEAP_ALIGN, HEAP_SIZE);
-    if (page_body == 0) {
-	rb_memerror();
-    }
-
-  	    /* assign heap_page entry */
-    page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
-    if(!is_sequential()){
-      //bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
-    }
-    if (page == 0) {
-	aligned_free(page_body);
-	rb_memerror();
-    }
-
-    page->body = page_body;
-
+static void
+heap_page_add_to_sorted_list(rb_objspace_t *objspace, struct heap_page * page){
     /* setup heap_pages_sorted */
+    struct heap_page_body *page_body = page->body;
+    size_t hi, lo, mid;
     lo = 0;
     hi = heap_allocated_pages;
     while (lo < hi) {
@@ -1497,6 +1474,35 @@ heap_page_allocate(rb_objspace_t *objspace)
 
     if (RGENGC_CHECK_MODE) assert(heap_allocated_pages <= heap_pages_sorted_length);
 
+}
+
+static struct heap_page *
+heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
+    RVALUE *start, *end, *p;
+    struct heap_page *page;
+    struct heap_page_body *page_body = 0;
+    int limit = HEAP_OBJ_LIMIT;
+
+    /* assign heap_page body (contains heap_page_header and RVALUEs) */
+    page_body = (struct heap_page_body *)aligned_malloc(HEAP_ALIGN, HEAP_SIZE);
+    if (page_body == 0) {
+	rb_memerror();
+    }
+
+  	    /* assign heap_page entry */
+    page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
+    if(!is_sequential()){
+      //bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
+    }
+    if (page == 0) {
+	aligned_free(page_body);
+	rb_memerror();
+    }
+
+    page->body = page_body;
+    
+    if(insert_sorted) heap_page_add_to_sorted_list(objspace, page);
+
     /* adjust obj_limit (object number available in this page) */
     start = (RVALUE*)((VALUE)page_body + sizeof(struct heap_page_header));
     if ((VALUE)start % sizeof(RVALUE) != 0) {
@@ -1520,6 +1526,13 @@ heap_page_allocate(rb_objspace_t *objspace)
     page->free_slots = limit;
 
     return page;
+
+}
+
+static struct heap_page *
+heap_page_allocate(rb_objspace_t *objspace)
+{
+  return heap_page_allocate_imp(objspace, 1);
 }
 
 static struct heap_page *
@@ -1649,12 +1662,17 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
     assert(heap == heap_eden);
     struct heap_page *page;
     RVALUE *p;
-    while (UNLIKELY(heap->free_pages == NULL)) {
+    while (UNLIKELY(heap->free_pages == NULL || heap->free_pages->bop_id != !is_sequential())) {
+  //if (!is_sequential()) bop_msg(1, "Garbage collecting to get new free obj");
 	heap_prepare(objspace, heap);
     }
     page = heap->free_pages;
     heap->free_pages = page->free_next;
     heap->using_page = page;
+    if (!is_sequential()){
+      bop_msg(1, "Next free page id %d", heap->free_pages->bop_id);
+    
+    }
 
     if (RGENGC_CHECK_MODE) assert(page->free_slots != 0);
     p = page->freelist;
@@ -3209,7 +3227,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     int empty_slots = 0, freed_slots = 0, final_slots = 0;
     RVALUE *p, *pend,*offset;
     bits_t *bits, bitset;
-    if(sweep_page->bop_id != is_sequential()){
+    if(sweep_page->bop_id != !is_sequential()){
       //bop_msg(1, "Skipping page %p sweep", sweep_page);
       return;
     }
@@ -9047,7 +9065,7 @@ Init_GC(void)
     }
 }
 
-#define SPEC_HEAPS (1)
+#define SPEC_HEAPS (10)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
@@ -9095,7 +9113,7 @@ void group_pages(){
   for(i = 0; i < group_size; i++){
     proc_heap_pages[i] = calloc(SPEC_HEAPS, sizeof(struct heap_page *));
     for(j = 0; j < SPEC_HEAPS; j++){
-      proc_heap_pages[i][j] = heap_page_allocate(objspace);
+      proc_heap_pages[i][j] = heap_page_allocate_imp(objspace, 0);
       heap_add_page(objspace, heap, proc_heap_pages[i][j]);
     }
   }
@@ -9110,7 +9128,7 @@ void heap_init(){
   for(j = 0; j < SPEC_HEAPS; j++){
     struct heap_page * proc_page = proc_heap_pages[i][j];
     heap_add_freepage(objspace, heap, proc_page);
-    //heap_page_promise(objspace, heap, proc_page);
+    heap_page_promise(objspace, heap, proc_page);
   }
   //dont_gc = 1;
 }
@@ -9122,6 +9140,7 @@ void reset_heap(){
   for(i = 0; i < BOP_get_group_size()-1; i++){
     for(j = 0; j < SPEC_HEAPS; j++){
       heap_add_freepage(objspace, heap, proc_heap_pages[i][j]);
+      heap_page_add_to_sorted_list(objspace, proc_heap_pages[i][j]);
     }
   }
   //rb_gc_start();
@@ -9131,7 +9150,7 @@ void reset_heap(){
 bop_port_t rubyheap_port = {
     .ppr_group_init = group_pages,
     .ppr_task_init = heap_init,
-    //.undy_init = undy_wait,
+    .undy_init = undy_wait,
     //.undy_succ_fini = undy_finish,
     .task_group_commit = reset_heap
 };
