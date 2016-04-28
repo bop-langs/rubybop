@@ -12,6 +12,7 @@
 #include "internal.h"
 #include "ruby/thread.h"
 #include "ruby/util.h"
+#include "bop_api.h"
 
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
@@ -2975,7 +2976,6 @@ rb_big_resize(VALUE big, size_t len)
     rb_big_realloc(big, len);
     BIGNUM_SET_LEN(big, len);
 }
-extern void bop_msg(int, const char*, ...);
 static VALUE
 bignew_1(VALUE klass, size_t len, int sign)
 {
