@@ -1516,7 +1516,6 @@ heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
     
     if(insert_sorted){
       heap_page_add_to_sorted_list(objspace, page);
-      page->bop_next = -1;
     }
     else{
       add_allocated_list(page);
@@ -9138,7 +9137,7 @@ void reset_heap(){
   for(i = 0; i < BOP_get_group_size()-1; i++){
     struct heap_page * proc_page = proc_heap_pages[i];
     while(proc_page != NULL){
-      bop_msg(1, "adding page to current heap %p body %p", proc_page, proc_page->body);
+      bop_msg(1, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
       heap_add_freepage(objspace, heap, proc_page);
       heap_allocatable_pages++;
       heap_pages_expand_sorted(objspace);
