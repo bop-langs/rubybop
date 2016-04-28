@@ -9146,7 +9146,7 @@ void use_page(rb_objspace_t * objspace, struct heap_page * page){
 void group_pages(){
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  bop_msg(1, "Group init heap");
+  bop_msg(2, "Group init heap");
   rb_gc_start();
   proc_heap_pages = calloc(BOP_get_group_size(), 
     sizeof(struct heap_page **));
@@ -9155,7 +9155,7 @@ void group_pages(){
   for(i = 0; i < heap_allocated_pages; i++){
     struct heap_page * page = heap_pages_sorted[i];
     use_page(objspace, page);
-    bop_msg(2, "Page\t%p\tBody\t%p\tFree\t%d\tTotal\t%d",
+    bop_msg(3, "Page\t%p\tBody\t%p\tFree\t%d\tTotal\t%d",
       page, page->body, page->free_slots, page->total_slots);
   }
 }
@@ -9168,9 +9168,9 @@ void heap_init(){
   heap->free_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
-    bop_msg(1, "Add promise heap page %p body %p", page, page->body);
+    bop_msg(3, "Add promise heap page %p body %p", page, page->body);
     heap_add_freepage(objspace, heap, page);
-    //heap_page_promise(objspace, heap, page);
+    heap_page_promise(objspace, heap, page);
     page = page->bop_next;
   }
   //heap_add_pages(objspace, heap, 1);
@@ -9178,7 +9178,7 @@ void heap_init(){
 }
 
 void reset_heap(){
-  bop_msg(1, "resetting heap");
+  bop_msg(2, "resetting heap");
   rb_gc_start();
   int i;
   rb_objspace_t *objspace = &rb_objspace;
@@ -9188,7 +9188,7 @@ void reset_heap(){
   for(i = 0; i < BOP_get_group_size(); i++){
     struct heap_page * proc_page = proc_heap_pages[i];
     while(proc_page != NULL){
-      bop_msg(2, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
+      bop_msg(3, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
       if(proc_page->bop_new && i < BOP_get_group_size()-1){
         heap_allocatable_pages++;
         heap_pages_expand_sorted(objspace);
