@@ -9170,7 +9170,7 @@ void heap_init(){
   while(page != NULL){
     bop_msg(1, "Add promise heap page %p body %p", page, page->body);
     heap_add_freepage(objspace, heap, page);
-    heap_page_promise(objspace, heap, page);
+    //heap_page_promise(objspace, heap, page);
     page = page->bop_next;
   }
   //heap_add_pages(objspace, heap, 1);
