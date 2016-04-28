@@ -84,6 +84,7 @@ assert_equal %q{[1, 2, 3, 4]}, %q{
   end
   Main.new.vals
 }
+=begin
 assert_equal %q{["a", "b", "c", "d"]}, %q{
 PPR {
   @a="a"
@@ -105,6 +106,7 @@ PPR {
 PPR.over
 [@a, @b, @c, @d]
 }
+=end
 assert_equal %q{1000000}, %q{
 def init( data_size )
   $data = Array.new(data_size, 0)
