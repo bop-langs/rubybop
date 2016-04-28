@@ -1578,7 +1578,7 @@ heap_page_create(rb_objspace_t *objspace)
       page = heap_page_resurrect(objspace);
     }
     else{
-      bop_msg(1, "creating heap page in ppr");
+      bop_msg(4, "creating heap page in ppr");
     }
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
@@ -3257,7 +3257,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     RVALUE *p, *pend,*offset;
     bits_t *bits, bitset;
     if(!is_sequential() && sweep_page->bop_id != !is_sequential()){
-      bop_msg(1, "Skipping page %p sweep", sweep_page);
+      bop_msg(4, "Skipping page %p sweep", sweep_page);
       return;
     }
 
@@ -9115,7 +9115,11 @@ void heap_page_promise(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_pag
   BOP_record_write(page->body, HEAP_SIZE);
 }
 
-void undy_wait(){
+void undy_start(){
+  rb_objspace_t *objspace = &rb_objspace;
+  rb_heap_t *heap = heap_eden;
+  heap->free_pages = seq_free_list;
+  seq_free_list = NULL;
 }
 
 void undy_finish(){
@@ -9162,6 +9166,7 @@ void heap_init(){
     heap_page_promise(objspace, heap, page);
     page = page->bop_next;
   }
+  rb_gc_start();
 }
 
 void reset_heap(){
@@ -9199,7 +9204,7 @@ void reset_heap(){
 bop_port_t rubyheap_port = {
     .ppr_group_init = group_pages,
     .ppr_task_init = heap_init,
-    .undy_init = undy_wait,
-    //.undy_succ_fini = undy_finish,
+    .undy_init = undy_start,
+    .undy_succ_fini = undy_finish,
     .task_group_commit = reset_heap
 };
