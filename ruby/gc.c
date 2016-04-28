@@ -690,6 +690,7 @@ struct heap_page {
     struct heap_page *next;
     struct heap_page * bop_next;
     short bop_id;
+    short bop_new;
 
 #if USE_RGENGC
     bits_t wb_unprotected_bits[HEAP_BITMAP_LIMIT];
@@ -1442,9 +1443,11 @@ static void
 add_allocated_list(struct heap_page * page){
   int spec_order = BOP_spec_order();
   page->bop_next = proc_heap_pages[spec_order];
+  page->bop_new = 1;
   proc_heap_pages[spec_order] = page;
-  BOP_record_write(&proc_heap_pages[spec_order], sizeof(struct heap_page *));
-  //BOP_record_write(proc_heap_pages[spec_order], sizeof(struct heap_page));
+  BOP_record_write(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
+  BOP_record_write(proc_heap_pages[spec_order],sizeof(struct heap_page));
+  BOP_record_write(proc_heap_pages[spec_order]->body, HEAP_SIZE);
 }
 
 static void
@@ -1574,6 +1577,9 @@ heap_page_create(rb_objspace_t *objspace)
     if(is_sequential()){
       page = heap_page_resurrect(objspace);
     }
+    else{
+      bop_msg(1, "creating heap page in ppr");
+    }
     if (page == NULL) {
 	page = heap_page_allocate(objspace);
     }
@@ -1658,18 +1664,18 @@ heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
     if (RGENGC_CHECK_MODE) assert(heap->free_pages == NULL);
 
 #if GC_ENABLE_LAZY_SWEEP
-    if (is_sequential() && is_lazy_sweeping(heap)) {
+    if (is_lazy_sweeping(heap)) {
 	gc_sweep_continue(objspace, heap);
     }
 #endif
 #if GC_ENABLE_INCREMENTAL_MARK
-    else if (is_sequential() && is_incremental_marking(objspace)) {
+    else if (is_incremental_marking(objspace)) {
 	gc_marks_continue(objspace, heap);
     }
 #endif
 
     if (heap->free_pages == NULL &&
-	((is_sequential() && will_be_incremental_marking(objspace)) || heap_increment(objspace, heap) == FALSE) &&
+	(will_be_incremental_marking(objspace) || heap_increment(objspace, heap) == FALSE) &&
 	gc_start(objspace, FALSE, FALSE, FALSE, GPR_FLAG_NEWOBJ) == FALSE) {
 	rb_memerror();
     }
@@ -3250,8 +3256,8 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     int empty_slots = 0, freed_slots = 0, final_slots = 0;
     RVALUE *p, *pend,*offset;
     bits_t *bits, bitset;
-    if(sweep_page->bop_id != !is_sequential()){
-      //bop_msg(1, "Skipping page %p sweep", sweep_page);
+    if(!is_sequential() && sweep_page->bop_id != !is_sequential()){
+      bop_msg(1, "Skipping page %p sweep", sweep_page);
       return;
     }
 
@@ -9116,16 +9122,29 @@ void undy_finish(){
   bop_msg(4, "Undy is succeeding");
 }
 
+int cur_task = 0;
+
+void use_page(rb_objspace_t * objspace, struct heap_page * page){
+  if(page->free_slots == page->total_slots){
+    page->bop_next = proc_heap_pages[cur_task];
+    proc_heap_pages[cur_task] = page;
+    cur_task = (cur_task + 1) % BOP_get_group_size();
+  }
+}
+struct heap_page * seq_free_list;
 void group_pages(){
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
   bop_msg(4, "Group init heap");
   rb_gc_start();
-  proc_heap_pages = calloc(BOP_get_group_size(), sizeof(struct heap_page **));
+  proc_heap_pages = calloc(BOP_get_group_size(), 
+    sizeof(struct heap_page **));
+  seq_free_list = heap->free_pages;
   unsigned int i;
   for(i = 0; i < heap_allocated_pages; i++){
     struct heap_page * page = heap_pages_sorted[i];
-    bop_msg(1, "Page\t%p\tBody\t%p\tFree\t%d\tTotal\t%d", 
+    use_page(objspace, page);
+    bop_msg(2, "Page\t%p\tBody\t%p\tFree\t%d\tTotal\t%d",
       page, page->body, page->free_slots, page->total_slots);
   }
 }
@@ -9134,9 +9153,15 @@ void heap_init(){
   rb_gc_start();
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  heap_add_pages(objspace, heap, 10);
-  //heap_set_increment(objspace, 10);
-  rb_gc_start();
+  int spec_order = BOP_spec_order();
+  heap->free_pages = NULL;
+  struct heap_page * page = proc_heap_pages[spec_order];
+  while(page != NULL){
+    bop_msg(2, "Add promise heap page %p", page);
+    heap_add_freepage(objspace, heap, page);
+    heap_page_promise(objspace, heap, page);
+    page = page->bop_next;
+  }
 }
 
 void reset_heap(){
@@ -9145,15 +9170,22 @@ void reset_heap(){
   int i;
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
+  heap->free_pages = seq_free_list;
+  seq_free_list = NULL;
   for(i = 0; i < BOP_get_group_size()-1; i++){
     struct heap_page * proc_page = proc_heap_pages[i];
     while(proc_page != NULL){
-      bop_msg(4, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
+      bop_msg(2, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
+      if(proc_page->bop_new){
+        heap_allocatable_pages++;
+        heap_pages_expand_sorted(objspace);
+        heap_page_add_to_sorted_list(objspace, proc_page);
+        proc_page->bop_new = 0;
+      }
       heap_add_freepage(objspace, heap, proc_page);
-      heap_allocatable_pages++;
-      heap_pages_expand_sorted(objspace);
-      heap_page_add_to_sorted_list(objspace, proc_page);
+      struct heap_page * temp = proc_page;
       proc_page = proc_page->bop_next;
+      temp->bop_next = NULL;
     }
   }
   free(proc_heap_pages);
