@@ -9121,6 +9121,8 @@ void undy_start(){
   rb_heap_t *heap = heap_eden;
   heap->free_pages = seq_free_list;
   seq_free_list = NULL;
+  free(proc_heap_pages);
+  rb_gc_start();
 }
 
 void undy_finish(){
