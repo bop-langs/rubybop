@@ -62,12 +62,13 @@ static inline int getbasebit(){
   return base_bit_for(BOP_spec_order());
 }
 
-bop_record_t * get_record(VALUE, ID);
+bop_record_t * get_record(VALUE, ID, bool);
 extern int is_sequential();
 
 
 void record_bop_rd_id(VALUE, ID);
 void record_bop_wrt_id(VALUE, ID);
+void record_bop_gc(VALUE);
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE);
 void record_bop_wrt_obj(VALUE);

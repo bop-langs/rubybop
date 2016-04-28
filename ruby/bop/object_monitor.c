@@ -36,7 +36,7 @@ static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op
   if(is_sequential() && BOP_task_status() != MAIN) return;
   assert(rb_type(object) != T_FIXNUM);
   assert(op == READ_BIT || op == WRITE_BIT);
-  bop_record_t * record = get_record(object, key);
+  bop_record_t * record = get_record(object, key, true);
   if(record == NULL){
     assert(BOP_task_status() == MAIN);
     return;
@@ -72,6 +72,26 @@ void record_bop_wrt_id(VALUE obj, ID id){
   record_bop_access(obj, id, true, WRITE_BIT);
 }
 
+static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
+  record_id_t record_id;
+  bop_record_t * record = get_record(obj, inst_id, false);
+  if(record == NULL) return;
+  record_id = record->record_id;
+  // Due to linear probing, we can't remove it from the hash table, but we can
+  // remove it from our lists to check reducing computation later
+  if((record->vector & (getbasebit() + READ_BIT)) != 0)
+    remove_list(&read_list, record_id);
+  if((record->vector & (getbasebit() + WRITE_BIT)) != 0){
+    remove_list(&write_list, record_id);
+    remove_list(&ordered_writes, record_id);
+  }
+}
+void record_bop_gc(VALUE obj){
+  //TODO iterate over all KEYS of the object and record_bop_gc_pr(obj, key)
+#ifdef HAVE_USE_PROMISE
+  record_bop_gc_pr(obj, DUMMY_ID); //
+#endif
+}
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE obj){
   record_bop_access(obj, DUMMY_ID, false, READ_BIT);
@@ -105,7 +125,7 @@ static inline record_id_t make_record_id(VALUE obj, ID id){
   return record.record_id;
 }
 
-bop_record_t * get_record(VALUE obj, ID id){
+bop_record_t * get_record(VALUE obj, ID id, bool allocate){
   static const record_id_t UNALLOCATED = 0;
   bool has_gced = false;
   uint64_t probes, index;
@@ -116,7 +136,7 @@ bop_record_t * get_record(VALUE obj, ID id){
     index = (base_index + probes) % MAX_RECORDS;
     if(records[index].record_id == record_id) //already set to this object
       return &records[index];
-    else if(records[index].record_id == UNALLOCATED){
+    else if(allocate && records[index].record_id == UNALLOCATED){
       //found un-allocated. Allocate it atomically
       old_record_id = __sync_val_compare_and_swap(&records[index].record_id,
         UNALLOCATED, record_id);
