@@ -1,6 +1,6 @@
-assert_equal %q{[1250, 1250, 1250, 1250, 5000]} ,%q{
+assert_equal %q{[2500, 2500, 5000]} ,%q{
   @numbers = 5000
-  @groups = 4
+  @groups = 2
   @array = (0..@numbers).to_a.shuffle.take(@numbers)
   @arrays = @array.each_slice(@numbers/@groups).to_a
   @partial_sums = Array.new(@groups, 0)
