@@ -9106,6 +9106,7 @@ Init_GC(void)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
+struct heap_page * seq_free_list;
 
 
 void detach_free_list(rb_objspace_t *objspace);
@@ -9135,7 +9136,6 @@ void use_page(rb_objspace_t * objspace, struct heap_page * page){
     cur_task = (cur_task + 1) % BOP_get_group_size();
   }
 }
-struct heap_page * seq_free_list;
 void group_pages(){
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
