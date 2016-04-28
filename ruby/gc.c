@@ -1489,6 +1489,7 @@ heap_page_add_to_sorted_list(rb_objspace_t *objspace, struct heap_page * page){
 
 }
 
+#include "dmmalloc.h"
 static struct heap_page *
 heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
     RVALUE *start, *end, *p;
@@ -1504,6 +1505,7 @@ heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
 
   	    /* assign heap_page entry */
     page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
+    BOP_promise(((char*) page) - HSIZE, sizeof(struct heap_page) + HSIZE);
     if(!is_sequential()){
       //bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
     }
@@ -1513,7 +1515,7 @@ heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
     }
 
     page->body = page_body;
-    
+
     if(insert_sorted){
       heap_page_add_to_sorted_list(objspace, page);
     }
@@ -7328,6 +7330,7 @@ aligned_malloc(size_t alignment, size_t size)
 #else
     char* aligned;
     res = malloc(alignment + size + sizeof(void*));
+    BOP_promise((((char*) res) - HSIZE), alignment + size + sizeof(void*));
     aligned = (char*)res + alignment + sizeof(void*);
     aligned -= ((VALUE)aligned & (alignment - 1));
     ((void**)aligned)[-1] = res;
@@ -9145,7 +9148,7 @@ void reset_heap(){
   for(i = 0; i < BOP_get_group_size()-1; i++){
     struct heap_page * proc_page = proc_heap_pages[i];
     while(proc_page != NULL){
-      bop_msg(1, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
+      bop_msg(4, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
       heap_add_freepage(objspace, heap, proc_page);
       heap_allocatable_pages++;
       heap_pages_expand_sorted(objspace);
