@@ -72,23 +72,6 @@ void record_bop_wrt_id(VALUE obj, ID id){
   record_bop_access(obj, id, true, WRITE_BIT);
 }
 
-static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
-  record_id_t record_id;
-  bop_record_t * record = get_record(obj, inst_id);
-  if(record == NULL) return;
-  record_id = record->record_id;
-  record->vector = 0;
-  __sync_synchronize(); //full memory barrier
-  assert(__sync_and_and_fetch(&record->record_id, 0) == 0);
-  remove_list(&read_list, record_id);
-  remove_list(&write_list, record_id);
-}
-void record_bop_gc(VALUE obj){
-  record_bop_gc_pr(obj, -1); //todo iterate over all of obj's instance variables
-#ifdef HAVE_USE_PROMISE
-  record_bop_gc_pr(obj, DUMMY_ID); //
-#endif
-}
 #ifdef HAVE_USE_PROMISE
 void record_bop_rd_obj(VALUE obj){
   record_bop_access(obj, DUMMY_ID, false, READ_BIT);
