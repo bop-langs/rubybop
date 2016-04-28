@@ -22,7 +22,7 @@ def gaussianElimination(matrix, vector)
     #task_num = 4
     task_num.times do |task|
       PPR do
-        sleep(1)
+        #sleep(1)
         (pivotIdx+1+(iter_size * task / task_num)).upto((pivotIdx+1+(iter_size * (task + 1) / task_num))-1) do |row|
           factor = matrix[row][pivotIdx]/pivot
           matrix[row][pivotIdx] = 0.0 

@@ -7,19 +7,19 @@ class Main
   def run()
     PPR{
       sleep(1)
-      @a=0
+      @a="a"
     }
     PPR{
       sleep(1)
-      @b=1
+      @b="b"
     }
     PPR{
       sleep(1)
-      @c=2
+      @c="c"
     }
     PPR{
       sleep(1)
-      @d="wat"
+      @d="d"
     }
     PPR.over
     return self
