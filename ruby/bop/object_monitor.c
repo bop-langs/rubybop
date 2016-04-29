@@ -8,7 +8,6 @@
 #include "bop_api.h"
 #include "bop_ports.h"
 #include "object_monitor.h"
-#include "gc.h"
 
 static bop_record_t * records = NULL;
 static bop_record_copy_t * copy_records = NULL;
@@ -127,12 +126,11 @@ static inline record_id_t make_record_id(VALUE obj, ID id){
 
 bop_record_t * get_record(VALUE obj, ID id, bool allocate){
   static const record_id_t UNALLOCATED = 0;
-  bool has_gced = false;
   uint64_t probes, index;
   record_id_t old_record_id;
   record_id_t record_id = make_record_id(obj, id);
   uint64_t base_index = hash2((uint64_t) obj, (uint64_t) id);
-  search: for(probes = 0; probes <= MAX_PROBES; probes++){
+  for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
     if(records[index].record_id == record_id) //already set to this object
       return &records[index];
@@ -146,14 +144,8 @@ bop_record_t * get_record(VALUE obj, ID id, bool allocate){
       }
     }
   }
-  if(!has_gced){
-    has_gced = true;
-    rb_gc_start();
-    goto search;
-  }else{
-    BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
-    return NULL;
-  }
+  BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
+  return NULL;
 }
 // list utilities
 static inline void update_wrt_list(bop_record_t * record){
