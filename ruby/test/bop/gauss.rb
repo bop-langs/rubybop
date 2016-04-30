@@ -1,3 +1,7 @@
+def max(a, b)
+  return a if a > b
+  return b
+end
 
 def gaussianElimination(matrix, vector)
   0.upto(matrix.length - 2) do |pivotIdx|
@@ -16,18 +20,24 @@ def gaussianElimination(matrix, vector)
     vector[pivotIdx], vector[maxIdx] = vector[maxIdx], vector[pivotIdx]
 
     pivot = matrix[pivotIdx][pivotIdx]
-
-    (pivotIdx+1).upto(matrix.length - 1) do |row|
-      #PPR do
-        factor = matrix[row][pivotIdx]/pivot
-        matrix[row][pivotIdx] = 0.0
-        (pivotIdx+1).upto(matrix[row].length - 1) do |col|
-          matrix[row][col] -= factor*matrix[pivotIdx][col]
-        end
-        vector[row] -= factor*vector[pivotIdx]
-      #end
-      #PPR.over
+    range = (pivotIdx+1 .. matrix.length - 1)
+    per_task = PPR.ppr_index == -1 ? 1 : max(range.size / PPR.get_group_size, 1)
+    range.step(per_task) do |rowBase|
+      PPR {
+        per_task.times { |iter|
+          row = rowBase + iter
+          if row < matrix.length then
+            factor = matrix[row][pivotIdx]/pivot
+            matrix[row][pivotIdx] = 0.0
+            (pivotIdx+1).upto(matrix[row].length - 1) do |col|
+              matrix[row][col] -= factor*matrix[pivotIdx][col]
+            end
+            vector[row] -= factor*vector[pivotIdx]
+          end
+        }
+    }
     end
+    PPR.over
   end
 
   return [matrix,vector]
@@ -115,5 +125,3 @@ if pass
 else
   puts "Verification FAILED."
 end
-
-
