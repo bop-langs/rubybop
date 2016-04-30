@@ -1447,7 +1447,7 @@ static void heap_page_promise(struct heap_page *page){
 
 static void
 add_allocated_list(struct heap_page * page){
-  bop_msg(2, "adding to alloc list");
+  bop_msg(5, "adding to alloc list");
   int spec_order = BOP_spec_order();
   page->bop_next = proc_heap_pages[spec_order];
   page->bop_new = 1;

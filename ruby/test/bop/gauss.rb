@@ -1,8 +1,3 @@
-def max(a, b)
-  return a if a > b
-  return b
-end
-
 def gaussianElimination(matrix, vector)
   0.upto(matrix.length - 2) do |pivotIdx|
 
@@ -21,7 +16,7 @@ def gaussianElimination(matrix, vector)
 
     pivot = matrix[pivotIdx][pivotIdx]
     range = (pivotIdx+1 .. matrix.length - 1)
-    per_task = PPR.ppr_index == -1 ? 1 : max(range.size / PPR.get_group_size, 1)
+    per_task = PPR.ppr_index == -1 ? 1 : [range.size / PPR.get_group_size, 1].max
     range.step(per_task) do |rowBase|
       PPR {
         per_task.times { |iter|
