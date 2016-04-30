@@ -3271,6 +3271,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
       }
       else{
         bop_msg(3, "Sweeping page %p in sweep", sweep_page);
+        return;
       }
     }
 
