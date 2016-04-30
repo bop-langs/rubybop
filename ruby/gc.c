@@ -1439,6 +1439,12 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 
 struct heap_page ** proc_heap_pages;
 
+static void heap_page_promise(struct heap_page *page){
+  bop_msg(3, "Promising heap page %p body %p", page, page->body);
+  BOP_record_write(page, sizeof(struct heap_page));
+  BOP_record_write(page->body, HEAP_SIZE);
+}
+
 static void
 add_allocated_list(struct heap_page * page){
   bop_msg(2, "adding to alloc list");
@@ -1449,8 +1455,7 @@ add_allocated_list(struct heap_page * page){
   if(proc_heap_pages[spec_order] == NULL){
     BOP_record_write(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
   }
-  BOP_record_write(proc_heap_pages[spec_order],sizeof(struct heap_page));
-  BOP_record_write(proc_heap_pages[spec_order]->body, HEAP_SIZE);
+  heap_page_promise(page);
 }
 
 static void
@@ -1683,10 +1688,6 @@ heap_prepare(rb_objspace_t *objspace, rb_heap_t *heap)
 	rb_memerror();
     }
 }
-static void heap_page_promise(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page){
-  BOP_record_write(page, sizeof(struct heap_page));
-  BOP_record_write(page->body, HEAP_SIZE);
-}
 
 static RVALUE *
 heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
@@ -1714,7 +1715,7 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
     p = page->freelist;
     page->freelist = NULL;
     page->free_slots = 0;
-    heap_page_promise(objspace, heap, page);
+    heap_page_promise(page);
     return p;
 }
 
@@ -6032,6 +6033,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
     if (!heap_allocated_pages) return FALSE;      /* heap is not ready */
     if (!ready_to_gc(objspace)) return TRUE; /* GC is not allowed */
     if (do_full_mark && !is_sequential()) return TRUE; /* no ful GC in parallel*/
+
     bop_msg(5, "Starting to collect garbage");
     if (!is_sequential()) bop_msg(4, "Starting to collect garbage in parallel");
 
@@ -9168,9 +9170,10 @@ void heap_init(){
   heap->free_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
-    bop_msg(3, "Add promise heap page %p body %p", page, page->body);
+    bop_msg(3, "Add heap page %p body %p", page, page->body);
     heap_add_freepage(objspace, heap, page);
-    heap_page_promise(objspace, heap, page);
+    //heap_page_promise(page);
+    page->bop_id=1;
     page = page->bop_next;
   }
   //heap_add_pages(objspace, heap, 1);
