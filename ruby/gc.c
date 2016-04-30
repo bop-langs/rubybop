@@ -455,7 +455,6 @@ typedef struct rb_heap_struct {
     RVALUE *freelist;
 
     struct heap_page *free_pages;
-    struct heap_page *old_free_pages;
     struct heap_page *using_page;
     struct heap_page *pages;
     struct heap_page *sweep_pages;
@@ -1440,7 +1439,7 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 struct heap_page ** proc_heap_pages;
 
 static void heap_page_promise(struct heap_page *page){
-  bop_msg(3, "Promising heap page %p body %p", page, page->body);
+  if(!is_sequential()) bop_msg(3, "Promising heap page %p body %p", page, page->body);
   BOP_record_write(page, sizeof(struct heap_page));
   BOP_record_write(page->body, HEAP_SIZE);
 }
@@ -3265,9 +3264,14 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     int empty_slots = 0, freed_slots = 0, final_slots = 0;
     RVALUE *p, *pend,*offset;
     bits_t *bits, bitset;
-    if(!is_sequential() && sweep_page->bop_id != !is_sequential()){
-      bop_msg(4, "Skipping page %p sweep", sweep_page);
-      return;
+    if(!is_sequential()){
+      if(sweep_page->bop_id != !is_sequential()){
+        bop_msg(3, "Skipping page %p insweep", sweep_page);
+        return;
+      }
+      else{
+        bop_msg(3, "Sweeping page %p in sweep", sweep_page);
+      }
     }
 
     gc_report(2, objspace, "page_sweep: start.\n");
@@ -9160,6 +9164,7 @@ void group_pages(){
     bop_msg(5, "Page\t%p\tBody\t%p\tFree\t%d\tTotal\t%d",
       page, page->body, page->free_slots, page->total_slots);
   }
+  rb_gc_start();
 }
 
 void heap_init(){
@@ -9168,6 +9173,10 @@ void heap_init(){
   rb_heap_t *heap = heap_eden;
   int spec_order = BOP_spec_order();
   heap->free_pages = NULL;
+  heap->freelist=NULL;
+  heap->pages = NULL;
+  heap->using_page = NULL;
+  heap->pooled_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
     bop_msg(3, "Add heap page %p body %p", page, page->body);
