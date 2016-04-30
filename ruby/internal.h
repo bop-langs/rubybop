@@ -808,8 +808,8 @@ rb_float_value_inline(VALUE v)
 static inline VALUE
 rb_float_new_inline(double d)
 {
-//#if USE_FLONUM
-#if 0
+#if USE_FLONUM
+//#if 0
     union {
 	double d;
 	VALUE v;
