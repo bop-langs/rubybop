@@ -18,7 +18,6 @@ def gaussianElimination(matrix, vector)
     pivot = matrix[pivotIdx][pivotIdx]
 
     (pivotIdx+1).upto(matrix.length - 1) do |row|
-      puts row
       #PPR do
         factor = matrix[row][pivotIdx]/pivot
         matrix[row][pivotIdx] = 0.0
