@@ -179,7 +179,7 @@ extern char * BOP_task_str(void);
 static VALUE rb_task_status(){
   return rb_str_new2( BOP_task_str() );
 }
-
+extern void (*external_reporter)(const char *, ...);
 void
 Init_PPR() {
 
@@ -212,6 +212,8 @@ Init_PPR() {
     //register_port(&rubybop_gc_port, "RubyBOP GC Port");
     register_port(&rubyheap_port, (char*) "RubyHeap Port");
     register_port(&rb_object_port, (char*) "Ruby object port");
+
+    external_reporter = rb_bug;
 }
 
 void
