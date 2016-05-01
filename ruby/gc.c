@@ -6056,7 +6056,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
 
     if (!heap_allocated_pages) return FALSE;      /* heap is not ready */
     if (!ready_to_gc(objspace)) return TRUE; /* GC is not allowed */
-    //if (do_full_mark && !is_sequential()) return TRUE; /* no ful GC in parallel*/
+    if (do_full_mark && !is_sequential()) return TRUE; /* no ful GC in parallel*/
 
     bop_msg(5, "Starting to collect garbage");
     if (!is_sequential()) bop_msg(2, "Starting to collect garbage in parallel");
@@ -9190,7 +9190,7 @@ void group_pages(){
   for(i = 0; i < heap_allocated_pages; i++){
     struct heap_page * page = heap_pages_sorted[i];
     use_page(objspace, page);
-    bop_msg(2, "To:%d\tPage\t%p\tFree\t%d\tTotal\t%d\tIsEden\t%d",
+    bop_msg(1, "To:%d\tPage\t%p\tFree\t%d\tTotal\t%d\tIsEden\t%d",
       cur_task, page, page->free_slots, page->total_slots, page->heap == heap);
   }
   rb_gc_start();
@@ -9210,6 +9210,7 @@ void heap_init(){
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
     bop_msg(2, "Add heap page %p body %p, heap %p", page, page->body, page->heap);
+    //heap_unlink_page(objspace, page->heap, page);
     //heap_add_page(objspace, heap, page);
     heap_add_freepage(objspace, heap, page);
     heap_page_promise(page);
@@ -9223,8 +9224,8 @@ void heap_init(){
 void reset_heap(){
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  bop_msg(2, "resetting heap");
   rb_gc_start();
+  bop_msg(1, "resetting heap");
   int i;
   heap->free_pages = seq_free_list;
   seq_free_list = NULL;
@@ -9237,6 +9238,10 @@ void reset_heap(){
         heap_pages_expand_sorted(objspace);
         heap_page_add_to_sorted_list(objspace, proc_page);
         heap_add_page(objspace, proc_page->heap, proc_page);
+      }
+      else{
+        //heap_unlink_page(objspace, proc_page->heap, proc_page);
+        //heap_add_page(objspace, heap, proc_page);
       }
       heap_add_freepage(objspace, heap, proc_page);
       proc_page->bop_new = 0;
