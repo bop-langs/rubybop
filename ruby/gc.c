@@ -1455,6 +1455,7 @@ add_allocated_list(struct heap_page * page){
   int spec_order = BOP_spec_order();
   page->bop_next = proc_heap_pages[spec_order];
   page->bop_new = 1;
+  page->bop_id = 1;
   proc_heap_pages[spec_order] = page;
   if(proc_heap_pages[spec_order] == NULL){
     BOP_record_write(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
@@ -6056,7 +6057,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
 
     if (!heap_allocated_pages) return FALSE;      /* heap is not ready */
     if (!ready_to_gc(objspace)) return TRUE; /* GC is not allowed */
-    if (do_full_mark && !is_sequential()) return TRUE; /* no ful GC in parallel*/
+    if (immediate_sweep && !is_sequential()) return TRUE; /* no ful GC in parallel*/
 
     bop_msg(5, "Starting to collect garbage");
     if (!is_sequential()) bop_msg(2, "Starting to collect garbage in parallel");
@@ -6115,7 +6116,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
 
     if (objspace->flags.immediate_sweep) reason |= GPR_FLAG_IMMEDIATE_SWEEP;
 
-    gc_report(1, objspace, "gc_start(%d, %d, %d, reason: %d) => %d, %d, %d\n",
+    gc_report(2, objspace, "gc_start(%d, %d, %d, reason: %d) => %d, %d, %d\n",
 	      full_mark, immediate_mark, immediate_sweep, reason,
 	      do_full_mark, !is_incremental_marking(objspace), objspace->flags.immediate_sweep);
 
@@ -6134,7 +6135,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
     bop_msg(3, "gc_start(%d, %d, %d, reason: %d) => %d, %d, %d",
 	      full_mark, immediate_mark, immediate_sweep, reason,
 	      do_full_mark, !is_incremental_marking(objspace), objspace->flags.immediate_sweep);
-    if(!is_sequential()) do_full_mark = 0;
+  //if(!is_sequential()) do_full_mark = 0;
 	gc_marks(objspace, do_full_mark);
     }
     gc_prof_timer_stop(objspace);
@@ -9205,7 +9206,7 @@ void heap_init(){
   heap->free_pages = NULL;
   heap->freelist = NULL;
   //heap->pages = NULL;
-  heap->using_page = NULL;
+  //heap->using_page = NULL;
   heap->pooled_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
