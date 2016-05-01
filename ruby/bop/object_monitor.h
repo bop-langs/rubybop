@@ -9,7 +9,7 @@
 #define member_size(type, member) (sizeof(((type *)0)->member))
 
 //config options
-#define SHM_SIZE (4*100000)
+#define SHM_SIZE (4096*10000) 
 #define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
 #define MAX_PROBES (MAX_RECORDS)
 #define MAX_COPYS (((SHM_SIZE) / sizeof(bop_record_copy_t)))

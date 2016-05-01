@@ -129,7 +129,7 @@ static inline uint64_t hash(uint64_t key){
 }
 
 static inline uint64_t hash2(uint64_t obj, uint64_t key){
-  return hash(obj) * 3 + hash(key);
+  return hash(obj) + hash(key);
 }
 
 static inline record_id_t make_record_id(VALUE obj, ID id){
@@ -145,7 +145,7 @@ bop_record_t * get_record(VALUE obj, ID id, bool allocate){
   record_id_t old_record_id;
   record_id_t record_id = make_record_id(obj, id);
   uint64_t base_index = hash2((uint64_t) obj, (uint64_t) id);
-  for(probes = 0; probes <= MAX_PROBES; probes++){
+  for(probes = 0; probes <= 5; probes++){
     index = (base_index + probes) % MAX_RECORDS;
     if(records[index].record_id == record_id) //
       return &records[index];
@@ -159,7 +159,7 @@ bop_record_t * get_record(VALUE obj, ID id, bool allocate){
       }
     }
   }
-  BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
+  BOP_abort_spec("no record available for <0x%lx, 0x%lx> (%lu probes)", obj, id, probes);
   return NULL;
 }
 // list utilities
