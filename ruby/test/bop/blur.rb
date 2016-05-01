@@ -7,10 +7,13 @@ class Pixel
     @avd = 0
   end
   def add(p)
-    @a += p.a
-    @b += p.b
-    @c += p.c
-    @avd +=1
+    add(p.a, p.b, p.c, 1)
+  end
+  def add(a,b,c,count)
+    @a += a
+    @b += b
+    @c += c
+    @avd +=count
   end
 
   def average
@@ -45,32 +48,48 @@ File.open(ARGV[0],"r").each_line do |line|
   $images[1][x][y] = Pixel.new( a2, b2, c2)
 end
 
+def max(a, b)
+  return a > b ? a : b
+end
+def min(a, b)
+  return a < b ? a : b
+end
+
 def blur(read_index, x, y, range=3)
   sleep(0.0005)
   # return Pixel.new #$images[read_index][x][y]
   max = $size - 1
-  avg = Pixel.new
-  base_row = [x-range, 0].max
-  high_row = [x+range, max].min
-  base_col = [y-range, 0].max
-  high_col = [y+range, max].min
+  base_row = max(0, x-range) #[x-range, 0].max
+  high_row = min(max, x+range) #[x+range, max].min
+  base_col = max(0, y-range) #[y-range, 0].max
+  high_col = min(max, y+range) #[y+range, max].min
+  a, b, c, count = 0,0,0,0.0
   (base_row .. high_row).each do |row|
     (base_col..high_col).each do |col|
-      avg.add $images[read_index][row][col]
+      a += $images[read_index][row][col].a
+      b += $images[read_index][row][col].b
+      c += $images[read_index][row][col].c
+      count+=1
     end
   end
-  return avg
+  return Pixel.new(a/count, b/count, c/count)
 end
 
+def group_size
+  return PPR.get_group_size rescue return 1
+end
+def safe_spec
+  PPR{ yield } rescue yield
+end
 
-read_index = 1
-write_index = 0
-per_task = PPR.ppr_index == -1 ? 1 : [$size / PPR.get_group_size, 1].max
+read_index = 0
+write_index = 1
+per_task = PPR.ppr_index == -1 ? 1 : [$size / PPR.get_group_size, 1].max rescue $size
 1.times do
   read_index = (read_index+1) % 2
   write_index = (read_index-1) % 2
-  PPR.get_group_size.times { |spec_ind|
-    PPR {
+  group_size.times { |spec_ind|
+    safe_spec {
       per_task.times { |ppr_loop|
         row = (spec_ind * per_task) + ppr_loop
         if row < $size then
@@ -81,7 +100,7 @@ per_task = PPR.ppr_index == -1 ? 1 : [$size / PPR.get_group_size, 1].max
       }
     }
   }
-  PPR.over
+  PPR.over rescue -> {}
 end
 
-# puts $images[write_index]
+puts $images[write_index]
