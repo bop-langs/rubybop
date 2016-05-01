@@ -85,10 +85,25 @@ static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
     remove_list(&ordered_writes, record_id);
   }
 }
+
+static inline int clear_key(st_data_t k, st_data_t v, st_data_t a){
+  ID key = (ID)k;
+  VALUE obj = (VALUE)a;
+  if (rb_is_instance_id(key)) {
+     record_bop_gc_pr(obj, key);
+  }
+  return ST_CONTINUE;
+}
+
+static inline void clear_all_inst_rec(VALUE obj){
+  bop_msg(4, "Clearing records for object 0x%lx", obj);
+  rb_ivar_foreach(obj, clear_key, obj);
+}
+
 void record_bop_gc(VALUE obj){
-  //TODO iterate over all KEYS of the object and record_bop_gc_pr(obj, key)
+ clear_all_inst_rec(obj);
 #ifdef HAVE_USE_PROMISE
-  record_bop_gc_pr(obj, DUMMY_ID); //
+  record_bop_gc_pr(obj, DUMMY_ID);
 #endif
 }
 #ifdef HAVE_USE_PROMISE
@@ -132,7 +147,7 @@ bop_record_t * get_record(VALUE obj, ID id, bool allocate){
   uint64_t base_index = hash2((uint64_t) obj, (uint64_t) id);
   for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
-    if(records[index].record_id == record_id) //already set to this object
+    if(records[index].record_id == record_id) //
       return &records[index];
     else if(allocate && records[index].record_id == UNALLOCATED){
       //found un-allocated. Allocate it atomically
@@ -220,7 +235,7 @@ void restore_seq(){
 }
 void commit(bop_record_t * record){
   //only need to commit the last one
-  if(in_ordered_region || is_commiting_writer(record)){
+  if((in_ordered_region || is_commiting_writer(record)) && BOP_task_status() != UNDY){
     size_t index = __sync_fetch_and_add(next_copy_record, 1);
     if(index >= MAX_COPYS){
       BOP_abort_spec("Ran out of copy records!");
@@ -236,7 +251,7 @@ void parent_merge(){
   if(BOP_task_status() == UNDY) return;
   size_t index;
   bop_record_copy_t * copy;
-  bop_msg(3, "Checking %d copy records", *next_copy_record - 1);
+  bop_msg(3, "Merging %d copy records", *next_copy_record - 1);
   for(index = 1; index < MAX_COPYS && index < *next_copy_record ; index++){
     copy = &copy_records[index];
     bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
