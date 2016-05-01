@@ -1,30 +1,28 @@
 class Pixel
-  attr_reader :a, :b, :c
+  attr_reader :arr
   def initialize(a=0,b=0,c=0)
-    @a = a
-    @b = b
-    @c = c
+    @arr=[a,b,c]
     @avd = 0
   end
   def add(p)
-    add(p.a, p.b, p.c, 1)
+    add(p.arr[0], p.arr[1], p.arr[2], 1)
   end
   def add(a,b,c,count)
-    @a += a
-    @b += b
-    @c += c
+    @arr[0] += a
+    @arr[1] += a
+    @arr[2] += a
     @avd +=count
   end
 
   def average
-    @a /= @avd
-    @b /= @avd
-    @c /= @avd
+    @arr[0] /= @avd
+    @arr[1] /= @avd
+    @arr[2] /= @avd
     return self
   end
 
   def to_s
-    "r=#{@a} b=#{@b} g=#{@c}"
+    "r=#{@arr[0]} b=#{@arr[1]} g=#{@arr[2]}"
   end
 
 end
@@ -66,9 +64,9 @@ def blur(read_index, x, y, range=3)
   a, b, c, count = 0,0,0,0.0
   (base_row .. high_row).each do |row|
     (base_col..high_col).each do |col|
-      a += $images[read_index][row][col].a
-      b += $images[read_index][row][col].b
-      c += $images[read_index][row][col].c
+      a += $images[read_index][row][col].arr[0]
+      b += $images[read_index][row][col].arr[1]
+      c += $images[read_index][row][col].arr[2]
       count+=1
     end
   end

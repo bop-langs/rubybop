@@ -1319,6 +1319,7 @@ heap_pages_expand_sorted(rb_objspace_t *objspace)
 	size_t size = next_length * sizeof(struct heap_page *);
 
 	gc_report(3, objspace, "heap_pages_expand_sorted: next_length: %d, size: %d\n", (int)next_length, (int)size);
+	bop_msg(1, "heap_pages_expand_sorted: next_length: %d, size: %d\n", (int)next_length, (int)size);
 //heap list corrupted in the area from here and end of function
 	if (heap_pages_sorted_length > 0) {
 	    sorted = (struct heap_page **)realloc(heap_pages_sorted, size);
@@ -1443,6 +1444,8 @@ static void heap_page_promise(struct heap_page *page){
   if(!is_sequential()) bop_msg(3, "Promising heap page %p body %p", page, page->body);
   BOP_record_write(page, sizeof(struct heap_page));
   BOP_record_write(page->body, HEAP_SIZE);
+  BOP_record_read(page, sizeof(struct heap_page));
+  BOP_record_read(page->body, HEAP_SIZE);
 }
 
 static void
@@ -1454,6 +1457,7 @@ add_allocated_list(struct heap_page * page){
   proc_heap_pages[spec_order] = page;
   if(proc_heap_pages[spec_order] == NULL){
     BOP_record_write(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
+    BOP_record_read(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
   }
   heap_page_promise(page);
 }
@@ -9134,13 +9138,21 @@ Init_GC(void)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
+struct heap_page * seq_free_pages;
+struct heap_page * seq_freelist;
+struct heap_page * seq_free_list;
+struct heap_page * seq_free_list;
+struct heap_page * seq_free_list;
 struct heap_page * seq_free_list;
 
 
 void detach_free_list(rb_objspace_t *objspace);
 
+static int test = 0;
+
 
 void undy_start(){
+  bop_msg(1, "test val %d", test);
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
   heap->free_pages = seq_free_list;
@@ -9182,14 +9194,15 @@ void group_pages(){
 }
 
 void heap_init(){
+  test = 1;
   rb_gc_start();
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
-  bop_msg(1, "Heaps Eden %p and Tomb %p", heap_eden, heap_tomb);
+  bop_msg(1, "Heaps Eden\t%p\tcount\t%d and\tTomb\t%p\tcount\t%d", heap_eden, heap_tomb, heap_eden);
   int spec_order = BOP_spec_order();
   heap->free_pages = NULL;
-  heap->freelist=NULL;
-  heap->pages = NULL;
+  heap->freelist = NULL;
+  //heap->pages = NULL;
   heap->using_page = NULL;
   heap->pooled_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
