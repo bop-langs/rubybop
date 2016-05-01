@@ -403,6 +403,7 @@ rb_bug(const char *fmt, ...)
 {
     const char *file = NULL;
     int line = 0;
+    bop_msg(1, "In bug");
 
     if (GET_THREAD()) {
 	file = rb_sourcefile();
