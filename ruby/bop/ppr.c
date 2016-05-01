@@ -173,6 +173,7 @@ static VALUE rb_cPPR, rb_cOrdered;
 extern void BOP_this_group_over();
 VALUE ppr_over(){
   BOP_this_group_over();
+  //rb_gc_start();
   return Qnil;
 }
 extern char * BOP_task_str(void);

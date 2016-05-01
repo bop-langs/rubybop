@@ -1352,6 +1352,7 @@ heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj
     }
 
     gc_report(3, objspace, "heap_page_add_freeobj: add %p to freelist\n", (void *)obj);
+    bop_msg(4, "heap_page_add_freeobj: add %p to freelist", (void *)obj);
 }
 
 static inline void
@@ -1416,7 +1417,7 @@ heap_pages_free_unused_pages(rb_objspace_t *objspace)
 
 	    if (page->heap == heap_tomb && page->free_slots == page->total_slots) {
 		if (heap_pages_swept_slots - page->total_slots > heap_pages_max_free_slots) {
-		    if (!is_sequential()) fprintf(stderr, "heap_pages_free_unused_pages: %d free page %p, heap_pages_swept_slots: %d, heap_pages_max_free_slots: %d\n",
+		    if (!is_sequential()) bop_msg(2, "heap_pages_free_unused_pages: %d free page %p, heap_pages_swept_slots: %d, heap_pages_max_free_slots: %d\n",
 				   (int)i, page, (int)heap_pages_swept_slots, (int)heap_pages_max_free_slots);
 		    heap_pages_swept_slots -= page->total_slots;
 		    heap_unlink_page(objspace, heap_tomb, page);
@@ -1696,7 +1697,7 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
     struct heap_page *page;
     RVALUE *p;
     while (UNLIKELY(heap->free_pages == NULL)) {
-  //if (!is_sequential()) bop_msg(1, "Garbage collecting to get new free obj");
+  if (!is_sequential()) bop_msg(4, "Garbage collecting to get new free obj");
 	heap_prepare(objspace, heap);
     }
     if (!is_sequential()){
@@ -1756,6 +1757,11 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
 } while (0)
 
 extern void BOP_record_write(void *ptr, size_t size);
+
+void testing(){
+  bop_msg(6, "Testing something");
+  bop_msg(5, "testing again");
+} 
 
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
@@ -1835,6 +1841,11 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     objspace->total_allocated_objects++;
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
+    if(!is_sequential()) {
+      bop_msg(4,"newobj: %s", obj_info(obj));
+      testing();  
+    }
+    
     return obj;
 }
 
@@ -1987,6 +1998,7 @@ static int
 obj_free(rb_objspace_t *objspace, VALUE obj)
 {
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_FREEOBJ, obj);
+    if(!is_sequential()) bop_msg(4, "freeing obj %p", obj);
 
     switch (BUILTIN_TYPE(obj)) {
       case T_NIL:
@@ -3271,7 +3283,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
       }
       else{
         bop_msg(3, "Sweeping page %p in sweep", sweep_page);
-        return;
+        //return;
       }
     }
 
@@ -3543,6 +3555,7 @@ gc_sweep_rest(rb_objspace_t *objspace)
 static void
 gc_sweep_continue(rb_objspace_t *objspace, rb_heap_t *heap)
 {
+  if(!is_sequential()) bop_msg(1, "Continuing Sweep");
     if (RGENGC_CHECK_MODE) assert(dont_gc == FALSE);
 
     gc_enter(objspace, "sweep_continue");
@@ -6040,7 +6053,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
     if (do_full_mark && !is_sequential()) return TRUE; /* no ful GC in parallel*/
 
     bop_msg(5, "Starting to collect garbage");
-    if (!is_sequential()) bop_msg(4, "Starting to collect garbage in parallel");
+    if (!is_sequential()) bop_msg(1, "Starting to collect garbage in parallel");
 
     if (RGENGC_CHECK_MODE) {
 	assert(objspace->flags.stat == gc_stat_none);
@@ -9172,6 +9185,7 @@ void heap_init(){
   rb_gc_start();
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
+  bop_msg(1, "Heaps Eden %p and Tomb %p", heap_eden, heap_tomb);
   int spec_order = BOP_spec_order();
   heap->free_pages = NULL;
   heap->freelist=NULL;
@@ -9180,9 +9194,10 @@ void heap_init(){
   heap->pooled_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
-    bop_msg(3, "Add heap page %p body %p", page, page->body);
+    bop_msg(1, "Add heap page %p body %p, heap %p", page, page->body, page->heap);
+    //heap_add_page(objspace, heap, page);
     heap_add_freepage(objspace, heap, page);
-    //heap_page_promise(page);
+    heap_page_promise(page);
     page->bop_id=1;
     page = page->bop_next;
   }
@@ -9191,11 +9206,11 @@ void heap_init(){
 }
 
 void reset_heap(){
+  rb_objspace_t *objspace = &rb_objspace;
+  rb_heap_t *heap = heap_eden;
   bop_msg(2, "resetting heap");
   rb_gc_start();
   int i;
-  rb_objspace_t *objspace = &rb_objspace;
-  rb_heap_t *heap = heap_eden;
   heap->free_pages = seq_free_list;
   seq_free_list = NULL;
   for(i = 0; i < BOP_get_group_size(); i++){
@@ -9206,16 +9221,19 @@ void reset_heap(){
         heap_allocatable_pages++;
         heap_pages_expand_sorted(objspace);
         heap_page_add_to_sorted_list(objspace, proc_page);
-        heap_add_page(objspace, heap, proc_page);
+        heap_add_page(objspace, proc_page->heap, proc_page);
       }
       heap_add_freepage(objspace, heap, proc_page);
+      proc_page->bop_new = 0;
+      proc_page->bop_id = 0;
       struct heap_page * temp = proc_page;
       proc_page = proc_page->bop_next;
       temp->bop_next = NULL;
-      temp->bop_id = 0;
       temp->bop_new = 0;
+      temp->bop_id = 0;
     }
   }
+
   free(proc_heap_pages);
   bop_msg(4, "reset heap gc");
   rb_gc_start();

@@ -17,9 +17,10 @@ class Board
 
     # Create a new board, initialize with with all 0 and
     # save the size of it.
-    def initialize(n, rag)
+    def initialize(n, b, t)
         @n = n
-        @iter_range = rag
+        @low = b
+        @high = t
         @valid = 0
         @board = Array.new(n)
         @board.map! { Array.new(n, 0) }
@@ -63,7 +64,7 @@ class Board
         while true do
 
             # Break out of the loop if the row or column is off the board.
-            break if (row >= @n) || (col >= @n) || (row < 0) || (col < 0)
+            return true if (row >= @n) || (col >= @n) || (row < 0) || (col < 0)
 
             # If this row or column has a queen, then it's not safe.
             return false if @board[row][col] == 1
@@ -97,7 +98,7 @@ class Board
     # method with 0 (the first row of the board) to start.
     def solve
         PPR do
-            @iter_range.each do |col|
+            @low.upto(@high) do |col|
                 @board[0][col]=1
                 solve_1(1)
                 @board[0][col]=0
@@ -134,7 +135,7 @@ end
 bsize = ARGV[0].to_i
 gsize = PPR.get_group_size
 boards = gsize.times.map do |task|
-    Board.new(bsize, (task * bsize / gsize).upto((task+1)*bsize/gsize - 1))
+    Board.new(bsize, (task * bsize / gsize), ((task+1)*bsize/gsize - 1))
 end
 boards.each{|b| b.solve}
 PPR.over
