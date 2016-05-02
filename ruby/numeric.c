@@ -653,9 +653,12 @@ num_to_int(VALUE num)
  *  - http://en.wikipedia.org/wiki/Floating_point#Accuracy_problems
  */
 
+extern void bop_msg(int, const char*, ...);
+
 VALUE
 rb_float_new_in_heap(double d)
 {
+    //bop_msg(1, "New Float");
     NEWOBJ_OF(flt, struct RFloat, rb_cFloat, T_FLOAT | (RGENGC_WB_PROTECTED_FLOAT ? FL_WB_PROTECTED : 0));
 
     flt->float_value = d;

@@ -1,26 +1,22 @@
-puts "start"
-
 PPR {
-  $a="good"
+  @a="a"
   sleep(1)
   }
 PPR {
-  $b="good"
+  @b="b"
   sleep(1)
   }
 PPR {
-  $c="good"
+  @c="c"
   sleep(1)
   }
 PPR {
-  $d="good"
+  @d="d"
   sleep(1);
   }
 
 PPR.over
-puts $a
-puts $b
-puts $c
-puts $d
-
-puts "finish"
+puts @a
+puts @b
+puts @c
+puts @d

@@ -9,7 +9,7 @@
 #define member_size(type, member) (sizeof(((type *)0)->member))
 
 //config options
-#define SHM_SIZE (1<<21) //16 4KB pages
+#define SHM_SIZE (4096*10000) 
 #define MAX_RECORDS (((SHM_SIZE) / sizeof(bop_record_t)))
 #define MAX_PROBES (MAX_RECORDS)
 #define MAX_COPYS (((SHM_SIZE) / sizeof(bop_record_copy_t)))
@@ -27,7 +27,7 @@ typedef struct{
     };
     volatile record_id_t record_id;
   };
-  volatile uint64_t vector;
+  volatile uint128_t vector;
 #ifdef HAVE_USE_PROMISE
   bool id_valid;
 #endif
@@ -62,7 +62,7 @@ static inline int getbasebit(){
   return base_bit_for(BOP_spec_order());
 }
 
-bop_record_t * get_record(VALUE, ID);
+bop_record_t * get_record(VALUE, ID, bool);
 extern int is_sequential();
 
 
