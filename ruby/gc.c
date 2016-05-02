@@ -6059,7 +6059,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
 
     if (!heap_allocated_pages) return FALSE;      /* heap is not ready */
     if (!ready_to_gc(objspace)) return TRUE; /* GC is not allowed */
-    if (immediate_sweep && !is_sequential()) return TRUE; /* no ful GC in parallel*/
+    if (!is_sequential()) return TRUE; /* no ful GC in parallel*/
 
     bop_msg(5, "Starting to collect garbage");
     if (!is_sequential()) bop_msg(5, "Starting to collect garbage in parallel");
