@@ -3564,7 +3564,7 @@ gc_sweep_rest(rb_objspace_t *objspace)
 static void
 gc_sweep_continue(rb_objspace_t *objspace, rb_heap_t *heap)
 {
-  if(!is_sequential()) bop_msg(2, "Continuing Sweep");
+  if(!is_sequential()) bop_msg(5, "Continuing Sweep");
     if (RGENGC_CHECK_MODE) assert(dont_gc == FALSE);
 
     gc_enter(objspace, "sweep_continue");
@@ -6062,7 +6062,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
     if (immediate_sweep && !is_sequential()) return TRUE; /* no ful GC in parallel*/
 
     bop_msg(5, "Starting to collect garbage");
-    if (!is_sequential()) bop_msg(2, "Starting to collect garbage in parallel");
+    if (!is_sequential()) bop_msg(5, "Starting to collect garbage in parallel");
 
     if (RGENGC_CHECK_MODE) {
 	assert(objspace->flags.stat == gc_stat_none);
