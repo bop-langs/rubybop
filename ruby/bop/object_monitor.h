@@ -27,7 +27,7 @@ typedef struct{
     };
     volatile record_id_t record_id;
   };
-  volatile uint64_t vector;
+  volatile uint128_t vector;
 #ifdef HAVE_USE_PROMISE
   bool id_valid;
 #endif
