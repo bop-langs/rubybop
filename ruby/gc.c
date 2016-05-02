@@ -9157,6 +9157,17 @@ void detach_free_list(rb_objspace_t *objspace);
 static int test = 0;
 
 
+void reset_eden(){
+  rb_objspace_t *objspace = &rb_objspace;
+  rb_heap_t *heap = heap_eden;
+  struct heap_page * page = heap->pages;
+  while(page != NULL){
+    page->bop_id = 0;
+    page = page->next;
+  }
+}
+
+
 void undy_start(){
   bop_msg(2, "test val %d", test);
   rb_objspace_t *objspace = &rb_objspace;
@@ -9164,11 +9175,7 @@ void undy_start(){
   heap->free_pages = seq_free_list;
   seq_free_list = NULL;
   free(proc_heap_pages);
-  struct heap_page * page = heap->pages;
-  while(page != NULL){
-    page->bop_id = 0;
-    page = page->next;
-  }
+  reset_eden();
   rb_gc_start();
 }
 
@@ -9261,6 +9268,7 @@ void reset_heap(){
       temp->bop_id = 0;
     }
   }
+  reset_eden();
 
   free(proc_heap_pages);
   bop_msg(4, "reset heap gc");
