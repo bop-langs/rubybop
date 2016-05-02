@@ -83,7 +83,7 @@ end
 read_index = 0
 write_index = 1
 per_task = PPR.ppr_index == -1 ? 1 : [$size / PPR.get_group_size, 1].max rescue $size
-1.times do
+10.times do
   read_index = (read_index+1) % 2
   write_index = (read_index-1) % 2
   group_size.times { |spec_ind|
