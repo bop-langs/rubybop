@@ -406,8 +406,6 @@ typedef struct RVALUE {
     const char *file;
     int line;
 #endif
-  int bop_use;
-  int bop_promise;
 } RVALUE;
 
 #if defined(_MSC_VER) || defined(__BORLANDC__) || defined(__CYGWIN__)
@@ -3505,6 +3503,10 @@ gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
 
     while (sweep_page) {
 	heap->sweep_pages = next = sweep_page->next;
+  if(!is_sequential() && sweep_page->bop_id != 1){
+    sweep_page = next;
+    continue;
+  }
 	gc_page_sweep(objspace, heap, sweep_page);
 
 	if (sweep_page->final_slots + sweep_page->free_slots == sweep_page->total_slots &&
@@ -9162,6 +9164,11 @@ void undy_start(){
   heap->free_pages = seq_free_list;
   seq_free_list = NULL;
   free(proc_heap_pages);
+  struct heap_page * page = heap->pages;
+  while(page != NULL){
+    page->bop_id = 0;
+    page = page->next;
+  }
   rb_gc_start();
 }
 
