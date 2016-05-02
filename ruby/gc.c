@@ -9205,7 +9205,7 @@ void group_pages(){
   for(i = 0; i < heap_allocated_pages; i++){
     struct heap_page * page = heap_pages_sorted[i];
     use_page(objspace, page);
-    bop_msg(1, "To:%d\tPage\t%p\tFree\t%d\tTotal\t%d\tIsEden\t%d",
+    bop_msg(3, "To:%d\tPage\t%p\tFree\t%d\tTotal\t%d\tIsEden\t%d",
       cur_task, page, page->free_slots, page->total_slots, page->heap == heap);
   }
   rb_gc_start();
