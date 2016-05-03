@@ -76,6 +76,7 @@ static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
   bop_record_t * record = get_record(obj, inst_id, false);
   if(record == NULL) return;
   record_id = record->record_id;
+  record->vector = 0; //incase the space is reused and gives identical VALUE and ID pairs (which is unlikely)
   // Due to linear probing, we can't remove it from the hash table, but we can
   // remove it from our lists to check reducing computation later
   if((record->vector & (getbasebit() + READ_BIT)) != 0)
@@ -221,7 +222,7 @@ void free_all_lists(){
   read_list = write_list = ordered_writes = NULL;
 }
 void restore_seq(){
-  // if(BOP_spec_order() == BOP_get_group_size() - 1) return;
+  if(BOP_spec_order() == BOP_get_group_size() - 1) return;
   if(records != NULL)
     if(munmap(records, SHM_SIZE) == -1){
       perror("Couldn't unmap the shared mem region (records)");
