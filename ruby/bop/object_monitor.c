@@ -146,7 +146,7 @@ bop_record_t * get_record(VALUE obj, ID id, bool allocate){
   record_id_t old_record_id;
   record_id_t record_id = make_record_id(obj, id);
   uint64_t base_index = hash2((uint64_t) obj, (uint64_t) id);
-  for(probes = 0; probes <= 5; probes++){
+  for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
     if(records[index].record_id == record_id) //
       return &records[index];
