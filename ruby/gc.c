@@ -1408,7 +1408,6 @@ heap_page_free(rb_objspace_t *objspace, struct heap_page *page)
 static void
 heap_pages_free_unused_pages(rb_objspace_t *objspace)
 {
-    //if(!is_sequential()) return;
     size_t i, j;
 
     if (heap_tomb->pages && heap_pages_swept_slots > heap_pages_max_free_slots) {
@@ -1443,8 +1442,6 @@ static void heap_page_promise(struct heap_page *page){
   if(!is_sequential()) bop_msg(3, "Promising heap page %p body %p", page, page->body);
   BOP_record_write(page, sizeof(struct heap_page));
   BOP_record_write(page->body, HEAP_SIZE);
-  //BOP_record_read(page, sizeof(struct heap_page));
-  //BOP_record_read(page->body, HEAP_SIZE);
 }
 
 static void
@@ -1457,7 +1454,6 @@ add_allocated_list(struct heap_page * page){
   proc_heap_pages[spec_order] = page;
   if(proc_heap_pages[spec_order] == NULL){
     BOP_record_write(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
-    //BOP_record_read(&proc_heap_pages[spec_order],sizeof(struct heap_page *));
   }
   heap_page_promise(page);
 }
@@ -1520,10 +1516,6 @@ heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
 
   	    /* assign heap_page entry */
     page = (struct heap_page *)calloc(1, sizeof(struct heap_page));
-    //BOP_promise(((char*) page) - HSIZE, sizeof(struct heap_page) + HSIZE);
-    if(!is_sequential()){
-      //bop_msg(4, "NEW heap page: %p, page_body %p" ,page ,page_body);
-    }
     if (page == 0) {
 	aligned_free(page_body);
 	rb_memerror();
@@ -1763,11 +1755,6 @@ gc_event_hook_body(rb_objspace_t *objspace, const rb_event_flag_t event, VALUE d
 
 extern void BOP_record_write(void *ptr, size_t size);
 
-void testing(){
-  bop_msg(6, "Testing something");
-  bop_msg(5, "testing again");
-} 
-
 static VALUE
 newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
 {
@@ -1846,10 +1833,6 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     objspace->total_allocated_objects++;
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
-    if(!is_sequential()) {
-      bop_msg(4,"newobj: %s", obj_info(obj));
-      testing();  
-    }
     
     return obj;
 }
@@ -2003,7 +1986,6 @@ static int
 obj_free(rb_objspace_t *objspace, VALUE obj)
 {
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_FREEOBJ, obj);
-    if(!is_sequential()) bop_msg(4, "freeing obj %p", obj);
 
     switch (BUILTIN_TYPE(obj)) {
       case T_NIL:
@@ -3288,7 +3270,6 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
       }
       else{
         bop_msg(3, "Sweeping page %p in sweep", sweep_page);
-        //return;
       }
     }
 
@@ -6137,7 +6118,6 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
     bop_msg(3, "gc_start(%d, %d, %d, reason: %d) => %d, %d, %d",
 	      full_mark, immediate_mark, immediate_sweep, reason,
 	      do_full_mark, !is_incremental_marking(objspace), objspace->flags.immediate_sweep);
-  //if(!is_sequential()) do_full_mark = 0;
 	gc_marks(objspace, do_full_mark);
     }
     gc_prof_timer_stop(objspace);
