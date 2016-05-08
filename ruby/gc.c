@@ -1833,7 +1833,7 @@ newobj_of(VALUE klass, VALUE flags, VALUE v1, VALUE v2, VALUE v3)
     objspace->total_allocated_objects++;
     gc_event_hook(objspace, RUBY_INTERNAL_EVENT_NEWOBJ, obj);
     gc_report(5, objspace, "newobj: %s\n", obj_info(obj));
-
+    
     return obj;
 }
 
@@ -9178,7 +9178,7 @@ void group_pages(){
   rb_heap_t *heap = heap_eden;
   bop_msg(2, "Group init heap");
   rb_gc_start();
-  proc_heap_pages = calloc(BOP_get_group_size(),
+  proc_heap_pages = calloc(BOP_get_group_size(), 
     sizeof(struct heap_page **));
   seq_free_list = heap->free_pages;
   unsigned int i;
@@ -9227,7 +9227,7 @@ void reset_heap(){
   for(i = 0; i < BOP_get_group_size(); i++){
     struct heap_page * proc_page = proc_heap_pages[i];
     while(proc_page != NULL){
-      bop_msg(4, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
+      bop_msg(3, "adding page to current heap %p body %p from task %d", proc_page, proc_page->body, i);
       if(proc_page->bop_new && i < BOP_get_group_size()-1){
         heap_allocatable_pages++;
         heap_pages_expand_sorted(objspace);

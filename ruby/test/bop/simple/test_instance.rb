@@ -6,20 +6,20 @@ class Main
 
   def run()
     PPR{
-      sleep(2)
-      @a=1
+      sleep(1)
+      @a="a"
     }
     PPR{
-      sleep(2)
-      @b=2
+      sleep(1)
+      @b="b"
     }
     PPR{
-      sleep(2)
-      @a=3
+      sleep(1)
+      @c="c"
     }
     PPR{
-      sleep(2)
-      @d=4
+      sleep(1)
+      @d="d"
     }
     PPR.over
     return self

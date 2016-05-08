@@ -252,10 +252,10 @@ void parent_merge(){
   if(BOP_task_status() == UNDY) return;
   size_t index;
   bop_record_copy_t * copy;
-  bop_msg(1, "Merging %d copy records", *next_copy_record - 1);
+  bop_msg(3, "Merging %d copy records", *next_copy_record - 1);
   for(index = 1; index < MAX_COPYS && index < *next_copy_record ; index++){
     copy = &copy_records[index];
-    bop_msg(1, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
+    bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
     rb_ivar_set(copy->obj, copy->id, copy->val);
   }
   free_all_lists();

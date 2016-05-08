@@ -132,7 +132,7 @@ static inline int last_writer(bop_record_t * record){
 }
 
 static inline bool is_commiting_writer(bop_record_t * record){
-  return last_writer(record) == BOP_spec_order() && BOP_spec_order() != -1;
+  return true; //last_writer(record) == BOP_spec_order() && BOP_spec_order() != -1;
 }
 
 static inline bool record_id_valid(bop_record_t * record){
