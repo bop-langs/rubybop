@@ -9124,11 +9124,6 @@ Init_GC(void)
 
 extern int BOP_get_group_size();
 extern void bop_msg(int, const char*, ...);
-struct heap_page * seq_free_pages;
-struct heap_page * seq_freelist;
-struct heap_page * seq_free_list;
-struct heap_page * seq_free_list;
-struct heap_page * seq_free_list;
 struct heap_page * seq_free_list;
 
 
@@ -9199,20 +9194,15 @@ void heap_init(){
   int spec_order = BOP_spec_order();
   heap->free_pages = NULL;
   heap->freelist = NULL;
-  //heap->pages = NULL;
-  //heap->using_page = NULL;
   heap->pooled_pages = NULL;
   struct heap_page * page = proc_heap_pages[spec_order];
   while(page != NULL){
     bop_msg(2, "Add heap page %p body %p, heap %p", page, page->body, page->heap);
-    //heap_unlink_page(objspace, page->heap, page);
-    //heap_add_page(objspace, heap, page);
     heap_add_freepage(objspace, heap, page);
     heap_page_promise(page);
     page->bop_id=1;
     page = page->bop_next;
   }
-  //heap_add_pages(objspace, heap, 1);
   rb_gc_start();
 }
 
@@ -9233,10 +9223,6 @@ void reset_heap(){
         heap_pages_expand_sorted(objspace);
         heap_page_add_to_sorted_list(objspace, proc_page);
         heap_add_page(objspace, proc_page->heap, proc_page);
-      }
-      else{
-        //heap_unlink_page(objspace, proc_page->heap, proc_page);
-        //heap_add_page(objspace, heap, proc_page);
       }
       heap_add_freepage(objspace, heap, proc_page);
       proc_page->bop_new = 0;
