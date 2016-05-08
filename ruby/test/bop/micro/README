@@ -1,0 +1,51 @@
+
+Array.rb: 
+
+    This micro benchmark is used to compare the performance difference between with and without monitoring.
+
+    To disable array monitoring, insert the following code in rubybop/ruby/array.c to disable tracking:
+         promise_ary_elm(VALUE ary, int idx){
+            --> return;
+            ...
+         }
+         use_ary_elm(VALUE ary, int idx){
+            --> return;
+            ...
+         }
+         promise_ary(VALUE ary){
+            --> return;
+            ...
+         }
+         use_ary(VALUE ary){
+            --> return;
+            ...
+         }
+         use_promise_ary(VALUE ary) {
+            -->return;
+            ...
+         }
+
+instanceVariable.rb:
+
+    This mirco benchmark is used to compare the performance difference between with and without monitoring.
+
+    To disable instance variable monitoring, the following code in rubybop/ruby/variable.c should be commented out:
+
+    val_getter(ID id, void *data, struct global_variable *var) {
+
+ -->   // BOP_record_read(var, sizeof(struct global_variable));
+
+    }
+
+    val_setter(VALUE val, ID id, void *data, struct global_variable *var) {
+
+ -->   // BOP_record_write(var, sizeof(struct global_variable));
+    
+    }
+
+ppr.rb:
+
+    This file is used to profile the overhead of creating PPR tasks
+
+
+
