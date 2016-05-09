@@ -1341,7 +1341,6 @@ heap_pages_expand_sorted(rb_objspace_t *objspace)
 static inline void
 heap_page_add_freeobj(rb_objspace_t *objspace, struct heap_page *page, VALUE obj)
 {
-  if(!is_sequential() && page->bop_id == 0) bop_msg(4, "Possibly here?");
     RVALUE *p = (RVALUE *)obj;
     p->as.free.flags = 0;
     p->as.free.next = page->freelist;
@@ -1359,7 +1358,7 @@ static inline void
 heap_add_freepage(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *page)
 {
     if (page->freelist) {
-  page->bop_id = !is_sequential();
+  page->bop_id = !is_sequential();//cs258: marks if heap page is task local or not
 	page->free_next = heap->free_pages;
 	heap->free_pages = page;
     }
@@ -1443,6 +1442,7 @@ static void heap_page_promise(struct heap_page *page){
   BOP_record_write(page, sizeof(struct heap_page));
   BOP_record_write(page->body, HEAP_SIZE);
 }
+
 
 static void
 add_allocated_list(struct heap_page * page){
@@ -1555,6 +1555,14 @@ heap_page_allocate_imp(rb_objspace_t *objspace, int insert_sorted){
     return page;
 
 }
+/*
+ * 258 comments
+ * heap_page_allocate originally added the allocated page into the sorted array. 
+ * This has been broken out into a seperate function (heap_page_add_to_sorted_list), and 
+ * is only executed during sequential execution. During speculative execution
+ * the page is added into a linked list (add_allocated_list) that is shared at merge time, so that
+ * the surviving spec task can properly link the 
+ */
 
 static struct heap_page *
 heap_page_allocate(rb_objspace_t *objspace)
@@ -1696,6 +1704,7 @@ heap_get_freeobj_from_next_freepage(rb_objspace_t *objspace, rb_heap_t *heap)
   if (!is_sequential()) bop_msg(4, "Garbage collecting to get new free obj");
 	heap_prepare(objspace, heap);
     }
+    //258 comments: ensures that we do not get objects from shared pages
     if (!is_sequential()){
       bop_msg(4, "Next free page id %d", heap->free_pages->bop_id);
       if(heap->free_pages->bop_id != 1){
@@ -1724,7 +1733,6 @@ heap_get_freeobj(rb_objspace_t *objspace, rb_heap_t *heap)
     while (1) {
 	if (LIKELY(p != NULL)) {
 	    heap->freelist = p->as.free.next;
-      //BOP_record_write(p, sizeof(p)); //TODO doesnt work
 	    return (VALUE)p;
 	}
 	else {
@@ -3263,6 +3271,7 @@ gc_page_sweep(rb_objspace_t *objspace, rb_heap_t *heap, struct heap_page *sweep_
     int empty_slots = 0, freed_slots = 0, final_slots = 0;
     RVALUE *p, *pend,*offset;
     bits_t *bits, bitset;
+    // 258 comments: skip page we shouldn't sweep
     if(!is_sequential()){
       if(sweep_page->bop_id != !is_sequential()){
         bop_msg(3, "Skipping page %p insweep", sweep_page);
@@ -3467,6 +3476,10 @@ static int
 gc_sweep_step(rb_objspace_t *objspace, rb_heap_t *heap)
 {
     struct heap_page *sweep_page = heap->sweep_pages, *next;
+    /* 258 comments: disable pages from going into heap tomb during speculation.
+     * this is for simplicity, as now we don't need to handle Tomb in
+     * speculation.
+     */
     int unlink_limit = !is_sequential() ? 0 :3;
 #if GC_ENABLE_INCREMENTAL_MARK
     int need_pool = will_be_incremental_marking(objspace) ? TRUE : FALSE;
@@ -6040,7 +6053,7 @@ gc_start(rb_objspace_t *objspace, const int full_mark, const int immediate_mark,
 
     if (!heap_allocated_pages) return FALSE;      /* heap is not ready */
     if (!ready_to_gc(objspace)) return TRUE; /* GC is not allowed */
-    if (immediate_sweep && !is_sequential()) return TRUE; /* no ful GC in parallel*/
+    if (immediate_sweep && !is_sequential()) return TRUE; /* no ful GC in parallel. Should work, but does not 100% currently*/
 
     bop_msg(5, "Starting to collect garbage");
     if (!is_sequential()) bop_msg(2, "Starting to collect garbage in parallel");
@@ -9142,7 +9155,7 @@ void reset_eden(){
   }
 }
 
-
+//undo the work done in group_pages and heap_init
 void undy_start(){
   bop_msg(2, "test val %d", test);
   rb_objspace_t *objspace = &rb_objspace;
@@ -9168,6 +9181,8 @@ void use_page(rb_objspace_t * objspace, struct heap_page * page){
   }
 }
 
+//allocate space for shared lists and divide completely free pages among every
+//task
 void group_pages(){
   rb_objspace_t * objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
@@ -9186,6 +9201,7 @@ void group_pages(){
   rb_gc_start();
 }
 
+//sever freeobjs and add tomb pages to heap
 void heap_init(){
   test = 1;
   rb_gc_start();
@@ -9205,7 +9221,7 @@ void heap_init(){
   }
   rb_gc_start();
 }
-
+//relink the heap pages
 void reset_heap(){
   rb_objspace_t *objspace = &rb_objspace;
   rb_heap_t *heap = heap_eden;
@@ -9244,9 +9260,9 @@ void reset_heap(){
 
 
 bop_port_t rubyheap_port = {
-    .ppr_group_init = group_pages,
-    .ppr_task_init = heap_init,
-    .undy_init = undy_start,
-    .undy_succ_fini = undy_finish,
-    .task_group_commit = reset_heap
+    .ppr_group_init = group_pages, //execute just before group start
+    .ppr_task_init = heap_init, //execute just after task start
+    .undy_init = undy_start, //execute just after undy start
+    .undy_succ_fini = undy_finish, //execute just after undy commit (currently just debug)
+    .task_group_commit = reset_heap //execute at commit time.
 };
