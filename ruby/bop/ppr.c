@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "ppr.h"
 #include "gc.h"
 #include "internal.h"

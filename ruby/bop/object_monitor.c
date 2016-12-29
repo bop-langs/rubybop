@@ -148,7 +148,7 @@ bop_record_t * get_record(VALUE obj, ID id){
     rb_gc_start();
     goto search;
   }else{
-    BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
+    BOP_abort_spec("Couldn't create set up a new access vector for object");
     return NULL;
   }
 }
