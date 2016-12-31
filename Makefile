@@ -3,9 +3,10 @@ RUBY_DIR = ruby
 RB_MAKE_FILE = $(RUBY_DIR)/Makefile
 
 default: ruby
-
 bop_library:
 	$(MAKE) -C cbop
+
+export BOP_Verbose=0
 
 $(RB_MAKE_FILE): $(RUBY_DIR)/Makefile.in
 	@echo Configuring Ruby...

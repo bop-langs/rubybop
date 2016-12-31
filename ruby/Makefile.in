@@ -207,7 +207,7 @@ DESTDIR       = @DESTDIR@
 
 configure_args = @configure_args@
 #### End of variables
-
+export BOP_Verbose=0
 .SUFFIXES: .inc .h .c .y .i .$(DTRACE_EXT)
 
 all:
