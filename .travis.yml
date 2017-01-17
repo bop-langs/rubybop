@@ -30,7 +30,8 @@ git:
   submodules: false
 before_install:
   - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --init --recursive
+  - git submodule update --init
+  - cd cbop && sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules && git submodule update --init && cd -
   - "if [[ $TRAVIS_OS_NAME = 'linux' ]]; then JOBS='-j'; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then brew install autoconf openssl; fi"
   - "if [[ $TRAVIS_OS_NAME = 'osx' ]]; then OPENSSL_FLAG=\"--with-openssl-dir=`brew --prefix openssl`\"; fi"
