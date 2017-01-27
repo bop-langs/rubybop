@@ -12,7 +12,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 BOPDIR = ../cbop
 WRAPPER = $(BOPDIR)/dmmalloc.o $(BOPDIR)/malloc_wrapper.o $(BOPDIR)/sys_wrapper.o
 BOPFLAGS = -DBOP -pthread -Wno-declaration-after-statement -O3
-BOPLIB = $(BOPDIR)/inst.a $(BOPDIR)/noomr/libnoomr.a
+BOPLIB = $(BOPDIR)/libcbop.a $(BOPDIR)/noomr/libnoomr.a
 #### Start of system configuration section. ####
 srcdir = @srcdir@
 top_srcdir = $(srcdir)
