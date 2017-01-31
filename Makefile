@@ -29,4 +29,4 @@ test: miniruby
 	$(MAKE) add_test
 
 add_test: miniruby
-	@export BOP_Verbose=3; cd $(RUBY_DIR) && ./miniruby test/bop/add.rb 20 2
+	@export BOP_Verbose=3; cd $(RUBY_DIR) && ./miniruby test/bop/simple/add.rb 20 2

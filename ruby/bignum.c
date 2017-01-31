@@ -12,6 +12,7 @@
 #include "internal.h"
 #include "ruby/thread.h"
 #include "ruby/util.h"
+#include "bop_api.h"
 
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
@@ -2936,6 +2937,7 @@ rb_cmpint(VALUE val, VALUE a, VALUE b)
 static void
 rb_big_realloc(VALUE big, size_t len)
 {
+  bop_msg(1, "big realloc");
     BDIGIT *ds;
     if (RBASIC(big)->flags & BIGNUM_EMBED_FLAG) {
 	if (BIGNUM_EMBED_LEN_MAX < len) {
@@ -2974,10 +2976,10 @@ rb_big_resize(VALUE big, size_t len)
     rb_big_realloc(big, len);
     BIGNUM_SET_LEN(big, len);
 }
-
 static VALUE
 bignew_1(VALUE klass, size_t len, int sign)
 {
+  //bop_msg(1, "New bignum");
     NEWOBJ_OF(big, struct RBignum, klass, T_BIGNUM | (RGENGC_WB_PROTECTED_BIGNUM ? FL_WB_PROTECTED : 0));
     BIGNUM_SET_SIGN(big, sign?1:0);
     if (len <= BIGNUM_EMBED_LEN_MAX) {

@@ -52,7 +52,7 @@ static const char REPORTBUG_MSG[] =
 #if defined __APPLE__
 	"Don't forget to include the above Crash Report log file.\n"
 #endif
-	"Please submit issues to the Rubybops repository, http://www.github.com/dcompiler/rubybop \n\n" \
+	"Please submit issues to the Rubybop repository, http://www.github.com/bop-langs/rubybop \n\n" \
     ;
 
 static const char *
@@ -403,6 +403,7 @@ rb_bug(const char *fmt, ...)
 {
     const char *file = NULL;
     int line = 0;
+    bop_msg(1, "In bug");
 
     if (GET_THREAD()) {
 	file = rb_sourcefile();

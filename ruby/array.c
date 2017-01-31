@@ -142,13 +142,13 @@ inline static void
 promise_ary_elm(VALUE ary, int idx){
   if(is_sequential())
     return;
-  BOP_record_write((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
+  BOP_record_write((void *)&RARRAY_AREF(ary, idx), sizeof(VALUE));
 }
 inline static void
 use_ary_elm(VALUE ary, int idx){
   if(is_sequential())
     return;
-  BOP_record_read((void *)&RARRAY_AREF(ary, idx), (size_t) ((char*)(&RARRAY_AREF(ary, idx+1)) - ((char* )&RARRAY_AREF(ary, idx))));
+  BOP_record_read((void *)&RARRAY_AREF(ary, idx), sizeof(VALUE));
 }
 
 inline static void

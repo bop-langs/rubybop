@@ -8,7 +8,6 @@
 #include "bop_api.h"
 #include "bop_ports.h"
 #include "object_monitor.h"
-#include "gc.h"
 
 static bop_record_t * records = NULL;
 static bop_record_copy_t * copy_records = NULL;
@@ -36,7 +35,7 @@ static inline void record_bop_access(VALUE object, ID key, bool id_valid, int op
   if(is_sequential() && BOP_task_status() != MAIN) return;
   assert(rb_type(object) != T_FIXNUM);
   assert(op == READ_BIT || op == WRITE_BIT);
-  bop_record_t * record = get_record(object, key);
+  bop_record_t * record = get_record(object, key, true);
   if(record == NULL){
     assert(BOP_task_status() == MAIN);
     return;
@@ -74,19 +73,38 @@ void record_bop_wrt_id(VALUE obj, ID id){
 
 static inline void record_bop_gc_pr(VALUE obj, ID inst_id){
   record_id_t record_id;
-  bop_record_t * record = get_record(obj, inst_id);
+  bop_record_t * record = get_record(obj, inst_id, false);
   if(record == NULL) return;
   record_id = record->record_id;
-  record->vector = 0;
-  __sync_synchronize(); //full memory barrier
-  assert(__sync_and_and_fetch(&record->record_id, 0) == 0);
-  remove_list(&read_list, record_id);
-  remove_list(&write_list, record_id);
+  record->vector = 0; //incase the space is reused and gives identical VALUE and ID pairs (which is unlikely)
+  // Due to linear probing, we can't remove it from the hash table, but we can
+  // remove it from our lists to check reducing computation later
+  if((record->vector & (getbasebit() + READ_BIT)) != 0)
+    remove_list(&read_list, record_id);
+  if((record->vector & (getbasebit() + WRITE_BIT)) != 0){
+    remove_list(&write_list, record_id);
+    remove_list(&ordered_writes, record_id);
+  }
 }
+
+static inline int clear_key(st_data_t k, st_data_t v, st_data_t a){
+  ID key = (ID)k;
+  VALUE obj = (VALUE)a;
+  if (rb_is_instance_id(key)) {
+     record_bop_gc_pr(obj, key);
+  }
+  return ST_CONTINUE;
+}
+
+static inline void clear_all_inst_rec(VALUE obj){
+  bop_msg(4, "Clearing records for object 0x%lx", obj);
+  rb_ivar_foreach(obj, clear_key, obj);
+}
+
 void record_bop_gc(VALUE obj){
-  record_bop_gc_pr(obj, -1); //todo iterate over all of obj's instance variables
+ clear_all_inst_rec(obj);
 #ifdef HAVE_USE_PROMISE
-  record_bop_gc_pr(obj, DUMMY_ID); //
+  record_bop_gc_pr(obj, DUMMY_ID);
 #endif
 }
 #ifdef HAVE_USE_PROMISE
@@ -112,7 +130,7 @@ static inline uint64_t hash(uint64_t key){
 }
 
 static inline uint64_t hash2(uint64_t obj, uint64_t key){
-  return hash(obj) * 3 + hash(key);
+  return hash(obj) + hash(key);
 }
 
 static inline record_id_t make_record_id(VALUE obj, ID id){
@@ -122,18 +140,17 @@ static inline record_id_t make_record_id(VALUE obj, ID id){
   return record.record_id;
 }
 
-bop_record_t * get_record(VALUE obj, ID id){
+bop_record_t * get_record(VALUE obj, ID id, bool allocate){
   static const record_id_t UNALLOCATED = 0;
-  bool has_gced = false;
   uint64_t probes, index;
   record_id_t old_record_id;
   record_id_t record_id = make_record_id(obj, id);
   uint64_t base_index = hash2((uint64_t) obj, (uint64_t) id);
-  search: for(probes = 0; probes <= MAX_PROBES; probes++){
+  for(probes = 0; probes <= MAX_PROBES; probes++){
     index = (base_index + probes) % MAX_RECORDS;
-    if(records[index].record_id == record_id) //already set to this object
+    if(records[index].record_id == record_id) //
       return &records[index];
-    else if(records[index].record_id == UNALLOCATED){
+    else if(allocate && records[index].record_id == UNALLOCATED){
       //found un-allocated. Allocate it atomically
       old_record_id = __sync_val_compare_and_swap(&records[index].record_id,
         UNALLOCATED, record_id);
@@ -143,14 +160,8 @@ bop_record_t * get_record(VALUE obj, ID id){
       }
     }
   }
-  if(!has_gced){
-    has_gced = true;
-    rb_gc_start();
-    goto search;
-  }else{
-    BOP_abort_spec("Couldn't create set up a new access vector for object %lu", obj);
-    return NULL;
-  }
+  BOP_abort_spec("no record available for <0x%lx, 0x%lx> (%lu probes)", obj, id, probes);
+  return NULL;
 }
 // list utilities
 static inline void update_wrt_list(bop_record_t * record){
@@ -211,7 +222,7 @@ void free_all_lists(){
   read_list = write_list = ordered_writes = NULL;
 }
 void restore_seq(){
-  // if(BOP_spec_order() == BOP_get_group_size() - 1) return;
+  if(BOP_spec_order() == BOP_get_group_size() - 1) return;
   if(records != NULL)
     if(munmap(records, SHM_SIZE) == -1){
       perror("Couldn't unmap the shared mem region (records)");
@@ -225,7 +236,7 @@ void restore_seq(){
 }
 void commit(bop_record_t * record){
   //only need to commit the last one
-  if(in_ordered_region || is_commiting_writer(record)){
+  if((in_ordered_region || is_commiting_writer(record)) && BOP_task_status() != UNDY){
     size_t index = __sync_fetch_and_add(next_copy_record, 1);
     if(index >= MAX_COPYS){
       BOP_abort_spec("Ran out of copy records!");
@@ -241,7 +252,7 @@ void parent_merge(){
   if(BOP_task_status() == UNDY) return;
   size_t index;
   bop_record_copy_t * copy;
-  bop_msg(3, "Checking %d copy records", *next_copy_record - 1);
+  bop_msg(3, "Merging %d copy records", *next_copy_record - 1);
   for(index = 1; index < MAX_COPYS && index < *next_copy_record ; index++){
     copy = &copy_records[index];
     bop_msg(3, "Setting 0x%x (type 0x%x) id 0x%x to 0x%x", copy->obj, TYPE(copy->obj), copy->id, copy->val);
